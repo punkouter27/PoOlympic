@@ -18,7 +18,7 @@ namespace PoOlympic.Editor
         public const string AndroidLib = "Assets/Plugins/MuJoCo/Android/arm64-v8a/libmujoco.so";
         public const string WindowsDll = "Assets/Plugins/MuJoCo/mujoco.dll";
         public const string ApkPath = "Builds/Android/PoOlympic.apk";
-        public const string PackageId = "com.poolympic.game";
+        public const string PackageId = PlayAab.APP_ID;
 
         /// <summary>Native plugin import settings: the .so only on Android ARM64, the .dll only in the Editor / Windows.</summary>
         [MenuItem("PoOlympic/Android/Configure MuJoCo plugins")]
