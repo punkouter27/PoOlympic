@@ -119,6 +119,25 @@ namespace PoOlympic.Editor
         }
     }
 
+    /// <summary>
+    /// WebGL has no compute shaders, so VFX Graph cannot run there: each VisualEffect in a scene
+    /// logged "Invalid VFX Particle System. It is skipped." and ImpactFx already falls back to
+    /// Shuriken (sparksFallback) when SystemInfo.supportsComputeShaders is false. So the WebGL
+    /// player gets the scenes without them.
+    /// </summary>
+    sealed class StripVfxForWebGL : IProcessSceneWithReport
+    {
+        public int callbackOrder => 0;
+
+        public void OnProcessScene(UnityEngine.SceneManagement.Scene scene, BuildReport report)
+        {
+            if (report == null || report.summary.platform != BuildTarget.WebGL) return;
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var vfx in root.GetComponentsInChildren<UnityEngine.VFX.VisualEffect>(true))
+                    Object.DestroyImmediate(vfx);
+        }
+    }
+
     /// <summary>Rewrites a binary glTF with every embedded image at most maxSize px on its longer side.</summary>
     static class Glb
     {
