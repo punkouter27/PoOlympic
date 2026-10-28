@@ -4,7 +4,7 @@ Rules for any AI agent working in this repository (Unity 6000.6 + MuJoCo RL athl
 
 ## 1. Project setup and git workflow
 - **Project context:** check the `docs/` folder in the repo root first for an overall summary of the project (`docs/DESIGN.md`), then `tasks.md` and `rl_optimization_log.md` for status.
-- **Branching and sync:** only use the main branch (`main`, this repo's master branch) for all work. Use other branches only when specifically asked. When doing a git sync, always commit all changes beforehand.
+- **Branching and sync:** only use the `master` branch for all work. Use other branches only when specifically asked. When doing a git sync, always commit all changes beforehand.
 - **Unity tooling:** interact with Unity through whichever tool gives the best result: Unity CLI pipeline (`unity command …`), https://github.com/CoplayDev/unity-mcp, or https://github.com/IvanMurzak/Unity-MCP.
 - **Scene construction:** create as many prefabs / objects in the scene as possible (via MCP / the Unity CLI) rather than generating them from code at runtime, so the user can adjust the positions of static objects directly in the scene.
 - **Performance safeguards:** to avoid stalling, enable "No Throttling" (Preferences › General › Interaction Mode) in the editor and "Run In Background" in Player settings (via MCP / the Unity CLI); turn on auto-tick so the editor keeps updating in the background.

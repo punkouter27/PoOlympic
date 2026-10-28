@@ -5,7 +5,7 @@ name: Build & Deploy WebGL
 # anyone's fork run code on that PC. Never add one.
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
