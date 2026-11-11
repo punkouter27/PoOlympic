@@ -3,6 +3,8 @@
 *.unity text eol=lf merge=unityyamlmerge
 *.prefab text eol=lf merge=unityyamlmerge
 *.asset text eol=lf merge=unityyamlmerge
+LightingData.asset binary !eol
+*.exr binary
 *.meta text eol=lf
 *.xml text eol=lf
 *.json text eol=lf

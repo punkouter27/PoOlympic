@@ -173,9 +173,16 @@ def rollout(group: str, seed: int, seconds: float) -> dict[str, list[tuple[float
                 samples[i].append((t, v, v - ema[i], float(np.hypot(c[0], c[1]))))
             if t >= next_shove[i] and age >= (AF.SETUP_S if crawl else SETTLE_S):
                 a = rng.uniform(0, 2 * math.pi)
-                dv = rng.uniform(0.3, 2.4) * math.sqrt(lam[i])
-                d.qvel[ln.ath.root_dofadr: ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
-                next_shove[i] = t + rng.uniform(1.5, 3.5)
+                if crawl:
+                    dv = rng.uniform(0.3, 4.5) * math.sqrt(lam[i])
+                    d.qvel[ln.ath.root_dofadr: ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                    d.qvel[ln.ath.root_dofadr + 2] += rng.uniform(-2.5, -0.5) * math.sqrt(lam[i])
+                    d.qvel[ln.ath.root_dofadr + 3] += rng.uniform(-4.0, 4.0)
+                    next_shove[i] = t + rng.uniform(1.0, 2.5)
+                else:
+                    dv = rng.uniform(0.3, 2.4) * math.sqrt(lam[i])
+                    d.qvel[ln.ath.root_dofadr: ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                    next_shove[i] = t + rng.uniform(1.5, 3.5)
         for s in range(C.DECIMATION):
             for i, ln in enumerate(lanes):
                 if active[i]:
@@ -259,6 +266,9 @@ def main() -> int:
         v = F[:, 0]
         falls = int((y == 0).sum())
         a, b = logistic(F, y)
+        if a[1] < 0.0:                   # drop cannot increase survival probability; boundary w_drop = 0
+            a2, b = logistic(F[:, [0, 2]], y)
+            a = np.array([a2[0], 0.0, a2[1]])
         p = 1 / (1 + np.exp(-(F @ a + b)))
         score_auc = auc(p, y)
         bins = np.quantile(p, np.linspace(0, 1, 11))
