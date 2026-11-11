@@ -12,7 +12,7 @@ namespace PoOlympic
         public IronPedestalEvent ev;
         public string title = "IRON PEDESTAL";
         public string subtitle = "Event 1 · survive 20 s";
-        public string version = "v0 · rung 0 brain";
+        public string version = "v0 · 261111";
         float _fps;
         GUIStyle _big, _mid, _small, _panel;
 

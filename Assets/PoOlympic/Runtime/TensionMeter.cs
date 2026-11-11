@@ -182,11 +182,12 @@ namespace PoOlympic
             return _leaderPick;
         }
 
-        /// <summary>0 = rock solid, 1 = going down.</summary>
+        /// <summary>0 = rock solid, 1 = going down (Feature 5: includes sudden critic value drops V(s_t) - EMA(V)).</summary>
         public float DangerOf(AthleteTelemetry t)
         {
             if (t == null || !t.Ready) return 0f;
             float conf = float.IsNaN(t.Confidence) ? 0f : 1f - t.Confidence;
+            float criticSpike = Mathf.InverseLerp(-0.15f, -0.85f, t.CriticDrop);
             bool crawler = t.Runner.crawlSteering;           // on all fours the torso is horizontal by design
             float tilt = crawler ? 0f : Mathf.InverseLerp(20f, 55f, t.TiltDeg);
             float tiltRate = crawler ? 0f : Mathf.InverseLerp(60f, 240f, Mathf.Abs(t.TiltRateDps));
@@ -196,7 +197,7 @@ namespace PoOlympic
             float balance = 0f;
             if (kind == BroadcastDirector.Kind.Arena && !float.IsNaN(t.BalanceMarginSmooth))
                 balance = 0.6f * Mathf.InverseLerp(0.08f, -0.05f, t.BalanceMarginSmooth);   // 8 cm inside = safe, 5 cm outside = gone
-            return Mathf.Clamp01(Mathf.Max(Mathf.Max(conf, balance), Mathf.Max(tilt, tiltRate * 0.8f)));
+            return Mathf.Clamp01(Mathf.Max(Mathf.Max(conf, criticSpike), Mathf.Max(balance, Mathf.Max(tilt, tiltRate * 0.8f))));
         }
     }
 }

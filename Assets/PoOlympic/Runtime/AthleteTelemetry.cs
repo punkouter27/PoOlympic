@@ -101,6 +101,21 @@ namespace PoOlympic
         public float GroundWeights { get; private set; }
         /// <summary>This athlete's contacts with anything else at the last step.</summary>
         public int Contacts { get; private set; }
+        /// <summary>Feature 1: horizontal velocity and commanded intent vector in Unity world space (m/s).</summary>
+        public Vector3 VelocityWorld { get; private set; }
+        public Vector3 IntentWorld { get; private set; }
+        /// <summary>Feature 2: normalized joint strain / velocity saturation thermal load (0..1).</summary>
+        public float ThermalLoad => Mathf.Clamp01(Mathf.Max(Mathf.InverseLerp(0.65f, 1f, StressMax), Mathf.InverseLerp(12f, JointSpeedBar, JointSpeedMax)));
+        /// <summary>Feature 3: Zero-Moment Point ground projection in Unity world space.</summary>
+        public Vector3 Zmp { get; private set; }
+        /// <summary>Feature 5: instantaneous critic value drop V(s_t) − EMA(V) for Danger Cam auto-cuts.</summary>
+        public float CriticDrop { get; private set; }
+        /// <summary>Feature 8: left/right foot contact state and current airborne flight phase duration (ms).</summary>
+        public bool FootLeftOn => _footOn[0];
+        public bool FootRightOn => _footOn[1];
+        public float AirborneMs => (!_footOn[0] && !_footOn[1]) ? Mathf.Min(_footOff[0], _footOff[1]) * (float)_dt * 1000f : 0f;
+        /// <summary>Feature 10: current recovery transition stage (RELAX → ROLL → RISE, or "" when upright).</summary>
+        public string RecoveryStage => Runner != null ? Runner.RecoveryStage : "";
 
         public const float JointSpeedBar = 18f, RestEffort = 0.15f, TireSeconds = 25f, RecoverSeconds = 12f;
 
@@ -125,6 +140,8 @@ namespace PoOlympic
         readonly List<float> _ptsZ = new();
         readonly Queue<float> _strikes = new();
         float _simTime, _lastTilt;
+        Vector3 _prevCom, _comVel, _comAcc;
+        bool _comInit;
         double _dt;
         const float G = 9.81f;
         const int DebounceSteps = 12;        // 60 ms off before a contact counts as new
@@ -201,6 +218,8 @@ namespace PoOlympic
             CadenceSpm = GroundContactS = 0f;
             _criticSeen = Runner != null ? Runner.CriticEvaluations : 0;
             _valueEma = float.NaN;
+            CriticDrop = 0f;
+            _comInit = false;
             _steps = _overSteps = 0;
             Fatigue = 0f;
         }
@@ -238,9 +257,17 @@ namespace PoOlympic
             _steps++;
             if (vmax > JointSpeedBar) _overSteps++;
 
-            // pelvis speed, tilt
+            // pelvis speed, tilt, intent vector, and ZMP
             int r = Runner.Binding.RootDofAdr;
-            float sp = Mathf.Sqrt((float)(d->qvel[r] * d->qvel[r] + d->qvel[r + 1] * d->qvel[r + 1]));
+            int rq = Runner.Binding.RootQposAdr;
+            float vxWorld = (float)d->qvel[r], vyWorld = (float)d->qvel[r + 1];
+            VelocityWorld = new Vector3(vxWorld, 0f, vyWorld);
+            double qw = d->qpos[rq + 3], qx = d->qpos[rq + 4], qy = d->qpos[rq + 5], qz = d->qpos[rq + 6];
+            float yaw = (float)Math.Atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz));
+            var bc = Runner.BodyCommand(Runner.command);
+            float cy = Mathf.Cos(yaw), sy = Mathf.Sin(yaw);
+            IntentWorld = new Vector3(bc.x * cy - bc.y * sy, 0f, bc.x * sy + bc.y * cy);
+            float sp = Mathf.Sqrt(vxWorld * vxWorld + vyWorld * vyWorld);
             SpeedMps += (sp - SpeedMps) * (1f - Mathf.Exp(-(float)_dt / 0.3f));
             float tilt = Mathf.Acos(Mathf.Clamp((float)d->xmat[9 * _torso + 8], -1f, 1f)) * Mathf.Rad2Deg;
             float rate = (tilt - _lastTilt) / (float)_dt;
@@ -250,6 +277,18 @@ namespace PoOlympic
             var pel = new Vector3((float)d->xpos[3 * _pelvis], (float)d->xpos[3 * _pelvis + 2], (float)d->xpos[3 * _pelvis + 1]);
             PelvisPosition = pel;
             Com = new Vector3((float)d->subtree_com[3 * _pelvis], (float)d->subtree_com[3 * _pelvis + 2], (float)d->subtree_com[3 * _pelvis + 1]);
+            if (!_comInit) { _prevCom = Com; _comVel = _comAcc = Vector3.zero; _comInit = true; }
+            else
+            {
+                var vNow = (Com - _prevCom) / (float)_dt;
+                var aNow = (vNow - _comVel) / (float)_dt;
+                float ka = 1f - Mathf.Exp(-(float)_dt / 0.08f);
+                _comVel = Vector3.Lerp(_comVel, vNow, ka);
+                _comAcc = Vector3.Lerp(_comAcc, aNow, ka);
+                _prevCom = Com;
+            }
+            float hCom = Mathf.Max(0.1f, Com.y - SupportHeight);
+            Zmp = new Vector3(Com.x - (hCom / G) * Mathf.Clamp(_comAcc.x, -15f, 15f), SupportHeight, Com.z - (hCom / G) * Mathf.Clamp(_comAcc.z, -15f, 15f));
 
             // contacts: support points, foot touchdowns, new body / cube contacts (peak force over the first
             // PeakSteps of a contact: MuJoCo's soft contact force ramps up over a few steps)
@@ -417,8 +456,9 @@ namespace PoOlympic
             float v = Runner.CriticValue;
             float alpha = Mathf.Clamp01(Runner.criticEvery * (float)(_dt * Runner.Contract.decimation) / _conf.emaTau);
             _valueEma = float.IsNaN(_valueEma) ? v : _valueEma + alpha * (v - _valueEma);
+            CriticDrop = v - _valueEma;
             var cmd = Runner.command;
-            Confidence = _conf.Probability(v, v - _valueEma, Mathf.Sqrt(cmd.x * cmd.x + cmd.y * cmd.y));
+            Confidence = _conf.Probability(v, CriticDrop, Mathf.Sqrt(cmd.x * cmd.x + cmd.y * cmd.y));
             MinConfidence = Mathf.Min(MinConfidence, Confidence);
             ConfidenceHistory.Add(Confidence);
             int keep = Mathf.CeilToInt(historySeconds / (Runner.criticEvery * (float)(_dt * Runner.Contract.decimation)));

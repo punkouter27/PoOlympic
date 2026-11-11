@@ -50,5 +50,28 @@ namespace PoOlympic.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        [Test]
+        public void AggressiveRacersSurgeAndSwingIntoRivals()
+        {
+            var go = new GameObject("aggressive");
+            try
+            {
+                var slalom = go.AddComponent<SlalomEvent>();
+                Assert.IsTrue(slalom.aggressive, "Feature 4: slalom racers default to aggressive collision mode");
+                var (vx, a) = slalom.Brawl(-0.42, slalom.speed);
+                Assert.Greater(vx, slalom.speed, "brawler surges speed into convergence pole");
+                Assert.AreEqual(-slalom.brawlLine, a, 1e-6, "brawler swings wide into the neighbour's line");
+
+                var track = go.AddComponent<TrackRaceEvent>();
+                Assert.IsTrue(track.aggressivePack, "Feature 4: track racers default to aggressive pack brawl");
+                var contract = new Contract { steering = new Contract.Steering { heading_gain = 2.0, lane_gain = 1.0, max_lateral_accel = 4.0 } };
+                var cmd = track.BrawlCommand(myY: 1.22, laneOriginY: 1.22, rivalY: 0.0, yaw: 0.0, baseVx: 3.5f, contract);
+                Assert.Greater(cmd.x, 3.5f, "track brawler surges forward speed when alongside a rival");
+                Assert.Less(cmd.z, 0f, "track brawler steers toward rival on the right (y = 0 < 1.22)");
+                Assert.AreEqual("261111", HudAnchors.BuildStamp, "BR build watermark matches YYMMDD");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
     }
 }

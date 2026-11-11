@@ -91,6 +91,18 @@ def tactician(i: int, xs: list[float], yw: list[float], racing: list[bool], a: f
 
 
 YIELD_X, LEVEL_X, YIELD_GAP, YIELD_VX, TIGHT_LINE = 1.2, 0.15, 0.9, 0.6, 0.45   # m, m, m, x pace, m — tuned on CPU heats
+BRAWL_VX, BRAWL_LINE = 1.08, 0.56   # Feature 4: aggressive slalom brawl (surge pace + wide swing into neighbour)
+
+
+def brawler(i: int, xs: list[float], yw: list[float], racing: list[bool], a: float, vx: float) -> tuple[float, float]:
+    """Feature 4 (= C# SlalomEvent.Brawl): instead of yielding at convergence poles, racers surge and swing wide into
+    nearby neighbours to body-check them into the poles."""
+    for j in (i - 1, i + 1):
+        if not (0 <= j < len(xs)) or not racing[j]:
+            continue
+        if abs(xs[j] - xs[i]) < YIELD_X and abs(yw[j] - yw[i]) < YIELD_GAP:
+            return vx * BRAWL_VX, math.copysign(max(abs(a), BRAWL_LINE), a)
+    return vx, a
 
 
 def runner_line(seed: int, i: int) -> float:
@@ -120,7 +132,7 @@ class SlalomResult:
 
 @AL.logged("event_slalom")
 def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[float] | None = None, vx: float = VX, scene=None, layout_path=None, brains: dict | None = None,
-             tactics: bool = False, recover: dict | None = None) -> SlalomResult:
+             tactics: bool = False, aggressive: bool = False, recover: dict | None = None) -> SlalomResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -152,7 +164,10 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[fl
             if res[i].status:
                 ln.control(ln.sess, d, np.zeros(3))
             else:
-                v, a = tactician(i, xs, yw, racing, course_side(ln.k) * lines[i], vx) if tactics else (vx, course_side(ln.k) * lines[i])
+                base_a = course_side(ln.k) * lines[i]
+                v, a = (brawler(i, xs, yw, racing, base_a, vx) if aggressive
+                        else tactician(i, xs, yw, racing, base_a, vx) if tactics
+                        else (vx, base_a))
                 ln.control(ln.sess, d, slalom_command(d.qpos[ra + 3: ra + 7], xs[i], yw[i] - ln.origin[1], a, v))
         for s in range(C.DECIMATION):
             for ln in lanes:

@@ -130,6 +130,7 @@ PACK = 0.61 / 0.64    # terminal, pack rule: lines of two runners side by side =
                       # lines: one shared inside line gave rear-end pile-ups, 2-6 of 8 down; 0.61 m = steady
                       # shoulder contact, 1-3 MATTs down; 0.55 m = 2-5 down)
 PACK_X = 1.5          # m — "side by side": within this distance along the track
+BRAWL_X, BRAWL_Y, BRAWL_PULL, BRAWL_SURGE, BRAWL_PACK_SCALE = 2.0, 1.45, 0.32, 1.05, 0.80   # Feature 4: aggressive pack brawl
 
 
 def half_width(m, d, ln) -> float:
@@ -139,20 +140,37 @@ def half_width(m, d, ln) -> float:
                for g in range(m.ngeom) if m.body_rootid[m.geom_bodyid[g]] == ln.pelvis)
 
 
-def pack_target(i: int, xs: list[float], racing: list[bool], hw: list[float], inside_y: float) -> float:
+def pack_target(i: int, xs: list[float], racing: list[bool], hw: list[float], inside_y: float, aggressive: bool = False) -> float:
     """Terminal lane break, pack rule (2026-10-12; = C# TrackRaceEvent.PackTarget): the field closes up on the inside
     line shoulder to shoulder — but only with the runners actually alongside. Runner i lines up outside every racing
     runner of a lower lane (lane 0 = the inside) within PACK_X of it along the track, PACK x their half-widths apart.
-    A level field of 8 MATTs gets lines 0.61 m apart (the rule before: every line at half its distance to lane 1); a
-    mixed field, which splits up by speed (MATT 4.0, KIM 3.7, zombie 2.9, GRANDMA 2.8 m/s) and ran 2.4 m apart under
-    that rule, runs in shoulder-to-shoulder groups."""
+    When `aggressive` is True, spacing tightens by BRAWL_PACK_SCALE so shoulders actively overlap and collide."""
     y, prev = inside_y, None
+    eff_pack = PACK * BRAWL_PACK_SCALE if aggressive else PACK
     for j in range(i + 1):
         if j == i or (racing[j] and abs(xs[j] - xs[i]) < PACK_X):
             if prev is not None:
-                y -= PACK * (hw[prev] + hw[j])
+                y -= eff_pack * (hw[prev] + hw[j])
             prev = j
     return y
+
+
+def brawl_steer(i: int, xs: list[float], ys: list[float], origins_y: list[float], racing: list[bool], base_vx: float) -> tuple[float, float]:
+    """Feature 4 (= C# TrackRaceEvent.BrawlSteer): seek shoulder-to-shoulder contact with the closest nearby rival,
+    returning (vx, lane_offset) leaned toward the rival's lateral position."""
+    my_x, my_y = xs[i], ys[i]
+    best_dy, rival_y = float("inf"), my_y
+    for j, ok in enumerate(racing):
+        if j == i or not ok:
+            continue
+        dy = abs(ys[j] - my_y)
+        if abs(xs[j] - my_x) < BRAWL_X and dy < BRAWL_Y and dy < best_dy:
+            best_dy, rival_y = dy, ys[j]
+    if best_dy == float("inf"):
+        return base_vx, my_y - origins_y[i]
+    pull = math.copysign(BRAWL_PULL, rival_y - my_y)
+    vx = min(4.0, base_vx * BRAWL_SURGE) if base_vx > 0 else base_vx
+    return vx, my_y - (origins_y[i] + pull)
 
 
 def merge_offset(y: float, target: float) -> float:

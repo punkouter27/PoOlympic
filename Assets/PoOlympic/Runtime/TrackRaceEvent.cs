@@ -45,7 +45,8 @@ namespace PoOlympic
             public string name;
             [NonSerialized] public AthleteJudge judge;
             [NonSerialized] public string status = "";
-            [NonSerialized] public float finishS = -1, peakMps, gapM = float.NaN, nerveM, x, v, y;            [NonSerialized] public bool braking;
+            [NonSerialized] public float finishS = -1, peakMps, gapM = float.NaN, nerveM, x, prevX, v, y;
+            [NonSerialized] public bool braking;
             [NonSerialized] public int place, tumbles, torsoId = -1;
             [NonSerialized] public float standT, lambda = 1f, halfWidth;   // halfWidth: lane break (track.py half_width)
             [NonSerialized] public bool wasOnFours;
@@ -73,6 +74,9 @@ namespace PoOlympic
         [Header("Terminal lane break (= track.py BREAK_X, MERGE_DEG, PACK, PACK_X)")]
         public bool laneBreak = true;
         public float breakX = 15f, mergeDeg = 12f, pack = 0.61f / 0.64f, packX = 1.5f;
+        [Header("Aggressive pack brawl (Feature 4: happy to collide in races)")]
+        public bool aggressivePack = true;
+        public float brawlRangeX = 2.0f, brawlRangeY = 1.45f, brawlPull = 0.32f, brawlSurge = 1.05f, brawlPackScale = 0.80f;
         [Header("Steeplechase (= track.py steeple)")]
         public float minFlight = 0.02f;
         [Header("All fours (= all_fours.py)")]
@@ -90,6 +94,8 @@ namespace PoOlympic
         public float PhaseTime { get; private set; }
         public float LiveTime { get; private set; }
         public float LeaderX => runners.Count == 0 ? 0 : runners.Max(r => r.x);
+        /// <summary>Feature 6: photo-finish laser plane activates when the leader is within 3.5 m of the line in a live race.</summary>
+        public bool PhotoFinishActive => Current == Phase.Live && mode != Mode.Brake && LeaderX >= distance - 3.5f && LeaderX <= distance + 0.5f;
         /// <summary>Result: by place. Live: finishers by finish time (they stop past the line), then the rest by distance.</summary>
         public IEnumerable<Runner> Standings => Current == Phase.Result ? runners.OrderBy(r => r.place)
             : runners.OrderBy(r => r.status == "FINISHED" ? 0 : 1).ThenBy(r => r.status == "FINISHED" ? r.finishS : 0f).ThenByDescending(r => r.x);
@@ -120,6 +126,7 @@ namespace PoOlympic
             foreach (var r in runners)
             {
                 r.status = ""; r.finishS = -1; r.peakMps = 0; r.gapM = float.NaN; r.braking = false; r.place = 0;
+                r.x = r.prevX = r.v = r.y = 0;
                 r.tumbles = 0; r.standT = 0; r.wasOnFours = false;
                 r.down = false; r.falls = 0; r.upT = 0;
                 r.runner.SetRecovering(false);
@@ -179,6 +186,7 @@ namespace PoOlympic
             foreach (var r in runners)
             {
                 int ra = r.runner.Binding.RootQposAdr, da = r.runner.Binding.RootDofAdr;
+                r.prevX = r.x;
                 r.x = sign * (float)(d->qpos[ra] - r.runner.laneOriginX);
                 r.v = sign * (float)d->qvel[da];
                 r.y = (float)(d->qpos[ra + 1] - r.runner.laneOriginY);
@@ -235,7 +243,7 @@ namespace PoOlympic
                             r.wasOnFours = on4;
                             r.standT = z > crawlBand.y * r.lambda && tilt < 40f ? r.standT + elapsed : 0f;
                             if (r.standT > standDqSeconds) { Out(r, "DQ"); continue; }
-                            if (r.x >= distance) { r.status = "FINISHED"; r.finishS = LiveTime; Stand(r); }
+                            if (r.x >= distance) { r.status = "FINISHED"; r.finishS = SubstepFinishTime(r, elapsed, tick); Stand(r); }
                             continue;
                         }
                         if (r.down)
@@ -257,7 +265,7 @@ namespace PoOlympic
                             Out(r, "FELL"); continue;
                         }
                         if (mode == Mode.Inverted && Mathf.Abs(r.y) > laneHalf) { Out(r, "DQ"); continue; }
-                        if (mode != Mode.Brake && r.x >= distance) { r.status = "FINISHED"; r.finishS = LiveTime; Stand(r); }
+                        if (mode != Mode.Brake && r.x >= distance) { r.status = "FINISHED"; r.finishS = SubstepFinishTime(r, elapsed, tick); Stand(r); }
                         if (mode == Mode.Brake)
                         {
                             float toe = r.x + toeAhead;
@@ -332,6 +340,15 @@ namespace PoOlympic
             }
         }
 
+        /// <summary>Feature 6: Substep photo-finish interpolation across the crossing frame for millisecond precision.</summary>
+        float SubstepFinishTime(Runner r, float elapsed, float tick)
+        {
+            float dt = Mathf.Max(elapsed, tick);
+            float dx = r.x - r.prevX;
+            float alpha = dx > 1e-4f ? Mathf.Clamp01((distance - r.prevX) / dx) : 1f;
+            return Mathf.Max(0f, LiveTime - dt * (1f - alpha));
+        }
+
         void Out(Runner r, string status) { r.status = status; Stand(r); }
         /// <summary>Race command + steering (the start, and a fallen runner back on its feet).</summary>
         void Go(Runner r)
@@ -339,6 +356,8 @@ namespace PoOlympic
             r.runner.command = new Vector3(commandSpeed, 0f, 0f);
             r.runner.laneKeeping = true;
             if (mode == Mode.Terminal && laneBreak) r.runner.steer = (x, y, yaw, c) => BreakSteer(r, x, yaw, c);
+            else if (aggressivePack && mode is Mode.Dash or Mode.Steeplechase or Mode.Resurrection or Mode.Ramp)
+                r.runner.steer = (x, y, yaw, c) => BrawlSteer(r, x, yaw, c);
         }
         void Stand(Runner r) { r.runner.command = Vector3.zero; r.runner.laneKeeping = false; r.runner.steer = null; }
 
@@ -366,23 +385,64 @@ namespace PoOlympic
         /// with whoever is alongside (`runners` is in lane order). x = progress from this runner's lane origin.</summary>
         unsafe Vector3 BreakSteer(Runner me, double x, double yaw, Vector3 cmd)
         {
-            if (x < breakX) return cmd;
+            if (x < breakX) return aggressivePack ? BrawlSteer(me, x, yaw, cmd) : cmd;
             var d = MjScene.Instance.Data;
             double myY = d->qpos[me.runner.Binding.RootQposAdr + 1];
             double target = runners[0].runner.laneOriginY;
             Runner prev = null;
+            float effPack = aggressivePack ? pack * brawlPackScale : pack;
+            bool contactNear = false;
             foreach (var o in runners)
             {
-                bool alongside = o.Racing && !o.down && Math.Abs(d->qpos[o.runner.Binding.RootQposAdr] - o.runner.laneOriginX - x) < packX;
+                double ox = d->qpos[o.runner.Binding.RootQposAdr] - o.runner.laneOriginX;
+                bool alongside = o.Racing && !o.down && Math.Abs(ox - x) < packX;
                 if (o != me && !alongside) continue;
-                if (prev != null) target -= pack * (prev.halfWidth + o.halfWidth);
+                if (o != me && Math.Abs(ox - x) < brawlRangeX) contactNear = true;
+                if (prev != null) target -= effPack * (prev.halfWidth + o.halfWidth);
                 prev = o;
                 if (o == me) break;
             }
+            if (aggressivePack && contactNear) cmd.x = Mathf.Min(4.0f, cmd.x * brawlSurge);
             double cap = Math.Tan(mergeDeg * Math.PI / 180.0) / me.runner.Contract.steering.lane_gain;
             double off = Math.Clamp(myY - target, -cap, cap);
             cmd.z = (float)me.runner.Contract.SteerYawRateFromYaw(yaw, off, cmd.x);
             return cmd;
+        }
+
+        /// <summary>Feature 4: Aggressive pack steering — runners seek shoulder-to-shoulder contact with nearby rivals,
+        /// leaning toward the closest neighbour's lateral line and surging forward speed to rub shoulders.</summary>
+        unsafe Vector3 BrawlSteer(Runner me, double x, double yaw, Vector3 cmd)
+        {
+            if (!aggressivePack) return cmd;
+            var d = MjScene.Instance.Data;
+            double myY = d->qpos[me.runner.Binding.RootQposAdr + 1];
+            double bestDy = double.MaxValue;
+            double rivalY = myY;
+            foreach (var o in runners)
+            {
+                if (o == me || !o.Racing || o.down) continue;
+                int ra = o.runner.Binding.RootQposAdr;
+                double dx = d->qpos[ra] - o.runner.laneOriginX - x;
+                double oy = d->qpos[ra + 1];
+                double dy = Math.Abs(oy - myY);
+                if (Math.Abs(dx) < brawlRangeX && dy < brawlRangeY && dy < bestDy)
+                {
+                    bestDy = dy;
+                    rivalY = oy;
+                }
+            }
+            if (bestDy == double.MaxValue) return cmd;
+            return BrawlCommand(myY, me.runner.laneOriginY, rivalY, yaw, cmd.x, me.runner.Contract);
+        }
+
+        /// <summary>Pure helper (unit-tested in SpectacleTests): leans the target line toward a rival at `rivalY` and surges.</summary>
+        public Vector3 BrawlCommand(double myY, double laneOriginY, double rivalY, double yaw, float baseVx, Contract contract)
+        {
+            double pull = Math.Sign(rivalY - myY) * brawlPull;
+            double targetY = laneOriginY + pull;
+            float vx = baseVx > 0f ? Mathf.Min(4.0f, baseVx * brawlSurge) : baseVx;
+            float wz = (float)contract.SteerYawRateFromYaw(yaw, myY - targetY, vx);
+            return new Vector3(vx, 0f, wz);
         }
 
         void Finish()

@@ -37,6 +37,8 @@ namespace PoOlympic
 
         static readonly List<HudAnchors> Live = new();
         const string DebugPref = "poolympic.perfOverlay";
+        /// <summary>AGENTS.md Rule 1 &amp; Prompt 35: YYMMDD build watermark in bottom-right corner (BR).</summary>
+        public const string BuildStamp = "261111";
         /// <summary>Full-bleed layers (scrim, loading veil): HudLayoutAudit leaves them out of the safe-area check.</summary>
         public const string BleedClass = "ha-bleed";
         const float HoldSeconds = 0.5f, SwipeUnits = 60f;      // panel units: the panel is 1920 tall on every phone
@@ -100,7 +102,9 @@ namespace PoOlympic
                 Add(DebugButton, "ha-dbg-bar").style.height = h;
             BottomBar.Add(DebugButton);
             BottomCentre = Add(BottomBar, "ha-bottom-centre");
-            Version = AddLabel(BottomBar, "ha-version", version);
+            string stamp = string.IsNullOrEmpty(version) || version.StartsWith("v0") ? BuildStamp : version;
+            Version = AddLabel(BottomBar, "ha-version", stamp);
+            Version.tooltip = $"{version} · {BuildStamp}";
             SwipeUpOpens(BottomBar);
 
             _scrim = Add(overlay, "ha-scrim", BleedClass);

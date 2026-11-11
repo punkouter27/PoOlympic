@@ -40,7 +40,7 @@ namespace PoOlympic
         public string title = "EVENT";
         public string subtitle = "Event";
         public int eventNumber;
-        public string version = "v0";
+        public string version = HudAnchors.BuildStamp;
         public TextAsset oddsModel;
         public StyleSheet style;
         [Tooltip("Betting slip before every heat (holds the start up to betWindowSeconds). Off by default (user, " +
@@ -247,12 +247,14 @@ namespace PoOlympic
             float brains = 0f;
             int n = 0;
             foreach (var a in AthleteTelemetry.All) if (a != null && a.Runner != null && a.Runner.isActiveAndEnabled) { brains += a.Runner.BrainMs; n++; }
-            string balance = float.IsNaN(t.BalanceMargin) ? "in the air" : t.BalanceMargin >= 0f ? $"+{t.BalanceMargin * 100f:0} cm inside" : $"{-t.BalanceMargin * 100f:0} cm OUTSIDE";
+            string balance = float.IsNaN(t.BalanceMargin) ? $"in the air ({t.AirborneMs:0} ms)" : t.BalanceMargin >= 0f ? $"+{t.BalanceMargin * 100f:0} cm inside" : $"{-t.BalanceMargin * 100f:0} cm OUTSIDE";
             string over = t.OverSpeedShare > 0.05f ? $"{t.OverSpeedShare * 100f:0}% OVER" : $"{t.OverSpeedShare * 100f:0.#}% over";
+            string gait = $"{(t.FootLeftOn ? "L" : "·")}{(t.FootRightOn ? "R" : "·")}";
+            string recStage = string.IsNullOrEmpty(t.RecoveryStage) ? "" : $" · recovery {t.RecoveryStage}";
             return $"{NameOf(who)} {Body(who)} · brain {(who.brain != null ? who.brain.name : "none")} v{who.BrainVersion} · " +
-                   $"{who.BrainMs:0.00} ms ({n} brains {brains:0.0} ms/tick) · speed {GameSettings.SpeedLabel}\n" +
+                   $"{who.BrainMs:0.00} ms ({n} brains {brains:0.0} ms/tick) · speed {GameSettings.SpeedLabel}{recStage}\n" +
                    $"balance {balance} · tilt {t.TiltDeg:0}° · effort {t.Effort * 100f:0}% (peak {t.StressJoint} {t.StressMax * 100f:0}%) · tired {t.Fatigue * 100f:0}%\n" +
-                   $"steps {t.CadenceSpm:0}/min · foot down {t.GroundContactS:0.00} s · joints {t.JointSpeedMax:0.0} rad/s, {over} {AthleteTelemetry.JointSpeedBar:0} · " +
+                   $"steps {t.CadenceSpm:0}/min [{gait}] · foot down {t.GroundContactS:0.00} s · joints {t.JointSpeedMax:0.0} rad/s, {over} {AthleteTelemetry.JointSpeedBar:0} · " +
                    $"slide {t.SlideSpeed:0.0} m/s · ground force {t.GroundWeights:0.0}× weight · {t.Contacts} contacts" + (ActionLog.Active ? " · logging" : "");
         }
 
@@ -739,8 +741,9 @@ namespace PoOlympic
                     Chip(_storyChip, who);
                     _storyName.text = row.name;
                     _storyName.tooltip = Body(who);
-                    _storyTag.text = tag;
-                    _storyTag.EnableInClassList("bh-story-tag-hot", tag == "IN TROUBLE");
+                    string rec = t.RecoveryStage;
+                    _storyTag.text = !string.IsNullOrEmpty(rec) ? rec : tag;
+                    _storyTag.EnableInClassList("bh-story-tag-hot", tag == "IN TROUBLE" || !string.IsNullOrEmpty(rec));
                     _sSpeed.text = $"{t.SpeedMps:0.0} m/s";
                     _sPower.text = $"{t.PowerW:N0} W";
                     // tiredness only once it tells something (as the confidence column): a fresh athlete shows nothing

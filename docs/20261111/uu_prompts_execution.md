@@ -1,0 +1,19 @@
+# UU_PROMPTS Execution Log (2026-11-11 · Build 261111)
+
+## Policy Impact Matrix (`AGENTS.md` §3)
+- **Policies Touched:** None (frozen observation/action interface v3/v4 preserved; all 15 deployed ONNX brains and sidecars in `Assets/PoOlympic/Models/` and `parity/brains/` remain bit-identical).
+- **Director & Event Rules Touched:**
+  - [`TrackRaceEvent.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/TrackRaceEvent.cs) & [`track.py`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/training/poolympic/events/track.py): Feature 4 aggressive pack brawl (`aggressivePack`, `BrawlSteer`, `BrawlCommand`, `brawl_steer`, `BRAWL_PACK_SCALE`) and Feature 6 substep photo-finish crossing interpolation (`SubstepFinishTime`, `PhotoFinishActive`).
+  - [`SlalomEvent.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/SlalomEvent.cs) & [`slalom.py`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/training/poolympic/events/slalom.py): Feature 4 aggressive collision racing (`aggressive = true`, `Brawl`, `brawler`) — racers surge (`1.08×` pace) and swing wide (`0.56 m`) into rivals at convergence poles instead of yielding.
+- **Telemetry, Visuals, Audio & UI Touched:**
+  - [`AthleteTelemetry.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/AthleteTelemetry.cs) & [`PolicyRunner.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/PolicyRunner.cs): Added `IntentWorld`, `VelocityWorld` (Feature 1), `ThermalLoad` (Feature 2), `Zmp` (Feature 3), `CriticDrop` (Feature 5), `AppliedForce` (Feature 7), `FootLeftOn` / `FootRightOn` / `AirborneMs` (Feature 8), and `RecoveryStage` (`RELAX → ROLL → RISE`, Feature 10).
+  - [`ColliderXray.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/ColliderXray.cs): Zero-allocation `Graphics.DrawMesh` rendering for intent ribbons (Feature 1), ZMP + convex support polygon ring (Feature 3), photo-finish laser plane (Feature 6), and torso wind/disturbance vectors (Feature 7).
+  - [`TensionMeter.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/TensionMeter.cs): Incorporated `CriticDrop` into `DangerOf` for automatic Danger Cam close-up cuts (Feature 5).
+  - [`FatigueLook.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/FatigueLook.cs): Combined epidermal subsurface flush with high-load joint strain thermal tint (`ThermalLoad`, Feature 2 & GFX 22).
+  - [`ArenaAudio.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/ArenaAudio.cs): Normal-force + shear-velocity friction modulation and kinetic-energy impact scaling (GFX/Audio 28–29).
+  - [`HudAnchors.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/HudAnchors.cs), [`BroadcastHud.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/BroadcastHud.cs), [`EventHud.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/EventHud.cs), [`TestbedHud.cs`](file:///c:/Users/punko/Downloads/_CODEMATT/PoOlympic/Assets/PoOlympic/Runtime/TestbedHud.cs): Updated `BR` build watermark to `261111` (`YYMMDD`, `AGENTS.md` §1 & UI 35), surfaced `RELAX → ROLL → RISE` recovery stage on the story strip tag, and added `[L·R]` footfall rhythm + airborne ms to debug telemetry.
+
+## Phase 2 Cleanup & Audit Summary
+- **Orphaned Checkpoints (`prune_checkpoints.ps1`):** `0 files, 0 MB` currently untracked (`3.8 GB` previously reclaimed).
+- **Runtime Rules Audit:** `0` `Instantiate`/`Destroy` calls and `0` PhysX references across all `Assets/PoOlympic/Runtime/*.cs` files.
+- **UI Token Audit:** `0` raw `px`/`rgb`/`#hex` violations across `Assets/PoOlympic/UI/*.uss`.

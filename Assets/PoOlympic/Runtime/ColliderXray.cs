@@ -24,25 +24,34 @@ namespace PoOlympic
         [Tooltip("Contact force (N) at which a geom is fully `loaded`.")]
         public float fullForceN = 1500f;
         public float arrowMinN = 30f, arrowMetresPerKn = 0.5f, arrowMaxM = 1.5f;
+        [Header("AR Telemetry Overlays (Features 1, 3, 6, 7)")]
+        public bool showPhotoFinishLaser = true;
+        public Color intentColor = new(0.2f, 0.95f, 0.55f, 0.85f), laserColor = new(1f, 0.15f, 0.2f, 0.32f);
 
         /// <summary>Shapes drawn last frame (tests, perf overlay).</summary>
         public int Drawn { get; private set; }
+        public int TelemetryDrawn { get; private set; }
 
         const int Sphere = 2, Capsule = 3, Ellipsoid = 4, Cylinder = 5, Box = 6;       // mjtGeom
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         float[] _force;
         MaterialPropertyBlock _block;
+        TrackRaceEvent _race;
+        bool _raceSearched;
 
         void LateUpdate()
         {
             Drawn = 0;
-            if (!GameSettings.ColliderView || material == null || !MjScene.InstanceExists || MjScene.Instance.Model == null) return;
+            TelemetryDrawn = 0;
+            if (material == null || !MjScene.InstanceExists || MjScene.Instance.Model == null) return;
+            _block ??= new MaterialPropertyBlock();
+            if (showPhotoFinishLaser) DrawPhotoFinish();
+            if (!GameSettings.ColliderView) return;
             var m = MjScene.Instance.Model;
             var d = MjScene.Instance.Data;
             int n = (int)m->ngeom;
             if (_force == null || _force.Length != n) _force = new float[n];
             else Array.Clear(_force, 0, n);
-            _block ??= new MaterialPropertyBlock();
 
             if (Time.timeScale > 0.01f)             // frozen (replay, hit-stop): the contacts are not those of the pose shown
             {
@@ -88,6 +97,67 @@ namespace PoOlympic
                     case Box: Draw(cube, pos, rot, new Vector3(rad, (float)s[2], half), color); break;
                 }
             }
+            foreach (var t in AthleteTelemetry.All)
+                if (t != null && t.Ready && t.isActiveAndEnabled) DrawAthleteTelemetry(t);
+        }
+
+        /// <summary>Feature 6: Vertical translucent laser plane across the finish line when the leader approaches.</summary>
+        void DrawPhotoFinish()
+        {
+            if (!_raceSearched) { _raceSearched = true; _race = FindAnyObjectByType<TrackRaceEvent>(); }
+            if (_race == null || !_race.PhotoFinishActive || _race.runners.Count == 0 || cube == null) return;
+            float sign = _race.commandSpeed < 0f ? -1f : 1f;
+            float finishX = (float)_race.runners[0].runner.laneOriginX + sign * _race.distance;
+            DrawOverlay(cube, new Vector3(finishX, 1.1f, 0f), Quaternion.identity, new Vector3(0.015f, 1.1f, 6.2f), laserColor);
+        }
+
+        /// <summary>Features 1, 3, 7: Predictive intent ribbon, ZMP + support polygon ring, and wind/disturbance vector.</summary>
+        void DrawAthleteTelemetry(AthleteTelemetry t)
+        {
+            var groundAt = new Vector3(t.PelvisPosition.x, t.SupportHeight + 0.02f, t.PelvisPosition.z);
+            // Feature 1: Intent vector ribbon vs actual velocity
+            if (t.IntentWorld.sqrMagnitude > 0.04f)
+            {
+                float div = Mathf.Clamp01(Vector3.Distance(t.IntentWorld, t.VelocityWorld) / 2.5f);
+                var col = Color.Lerp(intentColor, loaded, div);
+                float len = Mathf.Clamp(t.IntentWorld.magnitude * 0.35f, 0.2f, 1.4f);
+                var dir = t.IntentWorld.normalized;
+                DrawOverlay(cube, groundAt + dir * (len * 0.5f), Quaternion.LookRotation(dir, Vector3.up), new Vector3(0.035f, 0.008f, len * 0.5f), col);
+            }
+            // Feature 3: Support polygon hull & ZMP dot
+            if (t.SupportHull.Count >= 2 && !float.IsNaN(t.BalanceMargin))
+            {
+                var ringCol = Color.Lerp(loaded, rest, Mathf.InverseLerp(-0.04f, 0.08f, t.BalanceMargin));
+                for (int i = 0; i < t.SupportHull.Count; i++)
+                {
+                    var a = t.SupportHull[i] + Vector3.up * 0.015f;
+                    var b = t.SupportHull[(i + 1) % t.SupportHull.Count] + Vector3.up * 0.015f;
+                    var seg = b - a;
+                    float slen = seg.magnitude;
+                    if (slen > 0.01f)
+                        DrawOverlay(cylinder, (a + b) * 0.5f, Quaternion.FromToRotation(Vector3.up, seg / slen), new Vector3(0.01f, slen * 0.5f, 0.01f), ringCol);
+                }
+                DrawOverlay(sphere, t.Zmp + Vector3.up * 0.02f, Quaternion.identity, Vector3.one * 0.035f, ringCol);
+            }
+            // Feature 7: Wind / external disturbance vector on torso
+            var ext = t.Runner != null ? t.Runner.AppliedForce : Vector3.zero;
+            if (ext.sqrMagnitude > 0.25f)
+            {
+                float flen = Mathf.Clamp(ext.magnitude * 0.04f, 0.15f, 1.2f);
+                var fdir = ext.normalized;
+                var torsoAt = t.PelvisPosition + Vector3.up * 0.35f;
+                DrawOverlay(cylinder, torsoAt + fdir * (flen * 0.5f), Quaternion.FromToRotation(Vector3.up, fdir), new Vector3(0.015f, flen * 0.5f, 0.015f), arrow);
+            }
+        }
+
+        void DrawOverlay(Mesh mesh, Vector3 pos, Quaternion rot, Vector3 half, Color color)
+        {
+            if (mesh == null) return;
+            var e = mesh.bounds.extents;
+            var scale = new Vector3(half.x / e.x, half.y / e.y, half.z / e.z);
+            _block.SetColor(BaseColor, color);
+            Graphics.DrawMesh(mesh, Matrix4x4.TRS(pos, rot, scale), material, 0, null, 0, _block, false, false);
+            TelemetryDrawn++;
         }
 
         /// <param name="half">half extents wanted along the mesh's own axes (the mesh may be any size: the built-in

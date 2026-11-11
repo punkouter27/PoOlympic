@@ -113,6 +113,23 @@ namespace PoOlympic
         public bool CanRecover => _recover != null;
         /// <summary>The get-up brain is driving (zero command expected), see <see cref="SetRecovering"/>.</summary>
         public bool Recovering { get; private set; }
+        /// <summary>Feature 10: current stage of the fall-recovery director (RELAX → ROLL → RISE, or "" when upright).</summary>
+        public string RecoveryStage
+        {
+            get
+            {
+                if (lieStill) return "RELAX";
+                if (!Recovering) return "";
+                int relaxFor = RelaxTicks + RelaxStepTicks * Math.Min(_attempt, RelaxMaxSteps);
+                if (_cycleTick < relaxFor) return "RELAX";
+                if (MjScene.InstanceExists && MjScene.Instance.Data != null && Contract != null &&
+                    PelvisHeight(MjScene.Instance.Data) > 0.65 * UpZ * Contract.FallPelvisZ)
+                    return "RISE";
+                return "ROLL";
+            }
+        }
+        /// <summary>Feature 7: external disturbance / wind drag force currently applied to the torso (Unity world N).</summary>
+        public Vector3 AppliedForce { get; private set; }
         /// <summary>Brain inference time per control tick (ms, smoothed over ~20 ticks): the debug readout.</summary>
         public float BrainMs { get; private set; }
 
@@ -372,6 +389,8 @@ namespace PoOlympic
                 d->xfrc_applied[6 * _torso + 1] = f.y;
                 _windOn = Weather.Active;
             }
+            if (_torso >= 0)
+                AppliedForce = new Vector3((float)d->xfrc_applied[6 * _torso], (float)d->xfrc_applied[6 * _torso + 2], (float)d->xfrc_applied[6 * _torso + 1]);
             _substep++;
             if (_substep % Contract.decimation == 0) ControlTick++;
         }

@@ -16,7 +16,7 @@ namespace PoOlympic
         public PolicyRunner[] lanes = new PolicyRunner[0];
         public MjCubePool cubes;
         public string title = "PoOlympics — Testbed";
-        public string version = "v0 · zero-brain";
+        public string version = "v0 · 261111";
         float _fps;
 
         void Update() => _fps = Mathf.Lerp(_fps, 1f / Mathf.Max(1e-4f, Time.unscaledDeltaTime), 0.05f);

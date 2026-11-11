@@ -229,6 +229,17 @@ def test_slalom_tactician_yields_to_a_close_neighbour_ahead():
     assert slalom.tactician(0, [5.0, 5.0], [1.4, 0.8], [True, True], -0.5, slalom.VX)[0] == slalom.VX
 
 
+def test_aggressive_brawler_surges_and_collides():
+    xs, yw, racing = [5.0, 5.5, 5.0], [1.4, 0.8, 0.0], [True, True, True]
+    vx, a = slalom.brawler(0, xs, yw, racing, -0.42, slalom.VX)
+    assert vx == pytest.approx(slalom.VX * slalom.BRAWL_VX) and a == pytest.approx(-slalom.BRAWL_LINE)
+    hw, level = [0.32] * 8, [10.0] * 8
+    tight_lines = [track.pack_target(i, level, [True] * 8, hw, 3.66, aggressive=True) for i in range(8)]
+    assert tight_lines[1] > 3.66 - 0.61   # tighter than 0.61 m so shoulders actively collide
+    bvx, off = track.brawl_steer(0, [10.0, 10.5], [1.22, 0.0], [1.22, 0.0], [True, True], 3.5)
+    assert bvx > 3.5 and off > 0.0        # pulled right (toward y=0), so my_y - target_y > 0
+
+
 def test_fallen_runner_with_a_getup_brain_gets_up_and_finishes(monkeypatch):
     """Fall recovery (track.py `recover`): every KIM is knocked over 3 s into the dash, lies still, gets up, finishes."""
     import json

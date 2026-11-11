@@ -364,8 +364,9 @@ namespace PoOlympic
             {
                 var t = i < _sliders.Count ? _sliders[i] : null;
                 float u = t != null ? Mathf.InverseLerp(scrapeFrom, scrapeFull, t.SlideSpeed) : 0f;
+                float loadMod = t != null ? Mathf.Clamp(0.75f + 0.25f * t.GroundWeights, 0.6f, 1.3f) : 1f;
                 float surface = t == null || t.SlideSurface == Surface.Track ? 1f : t.SlideSurface == Surface.Metal ? 1.35f : 1.6f;
-                Loop(scrapes[i], u, scrapeMax, t != null ? t.SlidePoint : default, Mathf.Lerp(0.7f, 1.35f, u) * surface);
+                Loop(scrapes[i], Mathf.Clamp01(u * loadMod), scrapeMax, t != null ? t.SlidePoint : default, Mathf.Lerp(0.7f, 1.35f, u) * surface);
             }
         }
 
@@ -398,7 +399,8 @@ namespace PoOlympic
         {
             float mass = e.weightRatio > 0f ? e.forceN / (e.weightRatio * 9.81f) : 80f;
             float size = Mathf.Pow(80f / Mathf.Clamp(mass, 15f, 120f), 0.14f);
-            return (Mathf.Clamp01(floor + 0.28f * Mathf.Log(1f + ratio, 2f)), size * Mathf.Lerp(1.1f, 0.82f, Mathf.InverseLerp(1f, 6f, ratio)));
+            float ke = 1f + 0.03f * Mathf.Clamp(e.speedMps, 0f, 5f);
+            return (Mathf.Clamp01((floor + 0.28f * Mathf.Log(1f + ratio, 2f)) * ke), size * Mathf.Lerp(1.1f, 0.82f, Mathf.InverseLerp(1f, 6f, ratio)));
         }
 
         void OnImpact(ImpactEvent e)

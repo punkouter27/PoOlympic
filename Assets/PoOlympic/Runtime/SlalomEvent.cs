@@ -55,13 +55,15 @@ namespace PoOlympic
         public float missPenalty = 2f, clipPenalty = 0.5f;
         public float maxSeconds = 30f;
         public float countdownSeconds = 3f, resultHoldSeconds = 6f;
-        [Header("Race tactics (= slalom.py tactician: YIELD_X, LEVEL_X, YIELD_GAP, YIELD_VX, TIGHT_LINE)")]
-        [Tooltip("A racer eases off and tightens its line when a neighbour is just ahead and close: they reach the pole " +
-                 "one after the other instead of bumping shoulders (CPU heats: 14 → 3 falls in 192 runs, +0.7 s).")]
+        [Header("Race tactics (= slalom.py tactician / brawler)")]
+        [Tooltip("A racer eases off and tightens its line when a neighbour is just ahead and close (when aggressive is false).")]
         public bool tactics = true;
+        [Tooltip("Feature 4 (aggressive collision racing): instead of yielding at convergence poles, racers surge and swing wide into neighbours to body-check them.")]
+        public bool aggressive = true;
         [Tooltip("A racer with a get-up brain is not out when it falls: it gets up and races on (= slalom.py recover).")]
         public bool recoverFromFalls = true;
         public float yieldX = 1.2f, levelX = 0.15f, yieldGap = 0.9f, yieldPace = 0.6f, tightLine = 0.45f;
+        public float brawlSurge = 1.08f, brawlLine = 0.56f;
         public bool autoRestart = true, randomTraits = true;
         public int seed = 1;
 
@@ -111,27 +113,39 @@ namespace PoOlympic
             racers[i].runner.steer = (x, y, yaw, _) => TacticSteer(i, x, y, yaw, a);
         }
 
-        /// <summary>= slalom.py tactician + slalom_command: racer i's command from its own state and the two
-        /// neighbouring lanes' track positions (mjData, the same control tick).</summary>
+        /// <summary>= slalom.py brawler / tactician + slalom_command: racer i's command from its own state and the two
+        /// neighbouring lanes' track positions (mjData, the same control tick). When `aggressive` is true, racers surge
+        /// and widen their swing into nearby neighbours at the convergence poles instead of yielding.</summary>
         unsafe Vector3 TacticSteer(int i, double x, double y, double yaw, double a)
         {
             double vx = speed;
             var d = MjScene.Instance.Data;
             double yw = y + racers[i].runner.laneOriginY;
-            for (int j = i - 1; tactics && j <= i + 1; j += 2)
+            for (int j = i - 1; (tactics || aggressive) && j <= i + 1; j += 2)
             {
                 if (j < 0 || j >= racers.Count || !racers[j].Racing) continue;
                 var o = racers[j].runner;
                 int ra = o.Binding.RootQposAdr;
                 double dx = d->qpos[ra] - o.laneOriginX - x;
+                double dy = Math.Abs(d->qpos[ra + 1] - yw);
+                if (aggressive)
+                {
+                    if (Math.Abs(dx) >= yieldX || dy >= yieldGap) continue;
+                    (vx, a) = Brawl(a, speed);
+                    break;
+                }
                 bool ahead = dx > levelX || (Math.Abs(dx) <= levelX && j < i);
-                if (!ahead || dx >= yieldX || Math.Abs(d->qpos[ra + 1] - yw) >= yieldGap) continue;
+                if (!ahead || dx >= yieldX || dy >= yieldGap) continue;
                 vx = speed * yieldPace;
                 a = Math.Sign(a) * Math.Min(Math.Abs(a), tightLine);
                 break;
             }
             return Steer(x, y, yaw, a, vx);
         }
+
+        /// <summary>Feature 4 (= slalom.py brawler): surge pace and widen swing amplitude into a nearby rival.</summary>
+        public (double vx, double a) Brawl(double a, double baseVx) =>
+            (baseVx * brawlSurge, Math.Sign(a) * Math.Max(Math.Abs(a), brawlLine));
 
         void BeginAttempt(bool first)
         {
