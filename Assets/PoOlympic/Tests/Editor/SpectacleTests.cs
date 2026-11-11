@@ -65,7 +65,7 @@ namespace PoOlympic.Tests
 
                 var track = go.AddComponent<TrackRaceEvent>();
                 Assert.IsTrue(track.aggressivePack, "Feature 4: track racers default to aggressive pack brawl");
-                var contract = new Contract { steering = new Contract.Steering { heading_gain = 2.0, lane_gain = 1.0, max_lateral_accel = 4.0 } };
+                var contract = new Contract { steering = new Contract.Steering { heading_gain = 2.0, lane_gain = 1.0, wz_limit = 1.0 } };
                 var cmd = track.BrawlCommand(myY: 1.22, laneOriginY: 1.22, rivalY: 0.0, yaw: 0.0, baseVx: 3.5f, contract);
                 Assert.Greater(cmd.x, 3.5f, "track brawler surges forward speed when alongside a rival");
                 Assert.Less(cmd.z, 0f, "track brawler steers toward rival on the right (y = 0 < 1.22)");
