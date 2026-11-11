@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI Integrity Pass — Before vs After (Build 261111)</title>
+<style>
+  :root { --bg: #0c1220; --panel: #151d31; --ink: #eef1f7; --muted: #a3aec4; --accent: #ffd84a; --new: #ff5a4a; --good: #78e68c; --line: #26314c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { color: var(--accent); font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 40px 0 8px; }
+  p, li { color: #c5cad8; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+  @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  figcaption { margin: 0 0 8px; font-weight: 600; }
+  figcaption.before { color: var(--muted); }
+  figcaption.after { color: var(--good); }
+  .shot { position: relative; line-height: 0; }
+  .shot img { width: 100%; height: auto; display: block; border-radius: 6px; }
+  .mk { position: absolute; border: 3px solid var(--new); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.65); }
+  .mk b { position: absolute; top: -13px; left: -13px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px;
+          background: var(--new); color: #fff; font: 700 14px/26px "Segoe UI", sans-serif; text-align: center; }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tag { display: inline-block; min-width: 22px; padding: 0 5px; border-radius: 11px; background: var(--new); color: #fff; font-weight: 700; text-align: center; font-size: 13px; }
+  code { color: #9fd3ff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>UI Integrity Pass — Portrait Before vs After</h1>
+  <p class="sub">2026-11-11 · Build <code>261111</code> · Captured in Unity <code>6000.6.0f1</code> Play mode at 1440 × 3088 portrait (<a href="../parity/ui/audit35_before_after.html" style="color:#9fd3ff">prior audit35 captures</a> vs live build).</p>
+
+  <h2>1. Main Menu &amp; Unified Bottom Sheet</h2>
+  <div class="pair">
+    <figure><figcaption class="before">Before (audit35, 3-tab settings)</figcaption>
+      <div class="shot"><img src="img/ui_menu_before.png" alt="Main menu before: 3-tab settings sheet and v0.1.0 footer"></div></figure>
+    <figure><figcaption class="after">After (Build 261111, 16-chip sheet + scrim)</figcaption>
+      <div class="shot"><img src="img/ui_menu_sheet_after.png" alt="Main menu after: unified Actions / Settings / Close bottom sheet with 16 chips">
+        <div class="mk" style="left:1.5%;top:68.6%;width:97%;height:26.5%"><b>1</b></div>
+        <div class="mk" style="left:87.5%;top:96.4%;width:10.5%;height:2.4%"><b>2</b></div>
+      </div></figure>
+  </div>
+  <ul>
+    <li><span class="tag">1</span> Unified <code>HudAnchors</code> bottom sheet replaces the separate dropdown + 3-tab settings sheet with <b>Actions | Settings | Close</b> and all 16 chips on one page (Audio, Display, Vibrate, Shapes, Bets, Weather, AI talk, Debug, Log, Erase) over a dimming scrim.</li>
+    <li><span class="tag">2</span> Bottom-right build stamp now renders the <code>YYMMDD</code> date (<code>261111</code>).</li>
+  </ul>
+
+  <h2>2. Main Menu — Event Grid &amp; Lineup</h2>
+  <div class="pair">
+    <figure><figcaption class="before">Before (audit35 menu, 14 tiles)</figcaption>
+      <div class="shot"><img src="img/ui_menu_before.png" alt="Old main menu grid"></div></figure>
+    <figure><figcaption class="after">After (Build 261111, 18 playable events)</figcaption>
+      <div class="shot"><img src="img/ui_menu_after.png" alt="Current main menu with 18 event tiles and bottom-right 261111 stamp">
+        <div class="mk" style="left:1.5%;top:72.8%;width:97%;height:16.5%"><b>3</b></div>
+      </div></figure>
+  </div>
+  <ul>
+    <li><span class="tag">3</span> Full 18-event grid (including <code>02</code>, <code>04</code>, <code>14</code>, and <code>27 The Resurrection Dash</code>), selected event detail card with policy rung badge, and <code>GAUNTLET</code> + <code>PLAY</code> primary action bar.</li>
+  </ul>
+
+  <h2>3. Live Heat HUD — Event 19 Terminal Velocity</h2>
+  <div class="pair">
+    <figure><figcaption class="before">Before (audit35 live heat)</figcaption>
+      <div class="shot"><img src="img/ui_e19_live_before.png" alt="Event 19 live HUD before"></div></figure>
+    <figure><figcaption class="after">After (Build 261111 live heat)</figcaption>
+      <div class="shot"><img src="img/ui_e19_live_after.png" alt="Event 19 live HUD after with story strip and 261111 watermark">
+        <div class="mk" style="left:1.5%;top:92.5%;width:97%;height:6.3%"><b>4</b></div>
+      </div></figure>
+  </div>
+  <ul>
+    <li><span class="tag">4</span> Bottom bar keeps the story strip (telemetry speed, wattage, confidence sparkline) above the play-by-play ticker, BL debug/shapes toggle, and <code>261111</code> build stamp.</li>
+  </ul>
+
+  <h2>4. In-Event Bottom Sheet</h2>
+  <div class="pair">
+    <figure><figcaption class="before">Before (audit35, Audio/Display/Game/Done)</figcaption>
+      <div class="shot"><img src="img/ui_e19_sheet_before.png" alt="In-event settings sheet before"></div></figure>
+    <figure><figcaption class="after">After (Build 261111, unified sheet)</figcaption>
+      <div class="shot"><img src="img/ui_e19_sheet_after.png" alt="In-event unified bottom sheet after">
+        <div class="mk" style="left:1.5%;top:68.6%;width:97%;height:26.5%"><b>5</b></div>
+      </div></figure>
+  </div>
+  <ul>
+    <li><span class="tag">5</span> Identical <code>HudAnchors</code> bottom sheet layout across the main menu and every event scene, accessible from the TR menu button or by swiping up from the bottom bar.</li>
+  </ul>
+
+  <h2>5. Match Card — Tabbed Results</h2>
+  <div class="pair">
+    <figure><figcaption class="before">Before (audit35 match card)</figcaption>
+      <div class="shot"><img src="img/ui_e19_card_before.png" alt="Match card before without tabs"></div></figure>
+    <figure><figcaption class="after">After (Build 261111, Places · Telemetry · Replay)</figcaption>
+      <div class="shot"><img src="img/ui_e19_card_after.png" alt="Match card after with Places, Telemetry, Replay tabs">
+        <div class="mk" style="left:7.5%;top:28.5%;width:85%;height:5.5%"><b>6</b></div>
+      </div></figure>
+  </div>
+  <ul>
+    <li><span class="tag">6</span> Match card now separates <b>Places</b> (all 8 finishers, fall/get-up counts, world record status), <b>Telemetry</b> (per-athlete peaks and heat bests), and <b>Replay</b> into dedicated tabs.</li>
+  </ul>
+</main>
+</body>
+</html>
