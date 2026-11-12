@@ -80,3 +80,12 @@ charted report is planned at `docs/20261111/extended_training_report.html`.
 - The first queue completed at 01:19:59 on 2026-11-12 and restored the Balanced power plan. The next pass will fine-tune
   Grandma and KIM from their iteration-599 checkpoints using `plain_init.py`; Zombie and MATT are excluded because they
   showed no G1 improvement. Candidates remain separate from the deployed manifest.
+- Grandma continuation `g2ramp_v2` completed 600 iterations with final mean reward 117.36 and no NaN/Inf indicators.
+  Its iteration-100/200/300/400/500/599 checkpoints scored 30/30, 30/30, 30/30, 29/30, 29/30, and 29/30 G1 Rung 2,
+  all with zero falls. Walk/run/sprint probes stayed near target speeds; reward and gate results plateaued near the
+  first pass. Its best 30/30 checkpoint, iteration 300, passed the 100-seed G1 Rung 2 gate (100/100, zero falls) and
+  the realism probes; it is eligible for production export with the unchanged v3 interface and physics fingerprint.
+- KIM continuation `k2ramp_v2` completed 600 iterations with final mean reward 112.15 and no NaN/Inf indicators.
+  Its iteration-100/200/300/400/500/599 checkpoints scored 28/30, 28/30, 28/30, 28/30, 28/30, and 29/30, all with
+  zero falls. The iteration-599 candidate scored 89/100 at the graduation gate with zero falls. It is not eligible for
+  production; a third continuation will start from its final checkpoint.
