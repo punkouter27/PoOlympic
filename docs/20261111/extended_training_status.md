@@ -46,5 +46,10 @@ appended with zero weights. MuJoCo is 3.11.0 at 0.005 s / decimation 4.
 
 ## Results
 
-Training has not started yet. The queue launch time, checkpoint metrics, continuation decisions, and final report will
-be recorded here. The requested charted report is planned at `docs/20261111/extended_training_report.html`.
+The detached queue started at **2026-11-11 23:25:19 -05:00**. Its first job is Zombie Rung2-Ramp (`z2ramp_v1`, 600
+iterations); the remaining first-pass jobs are Grandma, KIM, then MATT. TensorBoard responded with HTTP 200 at
+`http://127.0.0.1:6006/`. At the first resource check, initialization was still underway, GPU load was 0%, GPU temperature
+was 50 C, and free RAM was 6.44 GB.
+
+Checkpoint metrics, continuation decisions, and the final report will be added as the run progresses. The requested
+charted report is planned at `docs/20261111/extended_training_report.html`.
