@@ -13,7 +13,18 @@ namespace PoOlympic
     public static class MeetLineup
     {
         public const string MenuScene = "MainMenu";
+        public const int MaxTournamentPlayers = 16;
+        public const string ByeName = "BYE";
         public static readonly string[] Roster = { "MATT", "ZOMBIE", "GRANDMA", "KIM" };
+
+        /// <summary>16 tournament player slots: current roster players followed by BYE placeholders.</summary>
+        public static string[] TournamentSlots()
+        {
+            var slots = new string[MaxTournamentPlayers];
+            for (int i = 0; i < MaxTournamentPlayers; i++)
+                slots[i] = i < Roster.Length ? Roster[i] : ByeName;
+            return slots;
+        }
         /// <summary>One-line card stats per roster athlete (body + brains).</summary>
         public static string Stats(string athlete) => athlete switch
         {

@@ -48,16 +48,23 @@ LINEUPS = {"mzmzmzmz": 5000, "mzgmzgmg": 7000, "mzgkmzgk": 9000}     # KIM in la
 # event -> (name, runner kind, scene tag)
 EVENTS = {
     1: ("The Iron Pedestal", "pedestal", "pedestal8"),
+    2: ("Sumo Ring", "arena:sumo", "sumo8"),
+    3: ("Narrow Bridge Crossing", "arena:bridge", "bridge8"),
+    4: ("Funnel Bottleneck Sprint", "track:funnel", "funnel8"),
     5: ("The Gust Gauntlet", "gauntlet", "shaker8"),
+    6: ("Figure-8 Crossroad Dash", "track:crossroad", "crossroad8"),
+    7: ("Shrinking Safe-Zone", "arena:pads", "pads8"),
     8: ("30m All Fours", "all_fours", "crawl8"),
     9: ("The Inverted Sprint", "track:inverted", "track8"),
-    10: ("Crab Shuffle Relay", "crab", "crab8"),
+    10: ("Center Beacon Scramble", "arena:beacon", "beacon8"),
     11: ("Slalom Sprint", "slalom", "slalom8"),
     12: ("The 360 Turntable", "turntable", "turntable8"),
     13: ("Steeplechase Jog", "track:steeple", "track8"),
+    18: ("Inside-Rail Pack Mile", "track:pack_mile", "track8"),
     19: ("Terminal Velocity Sprint", "track:terminal", "track8"),
     22: ("Emergency Brake", "track:brake", "track8"),
     23: ("The Trench Crawl", "trench", "trench8"),
+    25: ("Hilltop Scramble", "arena:hill", "hill8"),
     27: ("The Resurrection Dash", "track:resurrection", "track8"),
 }
 
@@ -67,7 +74,7 @@ def lineup_of(seed: int) -> str:
 
 
 def run_one(event: int, seed: int) -> dict:
-    from poolympic.events import all_fours, crab, gauntlet, iron_pedestal, slalom, track, turntable
+    from poolympic.events import all_fours, arena_brawl, crab, gauntlet, iron_pedestal, slalom, track, turntable
     _, kind, tag = EVENTS[event]
     scene, layout = A / f"scene_{tag}_{lineup_of(seed)}.xml", A / f"{tag}_{lineup_of(seed)}_layout.json"
     if kind == "pedestal":
@@ -80,6 +87,9 @@ def run_one(event: int, seed: int) -> dict:
         mode = kind.split(":")[1]
         brains = {**R2, **deployed("flight")} if mode == "steeple" else R2
         res = track.run_race(brains["matt"], mode, seed, scene=scene, layout_path=layout, brains=brains, recover=deployed("getup"))
+    elif kind.startswith("arena:"):
+        mode = kind.split(":")[1]
+        res = arena_brawl.run_arena(R2["matt"], mode, seed, scene=scene, layout_path=layout, brains=R2, recover=deployed("getup"))
     else:
         mod = {"gauntlet": gauntlet, "crab": crab, "slalom": slalom, "turntable": turntable}[kind]
         res = mod.run_heat(R2["matt"], seed, scene=scene, layout_path=layout, brains=R2, **({"tactics": True, "recover": deployed("getup")} if kind == "slalom" else {}))
@@ -156,7 +166,7 @@ def main() -> int:
     model = {"note": "PoOlympic betting odds (training/tools/fit_odds.py): rating = w . [zombie, strength-1, latency, "
                      "noise, grandma, kim]; P(win) = softmax(rating); Plackett-Luce fit on CPU heats, mixed MATT / zombie / GRANDMA / KIM lineups",
              "features": FEATURES, "margin": 0.10, "events": []}
-    for e in sorted({h["event"] for h in heats}):
+    for e in sorted({h["event"] for h in heats if h["event"] in EVENTS}):
         w, diag = fit([h for h in heats if h["event"] == e])
         model["events"].append({"number": e, "name": EVENTS[e][0], "weights": [round(float(x), 4) for x in w], **diag})
         print(f"E{e:02d} {EVENTS[e][0]:26s} w={np.round(w, 2)}  favourite wins {diag['favourite_wins']:.0%} "

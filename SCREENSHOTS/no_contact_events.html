@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playable Event Roster — Before and After</title>
+<style>
+  :root { color-scheme: dark; --bg: #101725; --panel: #1b263a; --ink: #edf2fb; --muted: #aab6c9; --accent: #ffd84a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1200px; margin: auto; padding: 28px 18px 56px; }
+  h1 { margin: 0; color: var(--accent); }
+  p, li { color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  figure { margin: 0; padding: 12px; background: var(--panel); border-radius: 10px; }
+  figcaption { margin-bottom: 8px; font-weight: 700; }
+  img { display: block; width: 100%; height: auto; border-radius: 6px; }
+  @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Playable Event Roster</h1>
+  <p>2026-11-11 · Main menu before and after removing non-contact events from play.</p>
+  <div class="pair">
+    <figure>
+      <figcaption>Before — 20 playable events</figcaption>
+      <img src="no_contact_events_before.png" alt="Unity main menu before removing non-contact events">
+    </figure>
+    <figure>
+      <figcaption>After — 13 contact-focused events</figcaption>
+      <img src="no_contact_events_after.png" alt="Unity main menu with 13 contact-focused event cards">
+    </figure>
+  </div>
+  <h2>Removed from the playable roster</h2>
+  <ul>
+    <li>09 The Inverted Sprint</li>
+    <li>11 Slalom Sprint</li>
+    <li>13 Steeplechase Jog</li>
+    <li>14 The Alpine Ramp</li>
+    <li>22 Emergency Brake</li>
+    <li>23 The Trench Crawl</li>
+    <li>27 The Resurrection Dash</li>
+  </ul>
+  <p>These event assets and training code remain in the project for development, but the events are absent from the game menu and player build scene list.</p>
+</main>
+</body>
+</html>

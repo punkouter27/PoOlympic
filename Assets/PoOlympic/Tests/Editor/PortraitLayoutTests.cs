@@ -43,11 +43,12 @@ namespace PoOlympic.Tests
         readonly List<UnityEngine.Object> _trash = new();
         Func<Rect> _safeBefore;
 
-        [SetUp] public void SetUp() { _safeBefore = HudAnchors.SafeArea; Records.Clear(TestEvent); }
+        [SetUp] public void SetUp() { _safeBefore = HudAnchors.SafeArea; Records.Clear(TestEvent); TournamentMode.ShowBracketOnMenu = false; }
 
         [TearDown]
         public void TearDown()
         {
+            TournamentMode.ShowBracketOnMenu = false;
             HudAnchors.SafeArea = _safeBefore;
             foreach (var o in _trash) if (o != null) UnityEngine.Object.DestroyImmediate(o);
             _trash.Clear();
@@ -182,6 +183,37 @@ namespace PoOlympic.Tests
             Layout(doc);
             Assert.IsFalse(menu.Anchors.SheetOpen);
             Assert.IsFalse(HudLayoutAudit.Shown(root.Q(className: "ha-scrim")), $"{phone}: scrim left on after Close");
+        }
+
+        [TestCaseSource(nameof(Phones))]
+        public void Menu_TournamentBracket_OneViewport(string phone, int w, int h, Rect safe)
+        {
+            var menu = MakeMenu(w, h, safe);
+            var doc = menu.GetComponent<UIDocument>();
+            var root = doc.rootVisualElement.Q<VisualElement>("root");
+            var bounds = SafeInPanel(doc);
+
+            menu.ToggleTournament();
+            Layout(doc);
+
+            var bad = HudLayoutAudit.Check(root.Q("panel"), bounds, 28f)
+                .Concat(root.Q("overlay").Children().SelectMany(c => HudLayoutAudit.Check(c, bounds, 28f))).ToList();
+            AssertClean($"{phone} tournament bracket", bad);
+
+            var bracket = root.Q<VisualElement>(className: "tourney-bracket");
+            Assert.NotNull(bracket, $"{phone}: bracket container missing");
+            var cols = bracket.Children().ToList();
+            Assert.AreEqual(7, cols.Count, $"{phone}: expected 7 symmetric bracket columns (Left R16/QF/SF · Winner · Right SF/QF/R16)");
+
+            var leftSlots = cols[0].Query<VisualElement>(className: "tourney-slot").ToList();
+            var rightSlots = cols[6].Query<VisualElement>(className: "tourney-slot").ToList();
+            Assert.AreEqual(8, leftSlots.Count, $"{phone}: left side should start with 8 player slots");
+            Assert.AreEqual(8, rightSlots.Count, $"{phone}: right side should start with 8 player slots");
+
+            var champCard = cols[3].Q<VisualElement>(className: "tourney-champion-card");
+            Assert.NotNull(champCard, $"{phone}: winner card should be in middle column");
+            Assert.Less(cols[0].worldBound.center.x, champCard.worldBound.center.x, $"{phone}: left side not left of winner");
+            Assert.Greater(cols[6].worldBound.center.x, champCard.worldBound.center.x, $"{phone}: right side not right of winner");
         }
 
         /// <summary>The sheet is in thumb reach (the lower half of the screen), sits above the

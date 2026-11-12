@@ -307,3 +307,45 @@ def test_cadence_march_holds_the_spot():
     assert [l.status for l in res.lanes] == ["DONE"] * 8          # without the spot hold: 6 of 8 WANDERED in this heat
     assert max(l.max_drift_m for l in res.lanes) < 0.4
 
+
+def _rung2_brains():
+    brains = C.ROOT.parent / "parity" / "brains"
+    r2 = {b: brains / f for b, f in (("matt", "rung2.onnx"), ("zombie", "zombie_rung2.onnx"),
+                                     ("grandma", "grandma_rung2.onnx"), ("kim", "kim_rung2.onnx"))}
+    gu = {b: brains / f for b, f in (("matt", "getup_matt.onnx"), ("zombie", "getup_zombie.onnx"),
+                                     ("grandma", "getup_grandma.onnx"), ("kim", "getup_kim.onnx"))}
+    return r2, gu
+
+
+@pytest.mark.parametrize("mode,tag", [("funnel", "funnel8"), ("crossroad", "crossroad8"), ("pack_mile", "track8")])
+def test_collision_track_modes_mixed(mode, tag):
+    r2, gu = _rung2_brains()
+    scene = C.ROOT / "assets" / f"scene_{tag}_mzgkmzgk.xml"
+    layout = C.ROOT / "assets" / f"{tag}_mzgkmzgk_layout.json"
+    if not all(p.exists() for p in r2.values()) or not scene.exists():
+        pytest.skip("rung2 brains / mixed scene missing")
+    res = track.run_race(r2["matt"], mode, 1, scene=scene, layout_path=layout, brains=r2, recover=gu)
+    assert sorted(l.place for l in res.lanes) == list(range(1, 9))
+    assert any(l.status == "FINISHED" for l in res.lanes)
+
+
+@pytest.mark.parametrize("mode,tag", [
+    ("sumo", "sumo8"), ("bridge", "bridge8"), ("pads", "pads8"), ("beacon", "beacon8"), ("hill", "hill8"),
+])
+def test_collision_arena_events_mixed(mode, tag):
+    from poolympic.events import arena_brawl
+    r2, gu = _rung2_brains()
+    scene = C.ROOT / "assets" / f"scene_{tag}_mzgkmzgk.xml"
+    layout = C.ROOT / "assets" / f"{tag}_mzgkmzgk_layout.json"
+    if not all(p.exists() for p in r2.values()) or not scene.exists():
+        pytest.skip("rung2 brains / mixed scene missing")
+    res = arena_brawl.run_arena(r2["matt"], mode, 1, scene=scene, layout_path=layout, brains=r2, recover=gu)
+    assert sorted(l.place for l in res.lanes) == list(range(1, 9))
+    if mode in ("sumo", "pads"):
+        assert any(l.status == "OUT" for l in res.lanes)
+    elif mode == "bridge":
+        assert any(l.status in ("FINISHED", "FELL") for l in res.lanes)
+    else:
+        assert max(l.score_s for l in res.lanes) > 0.5
+
+

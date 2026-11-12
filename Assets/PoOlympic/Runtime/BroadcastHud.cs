@@ -105,14 +105,14 @@ namespace PoOlympic
         /// tall, so the docks leave the camera its share (1080 wide on a 1812 × 2176 foldable left it 58 %).</summary>
         const float MinDesignHeight = 1440f;
 
-        /// <summary>This scene's one heat is done: a gauntlet stage (waits for Next event) or a single event (waits
-        /// for the medal ceremony, then the match card). The board is held in Ready meanwhile.</summary>
-        bool HeatPlayed => _matchOver || (Gauntlet.Active && Gauntlet.CurrentHeatPlayed);
+        /// <summary>This scene's one heat is done: a gauntlet stage (waits for Next event), a tournament match, or a single
+        /// event (waits for the medal ceremony, then the match card). The board is held in Ready meanwhile.</summary>
+        bool HeatPlayed => _matchOver || (Gauntlet.Active && Gauntlet.CurrentHeatPlayed) || (TournamentMode.Active && TournamentMode.CurrentMatchScored);
         /// <summary>The betting slip is on: this scene's switch or the player's setting.</summary>
         bool Bets => offerBets || GameSettings.OfferBets;
 
         readonly InstantReplay _replay = new();
-        bool _demoAdvance, _directorSearched;
+        bool _demoAdvance, _tournamentAdvance, _directorSearched;
         Button _replayButton;
 
         void OnEnable() => Build();
@@ -196,7 +196,9 @@ namespace PoOlympic
         IEnumerable<(string, Action)> MenuItems()
         {
             yield return ("New heat", Restart);
-            if (MeetLineup.MenuAvailable) yield return (Gauntlet.Active ? "Main menu (ends the gauntlet)" : "Main menu", () => { Gauntlet.Abandon(); MeetLineup.ReturnToMenu(); });
+            if (MeetLineup.MenuAvailable)
+                yield return (TournamentMode.Active ? "Main menu (stop tournament)" : Gauntlet.Active ? "Main menu (ends the gauntlet)" : "Main menu",
+                    () => { if (TournamentMode.Active) TournamentMode.Stop(); else { Gauntlet.Abandon(); MeetLineup.ReturnToMenu(); } });
             yield return (_expanded ? "Standings: top 4" : "Standings: all 8", () => _expanded = !_expanded);
             if (!DemoMode.Active) yield return ($"Speed: {GameSettings.SpeedLabel}  (tap to change)", GameSettings.NextSpeed);
             if (CanReplay) yield return ("Replay the finish", StartReplay);
@@ -320,6 +322,7 @@ namespace PoOlympic
             Refresh();
             // outside Refresh (tests call it directly) and after the frame's HUD work: this loads the next scene
             if (_demoAdvance) { _demoAdvance = false; DemoMode.Advance(null); }
+            if (_tournamentAdvance) { _tournamentAdvance = false; TournamentMode.Advance(null); }
         }
 
         /// <summary>One HUD update from the board (LateUpdate; tests call it directly).</summary>
@@ -340,7 +343,10 @@ namespace PoOlympic
             bool result = stageDone || b.BoardState == BoardPhase.Result;
             if (!held)
             {
-                _anchors.Sub.text = (DemoMode.Active ? $"DEMO · tap to exit · {DemoMode.Theme}\n" : "") +   // theme may be cut
+                string tourneyPrefix = TournamentMode.Active && TournamentMode.CurrentMatch != null
+                    ? $"TOURNEY · {TournamentBracket.RoundLabel(TournamentMode.CurrentMatch.round)}: {TournamentMode.CurrentMatch.playerA} vs {TournamentMode.CurrentMatch.playerB}\n"
+                    : "";
+                _anchors.Sub.text = (DemoMode.Active ? $"DEMO · tap to exit · {DemoMode.Theme}\n" : tourneyPrefix) +   // theme may be cut
                                     (GameSettings.SimSpeed != 1f ? $"{GameSettings.SpeedLabel} · " : "") +
                                     $"{subtitle.Replace("Event ", "E")} · {b.SubtitleExtra}";
                 _clock.text = b.ClockLine;
@@ -370,13 +376,21 @@ namespace PoOlympic
             _replayButton?.SetEnabled(CanReplay);
             _primary.style.display = result && !card ? DisplayStyle.Flex : DisplayStyle.None;   // the card has its own OK
             _primary.text = _matchOver ? "Results" : stageDone ? (Gauntlet.IsLast ? "Final standings" : "Next event") : "New heat";
-            _primary.SetEnabled(!DemoMode.Active);           // demo: any tap exits, the countdown advances
+            _primary.SetEnabled(!DemoMode.Active && !TournamentMode.Active);           // demo / auto tournament advance automatically
             if (DemoMode.Active && stageDone)
             {
                 float left = DemoMode.ResultSeconds - (Time.unscaledTime - _resultSince);
                 _primary.text = Gauntlet.IsLast ? $"New series in {Mathf.CeilToInt(Mathf.Max(0f, left))}"
                                                 : $"Next event in {Mathf.CeilToInt(Mathf.Max(0f, left))}";
                 if (left <= 0f) _demoAdvance = true;
+            }
+            else if (TournamentMode.Active && stageDone)
+            {
+                float left = TournamentMode.ResultSeconds - (Time.unscaledTime - _resultSince);
+                bool hasMore = TournamentMode.Bracket.NextPlayableMatch() != null;
+                _primary.text = hasMore ? $"Next match in {Mathf.CeilToInt(Mathf.Max(0f, left))}"
+                                        : $"Tournament bracket in {Mathf.CeilToInt(Mathf.Max(0f, left))}";
+                if (left <= 0f) _tournamentAdvance = true;
             }
         }
 
@@ -394,7 +408,7 @@ namespace PoOlympic
             if (Director != null) { Director.FocusLock = null; Director.UserOrbitDeg = 0f; }
             ActionLog.BeginHeat(eventNumber, b.Heat);
             if (Weather.Active) _pbp.Add(Weather.Headline);
-            if (Bets && !DemoMode.Active) { b.HoldStart = true; _slipOpen = true; _slip.style.display = DisplayStyle.Flex; _slipBuilt = false; }
+            if (Bets && !DemoMode.Active && !TournamentMode.Active) { b.HoldStart = true; _slipOpen = true; _slip.style.display = DisplayStyle.Flex; _slipBuilt = false; }
         }
 
         bool _slipBuilt;
@@ -563,7 +577,13 @@ namespace PoOlympic
             }
             if (winner.name != null) _pbp.Add($"{winner.name} wins — {winner.result}");
             if (winner.name != null && screens != null) screens.Banner($"{winner.name} WINS", 4f);
-            if (Gauntlet.Active && !Gauntlet.CurrentHeatPlayed)
+            if (TournamentMode.Active && !TournamentMode.CurrentMatchScored)
+            {
+                string summary = TournamentMode.ScoreHeat(rows.Select(r => (r.name, r.place)));
+                _frozen = rows;
+                AddLabel(_resultBox, "bh-card-good", $"TOURNAMENT · {summary}");
+            }
+            else if (Gauntlet.Active && !Gauntlet.CurrentHeatPlayed)
             {
                 Gauntlet.Award(rows.Select(r => (r.name, r.place)));
                 _frozen = rows;
@@ -571,7 +591,7 @@ namespace PoOlympic
                     string.Join(" · ", Gauntlet.Table().Take(4).Select(t => $"{t.lane} {t.points}")));
                 if (DemoMode.Active && DemoSeason.Summary().Length > 0) AddLabel(_resultBox, "bh-card-line", DemoSeason.Summary());
             }
-            else if (!Gauntlet.Active)
+            else if (!Gauntlet.Active && !TournamentMode.Active)
             {
                 _matchOver = true;
                 _frozen = rows;

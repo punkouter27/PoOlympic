@@ -42,22 +42,98 @@ def march_props() -> list[dict]:
     return [{"name": "metronome", "pos": B.venue_to_athlete(7, 3, [c[0], c[1], 2.5]), "size": [0.2, 0.2, 2.5]}]
 
 
+def _ring_origins(radius: float) -> list[tuple[float, float, float, float]]:
+    """8 athletes evenly spaced around a circle of `radius`, each facing inward."""
+    out = []
+    for k in range(8):
+        a = 2.0 * np.pi * k / 8.0
+        x, y = radius * float(np.cos(a)), radius * float(np.sin(a))
+        yaw = float(np.degrees(np.arctan2(-y, -x)))
+        out.append((x, y, 0.0, yaw))
+    return out
+
+
+def _bridge_origins() -> list[tuple[float, float, float, float]]:
+    """4 west-side athletes (2x2 staggered) facing +x and 4 east-side athletes facing -x on one 1.60 m wide bridge."""
+    return [
+        (0.0, 0.42, 0.0, 0.0), (0.0, -0.42, 0.0, 0.0), (-1.4, 0.42, 0.0, 0.0), (-1.4, -0.42, 0.0, 0.0),
+        (12.0, -0.42, 0.0, 180.0), (12.0, 0.42, 0.0, 180.0), (13.4, -0.42, 0.0, 180.0), (13.4, 0.42, 0.0, 180.0),
+    ]
+
+
+def _crossroad_origins() -> list[tuple[float, float, float, float]]:
+    """4 eastbound runners from x=0 and 4 northbound runners from y=-12 crossing at (12, 0)."""
+    offsets = (1.83, 0.61, -0.61, -1.83)
+    return [(0.0, y, 0.0, 0.0) for y in offsets] + [(12.0 - x, -12.0, 0.0, 90.0) for x in offsets]
+
+
+def _funnel_props() -> list[dict]:
+    """Two 1.8 m bottleneck wall gates at x = 12 m and x = 24 m."""
+    props = []
+    for i, gx in enumerate((12.0, 24.0)):
+        for j, sy in enumerate((3.9, -3.9)):
+            props.append({"name": f"funnel_w{2 * i + j}", "pos": [gx, sy, 0.7], "size": [0.35, 3.0, 0.7]})
+    return props
+
+
+def _hill_origins() -> list[tuple[float, float, float, float]]:
+    """2 athletes on each of the 4 cardinal staging pads (r = 5.0 m, ±0.50 m lateral), facing the central summit."""
+    out = []
+    for k, (nx, ny, yaw) in enumerate(((1.0, 0.0, 180.0), (-1.0, 0.0, 0.0), (0.0, 1.0, -90.0), (0.0, -1.0, 90.0))):
+        tx, ty = -ny, nx
+        for s in (-0.5, 0.5):
+            out.append((5.0 * nx + s * tx, 5.0 * ny + s * ty, 0.0, yaw))
+    return out
+
+
+def _hill_props() -> list[dict]:
+    """Central 2.6 x 2.6 m summit (top z = +0.0785 m), 4 x 1.5 deg ramps (3 m long), and 4 flat staging pads (z = 0)."""
+    deg = 1.5
+    rad = float(np.radians(deg))
+    ramp_len, half_t = 3.0, 0.1
+    rise = ramp_len * float(np.sin(rad))
+    r_inner = 1.3
+    r_mid = r_inner + 0.5 * ramp_len * float(np.cos(rad)) - half_t * float(np.sin(rad))
+    z_mid = 0.5 * rise - half_t * float(np.cos(rad))
+    props = [{"name": "hill_summit", "pos": [0.0, 0.0, rise - half_t], "size": [r_inner, r_inner, half_t]}]
+    # Ramp normals point inward: +x side slopes up toward -x (euler="0 +deg 0"); -x side up toward +x ("0 -deg 0"), etc.
+    sides = [
+        ("e", [r_mid, 0.0, z_mid], [ramp_len / 2, 1.1, half_t], [0.0, deg, 0.0], [5.3, 0.0, -half_t], [1.0, 1.1, half_t]),
+        ("w", [-r_mid, 0.0, z_mid], [ramp_len / 2, 1.1, half_t], [0.0, -deg, 0.0], [-5.3, 0.0, -half_t], [1.0, 1.1, half_t]),
+        ("n", [0.0, r_mid, z_mid], [1.1, ramp_len / 2, half_t], [-deg, 0.0, 0.0], [0.0, 5.3, -half_t], [1.1, 1.0, half_t]),
+        ("s", [0.0, -r_mid, z_mid], [1.1, ramp_len / 2, half_t], [deg, 0.0, 0.0], [0.0, -5.3, -half_t], [1.1, 1.0, half_t]),
+    ]
+    for tag, rpos, rsize, reul, spos, ssize in sides:
+        props.append({"name": f"hill_ramp_{tag}", "pos": rpos, "size": rsize, "euler": reul})
+        props.append({"name": f"hill_pad_{tag}", "pos": spos, "size": ssize})
+    return props
+
+
 SCENES = {  # scene -> the build_mjcf.compose_meet arguments of that event scene (callables: read from the venues)
     "meet8": dict(),                                  # G6 testbed (Testbed_Rung1): 1.22 m lanes, no venue, lane isolation
     "pedestal8": dict(event=1, pedestal_h=B.PEDESTAL_H, beam=lambda: B.venue_box(1, "beam"), crowd=True),
     "track8": dict(event=22, park_offset=(0.0, -30.0, 0.0), crowd=True),
     "crawl8": dict(event=8, park_offset=(0.0, -30.0, 0.0), crowd=True),     # GRANDMA crawls too since 2026-10-02 (crawl_grandma.onnx)
     "turntable8": dict(event=12, crowd=True),
-    "squat8": dict(event=3, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),   # Event 3 runs all-mattbio (Rung S brain): no roster scene
-    # Events 6 and 7 run all-mattbio like Event 3; composed here only (no build_mjcf scene, no roster scene)
+    "squat8": dict(event=3, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),   # legacy stance test scene
     "flamingo8": dict(event=6, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
-    "archer8": dict(event=2, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),    # Events 2 and 4: same grid, all-mattbio
+    "archer8": dict(event=2, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
     "reach8": dict(event=4, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
-    "march8": dict(event=7,park_offset=(0.0, -30.0, 0.0), props=march_props, crowd=True, roster=[]),
+    "march8": dict(event=7, park_offset=(0.0, -30.0, 0.0), props=march_props, crowd=True, roster=[]),
     "crab8": dict(event=10, yaw=90.0, park_offset=(0.0, -30.0, 0.0), props=B.crab_rails, crowd=True),
     "shaker8": dict(event=5, park_offset=(0.0, -30.0, 0.0), shaker=B.shaker_floor, crowd=True),
     "slalom8": dict(event=11, park_offset=(0.0, -30.0, 0.0), props=B.slalom_poles, crowd=True),
     "trench8": dict(event=23, park_offset=(0.0, -30.0, 0.0), props=B.trench_props, crowd=True),
+    # 8-athlete high-collision event scenes (2026-11-11)
+    "sumo8": dict(origins=lambda: _ring_origins(1.02), drop=0.5, park_offset=(0.0, -30.0, 0.0),
+                  props=lambda: [{"name": "sumo_ring", "type": "cylinder", "pos": [0.0, 0.0, -0.25], "size": [1.45, 0.25]}], crowd=True),
+    "bridge8": dict(origins=_bridge_origins, drop=0.5, park_offset=(0.0, -30.0, 0.0),
+                    props=lambda: [{"name": "bridge", "pos": [6.0, 0.0, -0.25], "size": [8.2, 0.80, 0.25]}], crowd=True),
+    "funnel8": dict(event=22, park_offset=(0.0, -30.0, 0.0), props=_funnel_props, crowd=True),
+    "crossroad8": dict(origins=_crossroad_origins, park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "pads8": dict(origins=lambda: _ring_origins(3.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "beacon8": dict(origins=lambda: _ring_origins(4.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "hill8": dict(origins=_hill_origins, drop=0.5, park_offset=(0.0, -30.0, 0.0), props=_hill_props, crowd=True),
 }
 
 
@@ -92,6 +168,17 @@ def athlete_prefix(lane: int, body: str, roster: bool) -> str:
     return B.lane_prefix(lane) if not roster or body == "matt" else f"{body[0].upper()}{lane}_"
 
 
+def _quat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    w1, x1, y1, z1 = a
+    w2, x2, y2, z2 = b
+    return np.array([
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+    ])
+
+
 def compose(scene: str, lineup: list) -> tuple[str, dict]:
     """lineup: one body per lane, or a list of bodies per lane (roster scene)."""
     sc = SCENES[scene]
@@ -100,20 +187,32 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
     beam = sc["beam"]() if "beam" in sc else None
     props = sc["props"]() if "props" in sc else []
     park_offset = np.asarray(sc.get("park_offset", (0.0, 0.0, 0.0)), float)
-    origins = (B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0)) if "event" in sc
-               else [B.lane_origin(k) for k in range(len(lineup))])
+    if "origins" in sc:
+        raw_origins = sc["origins"]() if callable(sc["origins"]) else sc["origins"]
+        origins = [np.asarray(o[:3], float) for o in raw_origins]
+        yaws = [float(o[3]) if len(o) > 3 else 0.0 for o in raw_origins]
+    elif "event" in sc:
+        origins = B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0))
+        yaws = [0.0] * len(lineup)
+    else:
+        origins = [B.lane_origin(k) for k in range(len(lineup))]
+        yaws = [0.0] * len(lineup)
     root = ET.Element("mujoco", {"model": f"{scene}_mixed"})
     B.option_block(root)
     wb = ET.SubElement(root, "worldbody")
     ET.SubElement(wb, "light", {"name": "sun", "pos": "0 0 5", "dir": "0 0 -1", "directional": "true"})
     ground = {"name": "ground", "type": "plane", "size": "0 0 0.05", "contype": str(B.ALL_BITS),
               "conaffinity": str(B.ALL_BITS), "condim": "3", "friction": B.vec(B.GROUND_FRICTION)}
-    drop = ped_h or (shaker["h"] if shaker else 0.0)
+    drop = sc.get("drop", 0.0) or ped_h or (shaker["h"] if shaker else 0.0)
     if drop:
         ground["pos"] = B.vec([0, 0, -drop])
     ET.SubElement(wb, "geom", ground)
     for pr in props:
-        B.static_box(wb, pr["name"], pr["pos"], pr["size"])
+        attrs = {"name": pr["name"], "type": pr.get("type", "box"), "pos": B.vec(pr["pos"]), "size": B.vec(pr["size"]),
+                 "contype": str(B.ALL_BITS), "conaffinity": str(B.ALL_BITS), "condim": "3", "friction": B.vec(B.GROUND_FRICTION)}
+        if "euler" in pr:
+            attrs["euler"] = B.vec(pr["euler"])
+        ET.SubElement(wb, "geom", attrs)
     contact = ET.Element("contact")
     actuator = ET.Element("actuator")
     lanes = []
@@ -121,8 +220,9 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
     for k, bodies in enumerate(lineup):
         roster = not isinstance(bodies, str)          # roster scene: every roster body in this lane
         bodies = list(bodies) if roster else [bodies]
-        p, o = B.lane_prefix(k), np.asarray(origins[k], float)
+        p, o, yaw = B.lane_prefix(k), np.asarray(origins[k], float), yaws[k]
         key_qpos += B.stage_lane(wb, p, o, ped_h, shaker, beam)
+        qz = np.array([np.cos(np.radians(yaw) / 2.0), 0.0, 0.0, np.sin(np.radians(yaw) / 2.0)])
         for body in bodies:
             p = athlete_prefix(k, body, roster)
             pelvis, acts, excl, qdef = body_parts(body)
@@ -147,8 +247,13 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
                 actuator.append(a)
             q = qdef.copy()
             q[0:3] += o
+            if abs(yaw) > 1e-6:
+                q[3:7] = _quat_mul(qz, q[3:7])
             key_qpos.append(q)
-            lanes.append({"lane": k, "prefix": p, "body": body, "origin": o.tolist(), "cubes": [2 * k, 2 * k + 1]})
+            row = {"lane": k, "prefix": p, "body": body, "origin": o.tolist(), "cubes": [2 * k, 2 * k + 1]}
+            if abs(yaw) > 1e-6:
+                row["yaw_deg"] = yaw
+            lanes.append(row)
     inertia = B.CUBE_MASS * (2 * B.CUBE_HALF) ** 2 / 6.0
     n_cubes = B.N_CUBES_MEET
     for i in range(n_cubes):

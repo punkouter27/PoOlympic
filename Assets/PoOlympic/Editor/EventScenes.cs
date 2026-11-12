@@ -169,6 +169,7 @@ namespace PoOlympic.Editor
                 r.athletePrefix = prefix;
                 r.laneOriginX = (double)o[0];
                 r.laneOriginY = (double)o[1];
+                r.startYawDeg = l["yaw_deg"] != null ? (double)l["yaw_deg"] : 0.0;
                 r.cubeSlots = l["cubes"].Select(c => (int)c).ToArray();
                 r.useStandardParityScript = false;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(visualPath) ?? throw new FileNotFoundException(visualPath);
@@ -220,13 +221,23 @@ namespace PoOlympic.Editor
         public const string FlightMattBrain = "r2f_v3_it100.onnx";
         public static readonly (int ev, TrackRaceEvent.Mode mode, string title, string scene)[] TrackEvents =
         {
+            (4, TrackRaceEvent.Mode.Funnel, "FUNNEL BOTTLENECK", FunnelScene),
+            (6, TrackRaceEvent.Mode.Crossroad, "FIGURE-8 CROSSROAD", CrossroadScene),
             (8, TrackRaceEvent.Mode.AllFours, "30m ALL FOURS", AllFoursScene),   // replaced The 30m Dash (2026-09-29)
+            (18, TrackRaceEvent.Mode.PackMile, "INSIDE-RAIL PACK MILE", PackMileScene),
             (19, TrackRaceEvent.Mode.Terminal, "TERMINAL VELOCITY", "Assets/PoOlympic/Scenes/Event_TerminalVelocity.unity"),
             (22, TrackRaceEvent.Mode.Brake, "EMERGENCY BRAKE", "Assets/PoOlympic/Scenes/Event_EmergencyBrake.unity"),
             (9, TrackRaceEvent.Mode.Inverted, "INVERTED SPRINT", "Assets/PoOlympic/Scenes/Event_InvertedSprint.unity"),
             (13, TrackRaceEvent.Mode.Steeplechase, "STEEPLECHASE JOG", SteepleScene),
             (27, TrackRaceEvent.Mode.Resurrection, "RESURRECTION DASH", ResurrectionScene),
         };
+        public const string FunnelScene = "Assets/PoOlympic/Scenes/Event_FunnelBottleneck.unity";
+        public const string FunnelSource = "training/assets/scene_funnel8_roster.xml";
+        public const string FunnelLayout = "training/assets/funnel8_roster_layout.json";
+        public const string CrossroadScene = "Assets/PoOlympic/Scenes/Event_CrossroadDash.unity";
+        public const string CrossroadSource = "training/assets/scene_crossroad8_roster.xml";
+        public const string CrossroadLayout = "training/assets/crossroad8_roster_layout.json";
+        public const string PackMileScene = "Assets/PoOlympic/Scenes/Event_PackMile.unity";
         // Event 14 (The Alpine Ramp): each body's slope brain (tasks PoOlympic-<Body>-Rung4-Slope15) on the track scene with
         // gravity tilted by 15 deg (TrackRaceEvent.Mode.Ramp); the stadium is turned so its ramp lies on the flat track
         public const string RampScene = "Assets/PoOlympic/Scenes/Event_AlpineRamp.unity";
@@ -245,14 +256,18 @@ namespace PoOlympic.Editor
         public static string BuildResurrectionDash() =>
             BuildTrackRace(27, TrackRaceEvent.Mode.Resurrection, "RESURRECTION DASH", ResurrectionScene, DefaultRung2Brain);
 
-        [MenuItem("PoOlympic/Events/Build Track Races (8, 9, 13, 19, 22, 27)")]
+        [MenuItem("PoOlympic/Events/Build Track Races (4, 6, 8, 9, 13, 18, 19, 22, 27)")]
         public static string BuildTrackRaces()
         {
             var sb = new System.Text.StringBuilder();
             foreach (var t in TrackEvents)
-                sb.AppendLine(t.mode == TrackRaceEvent.Mode.AllFours
-                    ? BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, CrawlSource, CrawlLayout)
-                    : BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain));
+                sb.AppendLine(t.mode switch
+                {
+                    TrackRaceEvent.Mode.AllFours => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, CrawlSource, CrawlLayout),
+                    TrackRaceEvent.Mode.Funnel => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, FunnelSource, FunnelLayout),
+                    TrackRaceEvent.Mode.Crossroad => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, CrossroadSource, CrossroadLayout),
+                    _ => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain),
+                });
             return sb.ToString();
         }
 
@@ -281,12 +296,15 @@ namespace PoOlympic.Editor
                        : null;
             if (crawl) brainFile = CrawlMattBrain;
             if (steeple) brainFile = FlightMattBrain;
-            // Event 27 runs on the Terminal Velocity straight: its own venue (the mats) is laid out for 8 mats, not 8 track lanes
-            int venue = mode == TrackRaceEvent.Mode.Resurrection ? 19 : eventNum;
+            // Event 27 / 4 / 18 run on the Terminal Velocity back straightaway; Event 6 (Crossroad) uses infield open turf
+            int venue = mode is TrackRaceEvent.Mode.Resurrection or TrackRaceEvent.Mode.Funnel or TrackRaceEvent.Mode.PackMile ? 19
+                      : mode == TrackRaceEvent.Mode.Crossroad ? 5 : eventNum;
             var meet = BuildMeetScene(source, layout, venue, reversed ? 7 - AthleteLane : AthleteLane, reversed ? 180f : 0f, brainFile, brains);
+            if (mode == TrackRaceEvent.Mode.Crossroad) HideStadiumProps(meet.Scene, "E05_Shaker");
             var race = new GameObject("TrackRaceEvent").AddComponent<TrackRaceEvent>();
             race.mode = mode;
             (race.distance, race.commandSpeed, race.maxSeconds) = TrackRaceEvent.Defaults(mode);
+            if (mode == TrackRaceEvent.Mode.PackMile) { race.breakX = 2f; race.aggressivePack = true; }
             if (distance > 0f) race.distance = distance;
             foreach (var (k, r) in meet.Lanes)
             {
@@ -316,6 +334,14 @@ namespace PoOlympic.Editor
             bc.offset = new Vector3(reversed ? 3.5f : -3.5f, 3.2f, -13f);      // trackside, slightly behind the pack (backward runners face it)
             if (crawl) { bc.offset = new Vector3(-3.0f, 2.0f, -9f); bc.lookHeight = 0.4f; }   // crawlers are ~0.5 m tall
             if (mode == TrackRaceEvent.Mode.Resurrection) bc.lookHeight = 0.6f;   // they start lying down
+            if (mode == TrackRaceEvent.Mode.Funnel)
+                ColorMjGeoms(name => name.StartsWith("funnel_w"), StageMaterial("FunnelBarrier", new Color(0.82f, 0.28f, 0.14f), 0.35f));
+            if (mode == TrackRaceEvent.Mode.Crossroad)
+            {
+                bc.target = null;
+                bc.focusOffset = new Vector3(12f, 0.9f, 0f);
+                bc.offset = new Vector3(-4f, 9f, -14f);
+            }
             AddBroadcast(race, title, $"Event {eventNum}", eventNum, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Race,
                          reversed ? Vector3.left : Vector3.right);
             if (mode == TrackRaceEvent.Mode.Ramp)
@@ -774,6 +800,7 @@ namespace PoOlympic.Editor
                 r.athletePrefix = prefix;
                 r.laneOriginX = (double)o[0];
                 r.laneOriginY = (double)o[1];
+                r.startYawDeg = l["yaw_deg"] != null ? (double)l["yaw_deg"] : 0.0;
                 r.cubeSlots = l["cubes"].Select(c => (int)c).ToArray();
                 r.useStandardParityScript = false;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(visualPath) ?? throw new FileNotFoundException(visualPath);
@@ -802,24 +829,169 @@ namespace PoOlympic.Editor
         public static readonly System.Collections.Generic.Dictionary<int, string> EventScenePaths = new()
         {
             { 1, IronPedestalHeatScene },   // official 8-runner heat (solo practice: Event_IronPedestal.unity)
-            { 2, ArcherScene },
-            { 3, SquatScene },
-            { 4, ReachScene },
+            { 2, SumoScene },
+            { 3, BridgeScene },
+            { 4, FunnelScene },
             { 5, GauntletScene },
-            { 6, FlamingoScene },
-            { 7, MarchScene },
+            { 6, CrossroadScene },
+            { 7, PadsScene },
             { 8, AllFoursScene },
-            { 9, "Assets/PoOlympic/Scenes/Event_InvertedSprint.unity" },
-            { 10, CrabScene },
-            { 11, SlalomScene },
+            { 10, BeaconScene },
             { 12, TurntableScene },
-            { 13, SteepleScene },
-            { 14, RampScene },
+            { 18, PackMileScene },
             { 19, "Assets/PoOlympic/Scenes/Event_TerminalVelocity.unity" },
-            { 22, "Assets/PoOlympic/Scenes/Event_EmergencyBrake.unity" },
-            { 23, TrenchScene },
-            { 27, ResurrectionScene },
+            { 25, HillScene },
         };
+
+        public const string SumoScene = "Assets/PoOlympic/Scenes/Event_SumoRing.unity";
+        public const string SumoSource = "training/assets/scene_sumo8_roster.xml";
+        public const string SumoLayout = "training/assets/sumo8_roster_layout.json";
+        public const string BridgeScene = "Assets/PoOlympic/Scenes/Event_NarrowBridge.unity";
+        public const string BridgeSource = "training/assets/scene_bridge8_roster.xml";
+        public const string BridgeLayout = "training/assets/bridge8_roster_layout.json";
+        public const string PadsScene = "Assets/PoOlympic/Scenes/Event_ShrinkingSafeZone.unity";
+        public const string PadsSource = "training/assets/scene_pads8_roster.xml";
+        public const string PadsLayout = "training/assets/pads8_roster_layout.json";
+        public const string BeaconScene = "Assets/PoOlympic/Scenes/Event_CenterBeacon.unity";
+        public const string BeaconSource = "training/assets/scene_beacon8_roster.xml";
+        public const string BeaconLayout = "training/assets/beacon8_roster_layout.json";
+        public const string HillScene = "Assets/PoOlympic/Scenes/Event_HilltopScramble.unity";
+        public const string HillSource = "training/assets/scene_hill8_roster.xml";
+        public const string HillLayout = "training/assets/hill8_roster_layout.json";
+
+        [MenuItem("PoOlympic/Events/Build Collision Overhaul Events (2,3,4,6,7,10,18,25) + Hub + Menu")]
+        public static string BuildOverhaulScenes()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(BuildArenaBrawl(2, ArenaBrawlEvent.Mode.Sumo, "SUMO RING", SumoScene, SumoSource, SumoLayout));
+            sb.AppendLine(BuildArenaBrawl(3, ArenaBrawlEvent.Mode.Bridge, "NARROW BRIDGE CROSSING", BridgeScene, BridgeSource, BridgeLayout));
+            sb.AppendLine(BuildTrackRace(4, TrackRaceEvent.Mode.Funnel, "FUNNEL BOTTLENECK", FunnelScene, DefaultRung2Brain, FunnelSource, FunnelLayout));
+            sb.AppendLine(BuildTrackRace(6, TrackRaceEvent.Mode.Crossroad, "FIGURE-8 CROSSROAD", CrossroadScene, DefaultRung2Brain, CrossroadSource, CrossroadLayout));
+            sb.AppendLine(BuildArenaBrawl(7, ArenaBrawlEvent.Mode.Pads, "SHRINKING SAFE-ZONE", PadsScene, PadsSource, PadsLayout));
+            sb.AppendLine(BuildArenaBrawl(10, ArenaBrawlEvent.Mode.Beacon, "CENTER BEACON SCRAMBLE", BeaconScene, BeaconSource, BeaconLayout));
+            sb.AppendLine(BuildTrackRace(18, TrackRaceEvent.Mode.PackMile, "INSIDE-RAIL PACK MILE", PackMileScene, DefaultRung2Brain));
+            sb.AppendLine(BuildArenaBrawl(25, ArenaBrawlEvent.Mode.Hill, "HILLTOP SCRAMBLE", HillScene, HillSource, HillLayout));
+            sb.AppendLine(BuildStadiumHub());
+            sb.AppendLine(BuildMainMenu());
+            AssetDatabase.SaveAssets();
+            string summary = sb.ToString();
+            Debug.Log("[BuildOverhaulScenes]\n" + summary);
+            return summary;
+        }
+
+        [MenuItem("PoOlympic/Events/Bake Missing Lightmaps (unbaked EventScenes)")]
+        public static void BakeMissingLightmaps()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            int baked = 0;
+            foreach (var scenePath in EventScenePaths.Values.Distinct())
+            {
+                var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                if (LightmapSettings.lightmaps.Length > 0) continue;
+                StadiumShowcase.ApplyLightingSettings(scene);
+                Debug.Log($"[BakeMissingLightmaps] Baking {scenePath}...");
+                if (!Lightmapping.Bake())
+                    throw new InvalidOperationException($"Lightmapping.Bake() failed for {scenePath}");
+                EditorSceneManager.SaveScene(scene);
+                baked++;
+                Debug.Log($"[BakeMissingLightmaps] Done {scenePath} (lightmaps={LightmapSettings.lightmaps.Length})");
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[BakeMissingLightmaps] Finished baking {baked} scene(s).");
+        }
+
+        public static string BuildArenaBrawl(int eventNum, ArenaBrawlEvent.Mode mode, string title, string scenePath, string source, string layout)
+        {
+            var meet = BuildMeetScene(source, layout, 5, AthleteLane, 0f, DefaultRung2Brain);
+            HideStadiumProps(meet.Scene, "E05_Shaker");
+            if (mode is ArenaBrawlEvent.Mode.Sumo or ArenaBrawlEvent.Mode.Bridge or ArenaBrawlEvent.Mode.Hill)
+            {
+                var st = meet.Scene.GetRootGameObjects().First(g => g.name == "Stadium");
+                st.transform.position += Vector3.down * 0.5f;   // dropped MuJoCo ground at z = -0.5 m
+            }
+
+            var ev = new GameObject("ArenaBrawlEvent").AddComponent<ArenaBrawlEvent>();
+            ev.mode = mode;
+            (ev.maxSeconds, ev.recoverFromFalls) = ArenaBrawlEvent.Defaults(mode);
+            foreach (var (k, r) in meet.Lanes) ev.runners.Add(new ArenaBrawlEvent.Runner { runner = r, name = LaneLabel($"A{k + 1}", r) });
+            meet.Pool.runner = ev.runners[0].runner;
+
+            if (mode == ArenaBrawlEvent.Mode.Sumo)
+                ColorMjGeoms(n => n == "sumo_ring", StageMaterial("SumoRing", new Color(0.85f, 0.72f, 0.45f), 0.3f));
+            else if (mode == ArenaBrawlEvent.Mode.Bridge)
+                ColorMjGeoms(n => n == "bridge", StageMaterial("NarrowBridge", new Color(0.70f, 0.48f, 0.25f), 0.3f));
+            else if (mode == ArenaBrawlEvent.Mode.Hill)
+            {
+                ColorMjGeoms(n => n == "hill_summit", StageMaterial("HillSummit", new Color(0.90f, 0.68f, 0.18f), 0.4f));
+                ColorMjGeoms(n => n.StartsWith("hill_ramp_") || n.StartsWith("hill_pad_"), StageMaterial("HillRamp", new Color(0.45f, 0.52f, 0.60f), 0.3f));
+            }
+            else if (mode == ArenaBrawlEvent.Mode.Pads)
+            {
+                var visuals = new GameObject("ArenaVisuals");
+                var padMat = StageMaterial("SafePad", new Color(0.15f, 0.85f, 0.75f), 0.5f);
+                ev.padVisuals = new Transform[7];
+                for (int i = 0; i < 7; i++)
+                {
+                    var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    disc.name = $"PadVisual_{i}";
+                    disc.transform.SetParent(visuals.transform);
+                    disc.transform.localScale = new Vector3(ev.padRadius * 2f, 0.015f, ev.padRadius * 2f);
+                    disc.transform.localPosition = new Vector3(0f, 0.015f, 0f);
+                    UnityEngine.Object.DestroyImmediate(disc.GetComponent<Collider>());
+                    disc.GetComponent<Renderer>().sharedMaterial = padMat;
+                    ev.padVisuals[i] = disc.transform;
+                }
+            }
+            else if (mode == ArenaBrawlEvent.Mode.Beacon)
+            {
+                var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                disc.name = "BeaconZoneVisual";
+                disc.transform.localScale = new Vector3(ev.beaconRadius * 2f, 0.012f, ev.beaconRadius * 2f);
+                disc.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+                UnityEngine.Object.DestroyImmediate(disc.GetComponent<Collider>());
+                disc.GetComponent<Renderer>().sharedMaterial = StageMaterial("BeaconZone", new Color(0.95f, 0.72f, 0.10f), 0.6f);
+            }
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = null;
+            if (mode == ArenaBrawlEvent.Mode.Bridge) { bc.focusOffset = new Vector3(6f, 0.9f, 0f); bc.offset = new Vector3(0f, 6.5f, -10.5f); }
+            else if (mode == ArenaBrawlEvent.Mode.Sumo) { bc.focusOffset = new Vector3(0f, 0.9f, 0f); bc.offset = new Vector3(3.8f, 3.8f, -4.8f); }
+            else { bc.focusOffset = new Vector3(0f, 0.9f, 0f); bc.offset = new Vector3(6.2f, 6.5f, -7.8f); }
+
+            AddBroadcast(ev, title, $"Event {eventNum}", eventNum, BrainsLabel(DefaultRung2Brain), meet.Camera, BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, scenePath);
+            return $"{scenePath}: {mode}, {ev.runners.Count} athletes";
+        }
+
+        static void HideStadiumProps(Scene scene, string prefix)
+        {
+            var st = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Stadium");
+            if (st == null) return;
+            foreach (var r in st.GetComponentsInChildren<Renderer>(true))
+                if (r.name.StartsWith(prefix)) r.enabled = false;
+        }
+
+        static void ColorMjGeoms(Func<string, bool> match, Material mat)
+        {
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (!match(g.name) || !g.TryGetComponent<Renderer>(out var rend)) continue;
+                rend.enabled = true;
+                rend.sharedMaterial = mat;
+            }
+        }
+
+        static Material StageMaterial(string assetName, Color color, float smoothness = 0.4f)
+        {
+            string path = $"Assets/PoOlympic/Materials/{assetName}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = assetName };
+            mat.SetColor("_BaseColor", color);
+            mat.SetFloat("_Smoothness", smoothness);
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
+        }
 
         /// <summary>
         /// Stadium hub: the stadium in the MuJoCo frame (yaw 180° only) with all 30 events as EventVenue objects (catalogue
@@ -933,6 +1105,7 @@ namespace PoOlympic.Editor
             doc.panelSettings = panel;
             doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MenuUxml) ?? throw new FileNotFoundException(MenuUxml);
             var menu = go.AddComponent<MainMenuController>();
+            menu.columns = 4;
             var catalog = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(CatalogJson))["events"];
             foreach (var (num, path) in EventScenePaths.OrderBy(kv => kv.Key))
             {

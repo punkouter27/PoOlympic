@@ -35,7 +35,7 @@ namespace PoOlympic
     /// </summary>
     public class TrackRaceEvent : MonoBehaviour, IBroadcastBoard, ILaneRoster
     {
-        public enum Mode { Dash, Terminal, Brake, Inverted, AllFours, Steeplechase, Resurrection, Ramp }
+        public enum Mode { Dash, Terminal, Brake, Inverted, AllFours, Steeplechase, Resurrection, Ramp, Funnel, Crossroad, PackMile }
         public enum Phase { Ready, Live, Result }
 
         [Serializable]
@@ -84,6 +84,9 @@ namespace PoOlympic
         public Vector2 crawlBand = new(0.25f, 0.8f);   // pelvis height band (m) × λ
         [Header("Ramp (= track.py ramp): the flat track with gravity tilted by the slope, uphill = +x")]
         public float slopeDeg = 15f, holdGain = 1f, holdCap = 0.2f;
+        [Header("Funnel chicane (= track.py funnel)")]
+        public float funnelMergeDeg = 24f;
+        public float funnelGateEnd = 24.6f, funnelSlotStep = 0.20f;
         [Header("Fall recovery (= track.py recover)")]
         public bool recoverFromFalls = true;
         public bool autoRestart = true, randomTraits = true;
@@ -113,6 +116,9 @@ namespace PoOlympic
             Mode.Steeplechase => (50f, 3.5f, 30f),
             Mode.Resurrection => (5f, 3.8f, 20f),
             Mode.Ramp => (9f, 0.6f, 45f),
+            Mode.Funnel => (35f, 3.8f, 30f),
+            Mode.Crossroad => (24f, 3.8f, 25f),
+            Mode.PackMile => (84.39f, 4.0f, 45f),
             _ => (30f, 3.0f, 25f),
         };
 
@@ -186,10 +192,14 @@ namespace PoOlympic
             foreach (var r in runners)
             {
                 int ra = r.runner.Binding.RootQposAdr, da = r.runner.Binding.RootDofAdr;
+                double theta = r.runner.startYawDeg * Math.PI / 180.0;
+                double cx = Math.Cos(theta), sy = Math.Sin(theta);
+                double dx = d->qpos[ra] - r.runner.laneOriginX;
+                double dy = d->qpos[ra + 1] - r.runner.laneOriginY;
                 r.prevX = r.x;
-                r.x = sign * (float)(d->qpos[ra] - r.runner.laneOriginX);
-                r.v = sign * (float)d->qvel[da];
-                r.y = (float)(d->qpos[ra + 1] - r.runner.laneOriginY);
+                r.x = sign * (float)(dx * cx + dy * sy);
+                r.v = sign * (float)(d->qvel[da] * cx + d->qvel[da + 1] * sy);
+                r.y = (float)(-dx * sy + dy * cx);
             }
             // ramp: finishers hold the top (standing still, a slope brain creeps back down the ramp)
             if (mode == Mode.Ramp && Current != Phase.Ready)
@@ -309,6 +319,9 @@ namespace PoOlympic
             Mode.Steeplechase => $"{distance:0} m · ground time = finish − air",
             Mode.Resurrection => $"get up, sprint {distance:0} m",
             Mode.Ramp => $"{distance:0} m up a {slopeDeg:0}° ramp",
+            Mode.Funnel => $"{distance:0} m through 1.8 m gates",
+            Mode.Crossroad => $"{distance:0} m perpendicular crossroad",
+            Mode.PackMile => $"{distance:0.##} m · inside rail pack",
             _ => $"{distance:0} m",
         };
         public string ClockLine => $"{LiveTime:0.00} s";
@@ -355,7 +368,9 @@ namespace PoOlympic
         {
             r.runner.command = new Vector3(commandSpeed, 0f, 0f);
             r.runner.laneKeeping = true;
-            if (mode == Mode.Terminal && laneBreak) r.runner.steer = (x, y, yaw, c) => BreakSteer(r, x, yaw, c);
+            if (mode is Mode.Terminal or Mode.PackMile && laneBreak) r.runner.steer = (x, y, yaw, c) => BreakSteer(r, x, yaw, c);
+            else if (mode == Mode.Funnel) r.runner.steer = (x, y, yaw, c) => FunnelSteer(r, x, yaw, c);
+            else if (mode == Mode.Crossroad) r.runner.steer = (x, y, yaw, c) => CrossroadSteer(r, yaw, c);
             else if (aggressivePack && mode is Mode.Dash or Mode.Steeplechase or Mode.Resurrection or Mode.Ramp)
                 r.runner.steer = (x, y, yaw, c) => BrawlSteer(r, x, yaw, c);
         }
@@ -409,6 +424,56 @@ namespace PoOlympic
             return cmd;
         }
 
+        /// <summary>Funnel bottleneck chicane: compress all 8 runners into [-0.7, +0.7] through both 1.8 m gates, then brawl to the finish.</summary>
+        unsafe Vector3 FunnelSteer(Runner me, double x, double yaw, Vector3 cmd)
+        {
+            var d = MjScene.Instance.Data;
+            int idx = runners.IndexOf(me);
+            double slotY = (0.5 * (runners.Count - 1) - idx) * funnelSlotStep;
+            double myY = d->qpos[me.runner.Binding.RootQposAdr + 1];
+            if (x < funnelGateEnd)
+            {
+                double cap = Math.Tan(funnelMergeDeg * Math.PI / 180.0) / me.runner.Contract.steering.lane_gain;
+                double off = Math.Clamp(myY - slotY, -cap, cap);
+                cmd.z = (float)me.runner.Contract.SteerYawRateFromYaw(yaw, off, cmd.x);
+                return cmd;
+            }
+            if (!aggressivePack)
+            {
+                cmd.z = (float)me.runner.Contract.SteerYawRateFromYaw(yaw, myY - slotY, cmd.x);
+                return cmd;
+            }
+            double bestDy = double.MaxValue, rivalY = slotY;
+            foreach (var o in runners)
+            {
+                if (o == me || !o.Racing || o.down) continue;
+                int ra = o.runner.Binding.RootQposAdr;
+                double dx = d->qpos[ra] - o.runner.laneOriginX - x;
+                double oy = d->qpos[ra + 1];
+                double dy = Math.Abs(oy - myY);
+                if (Math.Abs(dx) < brawlRangeX && dy < brawlRangeY && dy < bestDy) { bestDy = dy; rivalY = oy; }
+            }
+            if (bestDy == double.MaxValue)
+            {
+                cmd.z = (float)me.runner.Contract.SteerYawRateFromYaw(yaw, myY - slotY, cmd.x);
+                return cmd;
+            }
+            return BrawlCommand(myY, slotY, rivalY, yaw, cmd.x, me.runner.Contract);
+        }
+
+        /// <summary>Crossroad intersection: lanes 0-3 face +X (yaw 0), lanes 4-7 face +Y (yaw 90); steer along each lane's startYawDeg.</summary>
+        unsafe Vector3 CrossroadSteer(Runner me, double yaw, Vector3 cmd)
+        {
+            var d = MjScene.Instance.Data;
+            int ra = me.runner.Binding.RootQposAdr;
+            double theta = me.runner.startYawDeg * Math.PI / 180.0;
+            double dx = d->qpos[ra] - me.runner.laneOriginX;
+            double dy = d->qpos[ra + 1] - me.runner.laneOriginY;
+            double lat = -Math.Sin(theta) * dx + Math.Cos(theta) * dy;
+            cmd.z = (float)me.runner.Contract.SteerYawRateFromYaw(yaw - theta, lat, cmd.x);
+            return cmd;
+        }
+
         /// <summary>Feature 4: Aggressive pack steering — runners seek shoulder-to-shoulder contact with nearby rivals,
         /// leaning toward the closest neighbour's lateral line and surging forward speed to rub shoulders.</summary>
         unsafe Vector3 BrawlSteer(Runner me, double x, double yaw, Vector3 cmd)
@@ -452,7 +517,8 @@ namespace PoOlympic
                 foreach (var r in runners.Where(r => r.status == "FINISHED")) r.scoreS = r.finishS - (float)r.gait.Hang;
             IEnumerable<Runner> order = mode switch
             {
-                Mode.Dash or Mode.Inverted or Mode.Resurrection or Mode.Ramp => runners.OrderBy(r => r.status == "FINISHED" ? 0 : 1).ThenBy(r => r.finishS),
+                Mode.Dash or Mode.Inverted or Mode.Resurrection or Mode.Ramp or Mode.Funnel or Mode.Crossroad or Mode.PackMile =>
+                    runners.OrderBy(r => r.status == "FINISHED" ? 0 : 1).ThenBy(r => r.finishS),
                 Mode.AllFours => runners.OrderBy(r => r.status == "FINISHED" ? 0 : r.status == "DNF" ? 1 : 2).ThenBy(r => r.finishS)
                                         .ThenByDescending(r => r.status == "DNF" ? Mathf.Min(r.x, distance) : 0f),
                 Mode.Steeplechase => runners.OrderBy(r => r.status == "FINISHED" ? 0 : 1).ThenBy(r => r.status == "FINISHED" ? r.scoreS : 0f).ThenBy(r => r.finishS),
@@ -471,7 +537,8 @@ namespace PoOlympic
 
         string Mark(Runner r) => mode switch
         {
-            Mode.Dash or Mode.Resurrection or Mode.Ramp => r.status == "FINISHED" ? $"{r.finishS:0.00} s" : r.status,
+            Mode.Dash or Mode.Resurrection or Mode.Ramp or Mode.Funnel or Mode.Crossroad or Mode.PackMile =>
+                r.status == "FINISHED" ? $"{r.finishS:0.00} s" : r.status,
             Mode.Inverted => r.status == "FINISHED" ? $"{r.finishS:0.00} s" : r.status == "DQ" ? "DQ (left lane)" : r.status,
             Mode.AllFours => (r.status == "FINISHED" ? $"{r.finishS:0.00} s" : r.status == "DQ" ? "DQ (stood up)"
                               : r.status == "DNF" ? $"DNF · {Mathf.Min(r.x, distance):0.0} m" : r.status)

@@ -29,7 +29,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
-EVENT_SCENES = ["pedestal8", "shaker8", "crawl8", "slalom8", "turntable8", "track8", "crab8", "trench8"]
+EVENT_SCENES = [
+    "pedestal8", "shaker8", "crawl8", "slalom8", "turntable8", "track8", "trench8",
+    "sumo8", "bridge8", "funnel8", "crossroad8", "pads8", "beacon8", "hill8",
+]
 LINEUPS = ["", "_mzmzmzmz", "_mzgmzgmg", "_mzgkmzgk"]   # all-MATT, MATT / zombie, MATT / zombie / GRANDMA, + KIM
 NUDGE = np.array([0.011, 0.007, 0.004])         # m — never place two geom centres exactly on top of each other
 
@@ -87,7 +90,9 @@ def check_scene(tag: str) -> dict:
     res["filter_pairs"] = n_filter
     # support: every athlete geom against every world geom it may stand on / hit
     stage = [g for g in range(m.ngeom)
-             if m.geom(g).name in ("ground", "pedestal", "shaker") or m.geom(g).name.endswith(("_pedestal", "_shaker"))]
+             if m.geom(g).name in ("ground", "pedestal", "shaker", "sumo_ring", "bridge", "hill_summit")
+             or m.geom(g).name.endswith(("_pedestal", "_shaker"))
+             or m.geom(g).name.startswith(("funnel_w", "hill_ramp_", "hill_pad_"))]
     for p in prefixes:
         for a in ath[p]:
             for w in stage:

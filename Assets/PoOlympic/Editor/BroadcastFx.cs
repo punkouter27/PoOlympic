@@ -238,6 +238,7 @@ namespace PoOlympic.Editor
             audio.recordChime = Clip("Ui/confirmation_002.ogg");
             audio.goBong = Clip("Ui/bong_001.ogg");
             audio.countTick = Clip("Ui/click_002.ogg");
+            audio.characterVoices = AssetDatabase.LoadAssetAtPath<CharacterVoiceBank>(CharacterVoiceAssets.BankAssetPath);
 
             // per athlete: telemetry, critic
             var conf = AssetDatabase.LoadAssetAtPath<TextAsset>(ConfidenceModel);
@@ -371,6 +372,7 @@ namespace PoOlympic.Editor
             var scuff = ParticleMaterial("FxScuff", scuffTex, false);
             ScrapeClip();
             SurfaceClips();
+            CharacterVoiceAssets.EnsurePlaceholders();
             AudioImport();
             EnsureDecalFeature();
             EnsurePulseProfile();

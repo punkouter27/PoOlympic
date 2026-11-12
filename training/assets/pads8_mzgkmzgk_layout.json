@@ -1,0 +1,139 @@
+{
+ "n_lanes": 8,
+ "lane_width": 1.22,
+ "n_cubes": 16,
+ "lanes": [
+  {
+   "lane": 0,
+   "prefix": "L0_",
+   "body": "matt",
+   "origin": [
+    3.2,
+    0.0,
+    0.0
+   ],
+   "cubes": [
+    0,
+    1
+   ],
+   "yaw_deg": -180.0
+  },
+  {
+   "lane": 1,
+   "prefix": "L1_",
+   "body": "zombie",
+   "origin": [
+    2.2627416997969525,
+    2.2627416997969525,
+    0.0
+   ],
+   "cubes": [
+    2,
+    3
+   ],
+   "yaw_deg": -135.0
+  },
+  {
+   "lane": 2,
+   "prefix": "L2_",
+   "body": "grandma",
+   "origin": [
+    1.9594348786357652e-16,
+    3.2,
+    0.0
+   ],
+   "cubes": [
+    4,
+    5
+   ],
+   "yaw_deg": -90.00000000000001
+  },
+  {
+   "lane": 3,
+   "prefix": "L3_",
+   "body": "kim",
+   "origin": [
+    -2.262741699796952,
+    2.2627416997969525,
+    0.0
+   ],
+   "cubes": [
+    6,
+    7
+   ],
+   "yaw_deg": -45.00000000000001
+  },
+  {
+   "lane": 4,
+   "prefix": "L4_",
+   "body": "matt",
+   "origin": [
+    -3.2,
+    3.9188697572715305e-16,
+    0.0
+   ],
+   "cubes": [
+    8,
+    9
+   ]
+  },
+  {
+   "lane": 5,
+   "prefix": "L5_",
+   "body": "zombie",
+   "origin": [
+    -2.2627416997969525,
+    -2.262741699796952,
+    0.0
+   ],
+   "cubes": [
+    10,
+    11
+   ],
+   "yaw_deg": 44.99999999999999
+  },
+  {
+   "lane": 6,
+   "prefix": "L6_",
+   "body": "grandma",
+   "origin": [
+    -5.878304635907295e-16,
+    -3.2,
+    0.0
+   ],
+   "cubes": [
+    12,
+    13
+   ],
+   "yaw_deg": 89.99999999999999
+  },
+  {
+   "lane": 7,
+   "prefix": "L7_",
+   "body": "kim",
+   "origin": [
+    2.2627416997969516,
+    -2.2627416997969525,
+    0.0
+   ],
+   "cubes": [
+    14,
+    15
+   ],
+   "yaw_deg": 135.0
+  }
+ ],
+ "pedestal_h": 0.0,
+ "crowd": true,
+ "lineup": [
+  "matt",
+  "zombie",
+  "grandma",
+  "kim",
+  "matt",
+  "zombie",
+  "grandma",
+  "kim"
+ ],
+ "note": "lane k: names prefixed L<k>_, athlete body per lane (assets/<body>.xml), pelvis shifted by origin"
+}

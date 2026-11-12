@@ -61,10 +61,16 @@ MODES = {
     # vx 0.6 (MATT units = 15 % of each body's flat top speed, the Slope15s range): MATT climbs fastest at 1.0-1.5 but KIM
     # stalls above her 15 % (2026-10-14)
     "ramp": {"distance": 9.0, "vx": 0.6, "max_s": 45.0, "slope_deg": 15.0},
+    "funnel": {"distance": 35.0, "vx": 3.8, "max_s": 30.0},
+    "crossroad": {"distance": 24.0, "vx": 3.8, "max_s": 25.0},
+    "pack_mile": {"distance": 84.39, "vx": 4.0, "max_s": 45.0, "break_x": 2.0, "aggressive": True},
 }
 SUPINE_Z = 0.22       # m x the body's height scale — resurrection: pelvis height lying on the back (tools/getup_probe.py)
 BREAK_X = 15.0        # m — terminal: the green lane-break line
 MERGE_DEG = 12.0      # terminal: largest heading off straight while merging (lateral ~0.8 m/s at 4 m/s)
+FUNNEL_MERGE_DEG = 24.0  # funnel: steeper chicane angle to clear both 1.8 m gate walls from outer lanes
+FUNNEL_GATE_X = (12.0, 24.0)
+FUNNEL_SLOT_STEP = 0.20  # m per lane inside the 1.8 m gate opening (-0.70 .. +0.70)
 MIN_FLIGHT = 0.02     # s — steeple: both feet off the ground at least this long = a flight (contact chatter ignored)
 LANE_HALF = 0.61      # m — inverted sprint: pelvis further than this from the lane centre line = DQ (lane drift)
 BRAKE_NERVE = (1.4, 2.2)   # m before the line at which a runner hits the brakes — per-runner "nerve" (seeded); the
@@ -173,9 +179,23 @@ def brawl_steer(i: int, xs: list[float], ys: list[float], origins_y: list[float]
     return vx, my_y - (origins_y[i] + pull)
 
 
-def merge_offset(y: float, target: float) -> float:
-    """Lane offset fed to the contract steering law, capped so the merge heading stays within MERGE_DEG."""
-    cap = math.tan(math.radians(MERGE_DEG)) / C.LANE_GAIN
+def steer_towards_yaw(quat: np.ndarray, off: float, vx: float, ref_yaw: float = 0.0) -> float:
+    """Contract lane steering around an arbitrary reference heading (0 = +X, pi/2 = +Y for Crossroad)."""
+    direction = -1.0 if vx < 0 else 1.0
+    target = math.atan(-C.LANE_GAIN * off * direction)
+    rel_yaw = C.yaw_of(quat) - ref_yaw
+    err = (target - rel_yaw + math.pi) % (2 * math.pi) - math.pi
+    return float(np.clip(C.HEADING_GAIN * err, -C.STEER_WZ_LIMIT, C.STEER_WZ_LIMIT))
+
+
+def funnel_target(i: int, n_lanes: int) -> float:
+    """Target Y inside the 1.8 m chicane gates (compressed around Y=0, symmetrical around middle lane)."""
+    return (0.5 * (n_lanes - 1) - i) * FUNNEL_SLOT_STEP
+
+
+def merge_offset(y: float, target: float, max_deg: float = MERGE_DEG) -> float:
+    """Lane offset fed to the contract steering law, capped so the merge heading stays within max_deg."""
+    cap = math.tan(math.radians(max_deg)) / C.LANE_GAIN
     return float(np.clip(y - target, -cap, cap))
 
 
@@ -242,6 +262,13 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
     rng = np.random.default_rng(seed)
     traits = traits or [Traits.sample(rng) for _ in range(len(layout["lanes"]))]
     lanes = make_lanes(m, d, layout, seed, traits, onnx, brains)
+    for ln, row in zip(lanes, layout["lanes"]):
+        yaw = math.radians(float(row.get("yaw_deg", 0.0)))
+        if abs(yaw) > 1e-6:
+            c, s = math.cos(0.5 * yaw), math.sin(0.5 * yaw)
+            ra = ln.ath.root_qposadr
+            w, x, y, z = d.qpos[ra + 3: ra + 7]
+            d.qpos[ra + 3: ra + 7] = [c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w]
     mujoco.mj_forward(m, d)
     res = [RaceLane(ln.k, ln.traits, body=ln.body) for ln in lanes]
     gait = [FootGait(m, ln.prefix, m.opt.timestep) for ln in lanes] if mode == "steeple" else None
@@ -258,12 +285,23 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
             rec.fall(i, skip_relax=True)
         mujoco.mj_forward(m, d)
     tick = 0
+    yaw_rads = [math.radians(float(row.get("yaw_deg", 0.0))) for row in layout["lanes"]]
+    fwd_xy = [(math.cos(a), math.sin(a)) for a in yaw_rads]
+    left_xy = [(-math.sin(a), math.cos(a)) for a in yaw_rads]
     inside_y = max(float(ln.origin[1]) for ln in lanes)        # lane 1 (the runner's left) = the inside
-    assert [ln.k for ln in lanes] == sorted(ln.k for ln in lanes) and inside_y == float(lanes[0].origin[1])
+    if mode in ("terminal", "pack_mile"):
+        assert [ln.k for ln in lanes] == sorted(ln.k for ln in lanes) and inside_y == float(lanes[0].origin[1])
     hw = [half_width(m, d, ln) for ln in lanes]
+    break_x = float(cfg.get("break_x", BREAK_X))
+    aggressive = bool(cfg.get("aggressive", False))
     while tick * dt < cfg["max_s"]:
         t = tick * dt
-        xs = [float(d.qpos[ln.ath.root_qposadr] - ln.origin[0]) for ln in lanes]       # positions at the tick start
+        xs = [float((d.qpos[ln.ath.root_qposadr] - ln.origin[0]) * fwd_xy[i][0]
+                    + (d.qpos[ln.ath.root_qposadr + 1] - ln.origin[1]) * fwd_xy[i][1])
+              for i, ln in enumerate(lanes)]
+        ys = [float(d.qpos[ln.ath.root_qposadr + 1]) for ln in lanes]
+        origins_y = ([funnel_target(i, len(lanes)) for i in range(len(lanes))] if mode == "funnel"
+                     else [float(ln.origin[1]) for ln in lanes])
         alongside = [not res[i].status and not rec.down[i] for i in range(len(lanes))]
         for i, ln in enumerate(lanes):
             r = res[i]
@@ -276,18 +314,27 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
                 ln.control(ln.sess, d, np.zeros(3))
                 continue
             ra = ln.ath.root_qposadr
-            x = d.qpos[ra] - ln.origin[0]
+            dx_w = float(d.qpos[ra] - ln.origin[0])
+            dy_w = float(d.qpos[ra + 1] - ln.origin[1])
+            x = dx_w * fwd_xy[i][0] + dy_w * fwd_xy[i][1]
             if mode == "brake" and not braking[i] and x >= cfg["distance"] - nerve[i]:
                 braking[i] = True
             if braking[i] or r.status == "FELL":
                 cmd = np.zeros(3)
             else:
                 q = d.qpos[ra + 3: ra + 7]
-                off = d.qpos[ra + 1] - ln.origin[1]
-                if mode == "terminal" and x >= BREAK_X:
-                    target = pack_target(i, xs, alongside, hw, inside_y)
-                    off = merge_offset(d.qpos[ra + 1], target)
-                cmd = np.array([cfg["vx"], 0.0, C.steer_yaw_rate(q, off, cfg["vx"])])
+                vx_cmd = cfg["vx"]
+                off = dx_w * left_xy[i][0] + dy_w * left_xy[i][1]
+                if mode in ("terminal", "pack_mile") and x >= break_x:
+                    target = pack_target(i, xs, alongside, hw, inside_y, aggressive=aggressive)
+                    off = merge_offset(float(d.qpos[ra + 1]), target)
+                elif mode == "funnel":
+                    if x < FUNNEL_GATE_X[1] + 0.6:
+                        off = merge_offset(float(d.qpos[ra + 1]), funnel_target(i, len(lanes)), max_deg=FUNNEL_MERGE_DEG)
+                    else:
+                        vx_cmd, off = brawl_steer(i, xs, ys, origins_y, alongside, vx_cmd)
+                        off = merge_offset(float(d.qpos[ra + 1]), float(d.qpos[ra + 1]) - off)
+                cmd = np.array([vx_cmd, 0.0, steer_towards_yaw(q, off, vx_cmd, yaw_rads[i])])
             ln.control(ln.sess, d, cmd)
         for s in range(C.DECIMATION):
             for ln in lanes:
@@ -306,8 +353,10 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
                 continue
             ra, da = ln.ath.root_qposadr, ln.ath.root_dofadr
             sign = -1.0 if cfg["vx"] < 0 else 1.0
-            x = sign * (d.qpos[ra] - ln.origin[0])       # progress along the race direction
-            vx = sign * float(d.qvel[da])
+            dx_w = float(d.qpos[ra] - ln.origin[0])
+            dy_w = float(d.qpos[ra + 1] - ln.origin[1])
+            x = sign * (dx_w * fwd_xy[i][0] + dy_w * fwd_xy[i][1])       # progress along the race direction
+            vx = sign * float(d.qvel[da] * fwd_xy[i][0] + d.qvel[da + 1] * fwd_xy[i][1])
             speed_hist[i].append(vx)
             if len(speed_hist[i]) >= 50:
                 r.peak_mps = max(r.peak_mps, float(np.mean(speed_hist[i][-50:])))
@@ -325,7 +374,7 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
             if mode == "inverted" and abs(d.qpos[ra + 1] - ln.origin[1]) > LANE_HALF:
                 r.status = "DQ"
                 continue
-            if mode in ("dash", "terminal", "inverted", "steeple", "resurrection", "ramp") and x >= cfg["distance"]:
+            if mode in ("dash", "terminal", "inverted", "steeple", "resurrection", "ramp", "funnel", "crossroad", "pack_mile") and x >= cfg["distance"]:
                 r.status, r.finish_s = "FINISHED", t
             if mode == "brake":
                 toe = x + TOE_AHEAD
@@ -345,7 +394,7 @@ def run_race(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = Non
             if r.status == "FINISHED":
                 r.score_s = round(r.finish_s - g.hang, 3)
     # ranking
-    if mode in ("dash", "inverted", "resurrection", "ramp"):
+    if mode in ("dash", "inverted", "resurrection", "ramp", "funnel", "crossroad", "pack_mile"):
         key = lambda r: (0, r.finish_s) if r.status == "FINISHED" else (1, 0)
     elif mode == "steeple":
         key = lambda r: (0, r.score_s, r.finish_s) if r.status == "FINISHED" else (1, 0)

@@ -59,6 +59,8 @@ namespace PoOlympic
         [Header("Lane (meet scenes; solo = no prefix, origin 0, cube slots 0..3)")]
         [Tooltip("MuJoCo world x/y of this lane's origin: root position = contract default + origin.")]
         public double laneOriginX, laneOriginY;
+        [Tooltip("Initial heading yaw (deg) about world +Z applied on ResetToDefault (0 = default +X).")]
+        public double startYawDeg;
         [Tooltip("Pool cube slots this lane owns: a lane-local script's cube<i> is cube<cubeSlots[i]> in the scene.")]
         public int[] cubeSlots = { 0, 1, 2, 3 };
 
@@ -264,6 +266,14 @@ namespace PoOlympic
                 bool free = m->jnt_type[j] == 0;
                 for (int i = 0; i < jq.qpos.Length; i++)
                     d->qpos[qa + i] = jq.qpos[i] + (free && i == 0 ? laneOriginX : free && i == 1 ? laneOriginY : 0.0);
+            }
+            if (Math.Abs(startYawDeg) > 1e-6)
+            {
+                int r = Binding.RootQposAdr;
+                double a = startYawDeg * Math.PI / 360.0, cz = Math.Cos(a), sz = Math.Sin(a);
+                double w = d->qpos[r + 3], x = d->qpos[r + 4], y = d->qpos[r + 5], z = d->qpos[r + 6];
+                d->qpos[r + 3] = cz * w - sz * z; d->qpos[r + 4] = cz * x - sz * y;
+                d->qpos[r + 5] = cz * y + sz * x; d->qpos[r + 6] = cz * z + sz * w;
             }
             if (startProne)
             {

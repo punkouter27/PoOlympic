@@ -60,6 +60,12 @@ namespace PoOlympic
         public AudioClip[] leadLines = new AudioClip[8];
         public AudioClip recordLine, marksLine, setLine, saveLine, nextHeatLine, resultLine, photoFinishLine;
 
+        [Header("Character Voices")]
+        public CharacterVoiceBank characterVoices;
+        public float characterVoiceCooldown = 1.6f;
+        public float globalCharacterVoiceCooldown = 0.45f;
+        [Range(0f, 1.5f)] public float characterVoiceVolume = 0.85f;
+
         [Header("Mixer")]
         public AudioMixer mixer;
         public AudioMixerSnapshot snapReady, snapLive, snapResult, snapAnnounce;
@@ -83,8 +89,10 @@ namespace PoOlympic
         string _banner = "";
         BoardPhase _phase = BoardPhase.Ready;
         float _lastReaction = -99f, _lastLead = -99f, _lastSave = -99f, _liveSince, _resultAt = -1f, _nextClick;
+        float _lastAnyCharVoice = -99f;
         readonly System.Random _rng = new(7);
         readonly Dictionary<PolicyRunner, float> _lastStep = new();
+        readonly Dictionary<PolicyRunner, float> _lastCharVoice = new();
         readonly HashSet<PolicyRunner> _out = new();
         PolicyRunner _leader;
         bool _marksCalled, _setCalled, _winCalled;
@@ -212,6 +220,7 @@ namespace PoOlympic
                 {
                     Event(buzzer, 0.35f);
                     Say(Line(outLines, r.name), ttl: 2.5f);
+                    PlayCharacterVoice(r.runner, CharacterEmotion.Angry, 4);
                 }
             if (!Race || rows.Count == 0) return;
             var lead = rows.FirstOrDefault(r => !r.bad).runner;
@@ -221,6 +230,8 @@ namespace PoOlympic
                 {
                     _lastLead = now;
                     Say(Line(leadLines, rows.First(r => r.runner == lead).name), ttl: 1.5f);
+                    PlayCharacterVoice(lead, CharacterEmotion.Insult, 3);
+                    PlayCharacterVoice(_leader, CharacterEmotion.Angry, 3);
                 }
                 _leader = lead;
             }
@@ -232,8 +243,10 @@ namespace PoOlympic
             var rows = b.Rows.ToList();
             var w = rows.FirstOrDefault(r => r.place == 1);
             if (w.name == null) { Say(resultLine, chime: true, ttl: 3f); return; }
-            if (Race && tension != null && !float.IsNaN(tension.LeadGapM) && tension.LeadGapM < photoFinishGap) Say(photoFinishLine, chime: true, ttl: 3f);
-            Say(Line(winLines, w.name), chime: !Race || tension == null || float.IsNaN(tension.LeadGapM) || tension.LeadGapM >= photoFinishGap, ttl: 5f);
+            bool photo = Race && tension != null && !float.IsNaN(tension.LeadGapM) && tension.LeadGapM < photoFinishGap;
+            if (photo) Say(photoFinishLine, chime: true, ttl: 3f);
+            Say(Line(winLines, w.name), chime: !photo, ttl: 5f);
+            PlayCharacterVoice(w.runner, CharacterEmotion.Happy, photo ? 5 : 4, ignoreGlobalCooldown: true);
         }
 
         static AudioClip Line(AudioClip[] lines, string laneName)
@@ -256,11 +269,22 @@ namespace PoOlympic
         /// <summary>PodiumCeremony: the medal ceremony starts.</summary>
         public void Fanfare() => Event(fanfare, 0.8f);
 
-        void OnNearFall(PolicyRunner r) => React(0.55f);
-        void OnFall(PolicyRunner r) => React(0.75f);
+        void OnNearFall(PolicyRunner r)
+        {
+            React(0.55f);
+            PlayCharacterVoice(r, CharacterEmotion.Hurt, 3);
+        }
+
+        void OnFall(PolicyRunner r)
+        {
+            React(0.75f);
+            PlayCharacterVoice(r, CharacterEmotion.Hurt, 5, ignoreGlobalCooldown: true);
+        }
+
         void OnSave(PolicyRunner r)
         {
             React(0.7f, cheer: true);
+            PlayCharacterVoice(r, CharacterEmotion.Happy, 4);
             if (Time.unscaledTime - _lastSave > saveCallCooldown) { _lastSave = Time.unscaledTime; Say(saveLine, ttl: 1.5f); }
         }
 
@@ -421,13 +445,45 @@ namespace PoOlympic
                     var (slamVol, slamPitch) = HitSound(e, e.weightRatio / need, 0.15f);
                     Voice(e.weightRatio > 3f * need ? Pick(bodySlams) : Pick(thuds), e.position, slamVol, slamPitch * Random(0.96f, 1.04f));
                     SurfaceLayer(e, slamVol * 0.8f);
+                    if (e.weightRatio >= 1.5f * need)
+                    {
+                        int exp = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1f, 5f, Mathf.InverseLerp(1.5f * need, 5.5f * need, e.weightRatio))), 1, 5);
+                        PlayCharacterVoice(e.runner, CharacterEmotion.Hurt, exp);
+                    }
                     break;
                 case ImpactEvent.Kind.CubeHit:
                     if (e.weightRatio < 0.1f) return;
                     // a cube is 2 kg whoever it hits: its own pitch, louder with the force
                     Voice(Pick(cubeHits), e.position, Mathf.Clamp01(0.4f + 0.3f * Mathf.Log(1f + 4f * e.weightRatio, 2f)), Random(0.95f, 1.1f));
+                    if (e.weightRatio >= 0.4f)
+                    {
+                        int exp = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1f, 5f, Mathf.InverseLerp(0.4f, 3.0f, e.weightRatio))), 1, 5);
+                        PlayCharacterVoice(e.runner, CharacterEmotion.Angry, exp);
+                    }
                     break;
             }
+        }
+
+        /// <summary>Play a character's emotional voice clip (HAPPY, ANGRY, HURT, INSULT) at expressiveness 1..5.</summary>
+        public void PlayCharacterVoice(PolicyRunner runner, CharacterEmotion emotion, int expressiveness, bool ignoreGlobalCooldown = false)
+        {
+            if (runner == null) return;
+            float now = Time.unscaledTime;
+            if (!ignoreGlobalCooldown && now - _lastAnyCharVoice < globalCharacterVoiceCooldown) return;
+            if (_lastCharVoice.TryGetValue(runner, out float last) && now - last < characterVoiceCooldown) return;
+
+            var bank = characterVoices != null ? characterVoices : (characterVoices = CharacterVoiceBank.Default);
+            string id = Odds.BodyOf(runner);
+            int variant = _rng.Next(CharacterVoiceSynth.VariantsPerEmotion);
+            int lvl = Mathf.Clamp(expressiveness, 1, CharacterVoiceSynth.ExpressivenessLevels);
+            var clip = bank.GetClip(id, emotion, variant, lvl);
+            if (clip == null) return;
+
+            _lastAnyCharVoice = now;
+            _lastCharVoice[runner] = now;
+            Vector3 pos = runner.PelvisTransform != null ? runner.PelvisTransform.position : runner.transform.position;
+            float vol = characterVoiceVolume * Mathf.Lerp(0.55f, 1f, (lvl - 1) / 4f);
+            Voice(clip, pos, vol, Random(0.97f, 1.03f));
         }
 
         void Voice(AudioClip clip, Vector3 at, float volume, float pitch)
