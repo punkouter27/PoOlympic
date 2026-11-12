@@ -46,3 +46,11 @@ Only these events remain in the catalogue and stadium hub. Existing development 
 - The rebuilt player's two-heat retest decoded 76 audio payloads without failures or JavaScript exceptions. A nonfatal Unity AudioListener `addDSP` invalid-handle diagnostic remains on event-to-event transitions; it did not prevent scoring, advancement, or decoding, and is not changed by the layout fix.
 - The four original athlete GLB hashes still match their pre-build values. Before/after results captures and the persisted bracket are included in `SCREENSHOTS/event_roster_before_after.html`.
 - Deployment fallback: the existing `tools/deploy_webgl.ps1` can publish the browser-tested local build while the normal CI runner is offline. Review and commit only the event-roster, entrant, scene, test, and report files; leave unrelated importer/rendering/Unity Connect changes unstaged.
+
+## Release and sync
+
+- The reviewed app changes were committed as `3f7ad5c` and pushed to `master`.
+- With the self-hosted Unity runner still offline, the documented manual deployment script successfully published the tested build to https://icy-field-055e0430f.6.azurestaticapps.net/.
+- Production returned HTTP 200 and loaded in native Chrome with all 16 menu entries, no JavaScript exceptions, and no startup error banner.
+- Production WebAssembly matches the tested local build after HTTP gzip decoding: SHA-256 `1071ED743070F133FD669B07CCA51C3B9D12CCF3167BFD9B7E05F1B40F57C93A`. Comparing the downloaded decoded payload to the local compressed file initially produced a false mismatch; comparing decoded bytes resolved it.
+- The normal CI job for the pushed release is queued, not failed. Reconnect the `MSI-PoOlympic` runner to restore automatic builds and deployments; no workflow security settings were changed.

@@ -48,6 +48,12 @@
       <figcaption>Persisted tournament: eight starting slots per side, KIM in the center, ELO retained after restart</figcaption>
       <img src="tournament_browser_verified.png" alt="Symmetric 16-slot tournament bracket with KIM as champion and ELO 1232">
     </figure>
+    <h2>Production release</h2>
+    <p>The browser-tested build was published using the documented manual deployment script because the self-hosted CI runner is offline. <a href="https://icy-field-055e0430f.6.azurestaticapps.net/">Play the deployed game</a>. Production returned HTTP 200, loaded in native Chrome without JavaScript exceptions, and its decoded WebAssembly hash matches the tested local build.</p>
+    <figure>
+      <figcaption>Production: 16 numbered events, 11 playable, five pending implementation and policy validation</figcaption>
+      <img src="webgl_live_verified.png" alt="Production browser menu with 16 numbered event tiles">
+    </figure>
   </main>
 </body>
 </html>
