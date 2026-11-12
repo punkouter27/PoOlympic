@@ -263,6 +263,15 @@ if bodies.current().name == "matt":
     register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp", env_cfg=matt_rung2_ramp_env_cfg(),
                         play_env_cfg=matt_rung2_ramp_env_cfg(play=True),
                         rl_cfg=matt_ppo_cfg("matt_rung2", max_iterations=600), runner_cls=SymmetricRunner)
+    def matt_rung2_ramp_4096_env_cfg(play: bool = False):
+        cfg = matt_rung2_ramp_env_cfg(play=play)
+        if not play:
+            cfg.scene.num_envs = 4096
+        return cfg
+
+    register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-4096", env_cfg=matt_rung2_ramp_4096_env_cfg(),
+                        play_env_cfg=matt_rung2_ramp_env_cfg(play=True),
+                        rl_cfg=matt_ppo_cfg("matt_rung2", max_iterations=600), runner_cls=SymmetricRunner)
     _register_fast("PoOlympic-Matt-Rung0-Full", matt_rung0_full_env_cfg, "matt_rung0", 200, MjlabOnPolicyRunner)
     _register_fast("PoOlympic-Matt-Rung2-Ramp", matt_rung2_ramp_env_cfg, "matt_rung2", 300, SymmetricRunner)
 
@@ -733,6 +742,10 @@ if bodies.current().name == "zombie":
                         play_env_cfg=zombie_rung0_full_env_cfg(play=True),
                         rl_cfg=matt_ppo_cfg("zombie_rung0", max_iterations=400), runner_cls=MjlabOnPolicyRunner)
     register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Ramp", env_cfg=zombie_rung2_ramp_env_cfg(),
+                        play_env_cfg=zombie_rung2_ramp_env_cfg(play=True),
+                        rl_cfg=matt_ppo_cfg("zombie_rung2", max_iterations=600), runner_cls=SymmetricRunner)
+    register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Ramp-4096",
+                        env_cfg=_envs4096(zombie_rung2_ramp_env_cfg)(),
                         play_env_cfg=zombie_rung2_ramp_env_cfg(play=True),
                         rl_cfg=matt_ppo_cfg("zombie_rung2", max_iterations=600), runner_cls=SymmetricRunner)
     _register_fast("PoOlympic-Zombie-Rung0-Full", zombie_rung0_full_env_cfg, "zombie_rung0", 200, MjlabOnPolicyRunner)

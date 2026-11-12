@@ -51,16 +51,16 @@ iterations); the remaining first-pass jobs are Grandma, KIM, then MATT. TensorBo
 `http://127.0.0.1:6006/`. At the first resource check, initialization was still underway, GPU load was 0%, GPU temperature
 was 50 C, and free RAM was 6.44 GB.
 
-Checkpoint metrics, continuation decisions, and the final report will be added as the run progresses. The requested
-charted report is planned at `docs/20261111/extended_training_report.html`.
+Checkpoint metrics and continuation decisions are recorded below. The final charted report is at
+`docs/20261111/extended_training_report.html`.
 
 ## Live progress
 
 - The Zombie first pass completed all 600 iterations with final mean reward 19.69 and no NaN/Inf indicators in its
   training log. G1 Rung 2 checkpoints at iterations 100, 200, 300, 400, 500, and 599 each scored 0/30, all 30
   falling. At iteration 599 the walk probe reached 1.32 m/s, but 34% of walk probes fell and run/sprint speeds
-  remained below 0.2 m/s. This candidate is not eligible for promotion; further training will depend on the other
-  bodies' results and whether continuation shows useful progress.
+  remained below 0.2 m/s. Its saved config used one environment, not the planned 4096, so these are diagnostic results
+  only; the corrected 4096-environment rerun is in progress.
 - Grandma completed all 600 iterations with final mean reward 117.03 and no NaN/Inf indicators in its training log.
   Its iteration-100/200/300/400/500/599 checkpoints scored 10/30, 26/30, 29/30, 29/30, 30/30, and 30/30 G1 Rung 2
   passes, all with zero falls. At iteration 599, walk/run/sprint probes averaged 1.22/2.89/3.57 m/s against targets
@@ -72,7 +72,8 @@ charted report is planned at `docs/20261111/extended_training_report.html`.
   gate is not yet warranted.
 - MATT completed all 600 iterations with final mean reward -2.75 and no NaN/Inf indicators. Every tested G1 Rung 2
   checkpoint scored 0/30 with 30 falls; locomotion probes remained under 0.2 m/s, with substantial clipping at several
-  checkpoints. It is not a continuation or promotion candidate.
+  checkpoints. Its saved config also used one environment, not the planned 4096, so these are diagnostic results only;
+  the corrected 4096-environment rerun is in progress.
 - The MuJoCo attach warnings are expected for the character XML's `<option>` values: `mjlab` warns that `MjSpec.attach`
   keeps the parent defaults. The simulator then calls `MujocoCfg.apply()` on the compiled model (including the variant
   path), which explicitly sets the configured 0.005 s timestep, `implicitfast` integrator, and 20 solver iterations.
@@ -89,3 +90,15 @@ charted report is planned at `docs/20261111/extended_training_report.html`.
   Its iteration-100/200/300/400/500/599 checkpoints scored 28/30, 28/30, 28/30, 28/30, 28/30, and 29/30, all with
   zero falls. The iteration-599 candidate scored 89/100 at the graduation gate with zero falls. It is not eligible for
   production; a third continuation will start from its final checkpoint.
+- KIM continuation `k2ramp_v3` completed 600 iterations with final mean reward 110.80 and no NaN/Inf indicators.
+  Its iteration-100/200/300/400/500/599 G1 Rung 2 checkpoints scored 27/30, 29/30, 27/30, 28/30, 28/30, and
+  27/30, all with zero falls. It did not improve on the v2 89/100 graduation result.
+- KIM continuation `k2ramp_v4` completed 600 iterations with final mean reward 113.20 and no NaN/Inf indicators.
+  Its iteration-100/200/300/400/500/599 G1 Rung 2 checkpoints scored 27/30, 28/30, 28/30, 27/30, 27/30, and 27/30,
+  all with zero falls. It started from the strongest v3 checkpoint (`model_200.pt`, 29/30), but the same recipe did not
+  improve its gate result; it is not eligible for promotion.
+- Saved run configs revealed that Zombie and MATT Rung2-Ramp jobs used only one environment each (`num_envs: 1`),
+  despite the planned 4096. Their 0/30 outcomes are under-sampled diagnostics and are not comparable to Grandma/KIM.
+  Added separate `PoOlympic-Zombie-Rung2-Ramp-4096` and `PoOlympic-Matt-Rung2-Ramp-4096` task IDs; corrected runs
+  started at 05:07 on 2026-11-12. Existing task IDs, physics, contracts, and rewards remain unchanged. Policy impact:
+  Zombie Rung 2 and MATT Rung 2 only.
