@@ -53,3 +53,30 @@ was 50 C, and free RAM was 6.44 GB.
 
 Checkpoint metrics, continuation decisions, and the final report will be added as the run progresses. The requested
 charted report is planned at `docs/20261111/extended_training_report.html`.
+
+## Live progress
+
+- The Zombie first pass completed all 600 iterations with final mean reward 19.69 and no NaN/Inf indicators in its
+  training log. G1 Rung 2 checkpoints at iterations 100, 200, 300, 400, 500, and 599 each scored 0/30, all 30
+  falling. At iteration 599 the walk probe reached 1.32 m/s, but 34% of walk probes fell and run/sprint speeds
+  remained below 0.2 m/s. This candidate is not eligible for promotion; further training will depend on the other
+  bodies' results and whether continuation shows useful progress.
+- Grandma completed all 600 iterations with final mean reward 117.03 and no NaN/Inf indicators in its training log.
+  Its iteration-100/200/300/400/500/599 checkpoints scored 10/30, 26/30, 29/30, 29/30, 30/30, and 30/30 G1 Rung 2
+  passes, all with zero falls. At iteration 599, walk/run/sprint probes averaged 1.22/2.89/3.57 m/s against targets
+  1.2/3.0/3.8 m/s. A separate 100-seed check scored 97/100 with zero falls, short of the required 100 consecutive
+  successes; further fine-tuning is warranted.
+- KIM completed 600 iterations with final mean reward 109.68 and no NaN/Inf indicators. Its iteration-100/200/300/400/
+  500/599 G1 checkpoints scored 18/30, 25/30, 28/30, 28/30, 28/30, and 28/30, all with zero falls. At iteration 599
+  walk/run/sprint probes averaged 1.19/2.91/3.58 m/s. This candidate did not reach 30/30, and the final 100-episode
+  gate is not yet warranted.
+- MATT completed all 600 iterations with final mean reward -2.75 and no NaN/Inf indicators. Every tested G1 Rung 2
+  checkpoint scored 0/30 with 30 falls; locomotion probes remained under 0.2 m/s, with substantial clipping at several
+  checkpoints. It is not a continuation or promotion candidate.
+- The MuJoCo attach warnings are expected for the character XML's `<option>` values: `mjlab` warns that `MjSpec.attach`
+  keeps the parent defaults. The simulator then calls `MujocoCfg.apply()` on the compiled model (including the variant
+  path), which explicitly sets the configured 0.005 s timestep, `implicitfast` integrator, and 20 solver iterations.
+  No training configuration or deployed physics fingerprint was changed.
+- The first queue completed at 01:19:59 on 2026-11-12 and restored the Balanced power plan. The next pass will fine-tune
+  Grandma and KIM from their iteration-599 checkpoints using `plain_init.py`; Zombie and MATT are excluded because they
+  showed no G1 improvement. Candidates remain separate from the deployed manifest.
