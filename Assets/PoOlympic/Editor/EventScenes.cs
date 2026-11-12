@@ -76,8 +76,9 @@ namespace PoOlympic.Editor
         public const string PedestalRosterLayout = "training/assets/pedestal8_roster_layout.json";
         public const string DefaultZombieRung2Brain = "zombie_rung2.onnx";
         public const string DefaultZombieRung0Brain = "zombie_rung0.onnx";
-        // GRANDMA (Phase G): Rung 0 = g0_v2 it 1499 (G1 10/10); Rung 2 = g2_v5 it 600 (provisional, 4/10 under her 2.8 m/s
-        // bars). No crawl brain: the all-fours scenes (8, 23) hold MATT + zombie only.
+        // GRANDMA (Phase G): Rung 0 = g0_v2 it 1499 (G1 10/10); Rung 2 = g2ramp_v2 it 300 (G1 100/100, zero falls).
+        // Its ramp critic is incompatible with the actor interface, so confidence telemetry remains uncalibrated.
+        // No crawl brain: the all-fours scenes (8, 23) hold MATT + zombie only.
         public const string DefaultGrandmaRung0Brain = "grandma_rung0.onnx";
         public const string DefaultGrandmaRung2Brain = "grandma_rung2.onnx";
         // KIM (Phase K, 2026-10-11): SourceArt/Kim/kim.glb (convert_kim.py); Rung 0 = k0_v1 it 1499 (G1 10/10), Rung 2 =

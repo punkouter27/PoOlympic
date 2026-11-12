@@ -218,19 +218,19 @@
     19,
     22
    ],
-   "name": "grandma_rung2",
+   "name": "g2ramp_v2_best100_it300",
    "experiment": "grandma_rung2",
-   "run": "g2_v9",
-   "iteration": 1200,
+   "run": "g2ramp_v2",
+   "iteration": 300,
    "contract_version": 3,
-   "sha256": "ec119367071acbe4b854f38f28b05d8ffce6686ad5cd7f28ee8c23b46d91d7d6",
+   "sha256": "fd80ce8ae41352e6845860fe6da8d28bc153420a90f47ee84ceec6cdcd7c2da2",
    "sidecar_sha256_ok": true,
    "fingerprint_sha256": "de971d498513174843349626535396adf747e55c09794bbabf4005e6b2dcfc38",
    "fingerprint_current": true,
    "critic": "grandma_rung2.critic.onnx",
    "gate": {
-    "source": "watch_g2_v9.jsonl",
-    "g1_2": "10/10",
+    "source": "watch_g2ramp_v2_best100.jsonl",
+    "g1_2": "100/100",
     "g1_2_falls": 0
    }
   },

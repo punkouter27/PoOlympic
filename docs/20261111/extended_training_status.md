@@ -60,7 +60,7 @@ Checkpoint metrics and continuation decisions are recorded below. The final char
   training log. G1 Rung 2 checkpoints at iterations 100, 200, 300, 400, 500, and 599 each scored 0/30, all 30
   falling. At iteration 599 the walk probe reached 1.32 m/s, but 34% of walk probes fell and run/sprint speeds
   remained below 0.2 m/s. Its saved config used one environment, not the planned 4096, so these are diagnostic results
-  only; the corrected 4096-environment rerun is in progress.
+  only; the corrected 4096-environment result is recorded below.
 - Grandma completed all 600 iterations with final mean reward 117.03 and no NaN/Inf indicators in its training log.
   Its iteration-100/200/300/400/500/599 checkpoints scored 10/30, 26/30, 29/30, 29/30, 30/30, and 30/30 G1 Rung 2
   passes, all with zero falls. At iteration 599, walk/run/sprint probes averaged 1.22/2.89/3.57 m/s against targets
@@ -73,19 +73,20 @@ Checkpoint metrics and continuation decisions are recorded below. The final char
 - MATT completed all 600 iterations with final mean reward -2.75 and no NaN/Inf indicators. Every tested G1 Rung 2
   checkpoint scored 0/30 with 30 falls; locomotion probes remained under 0.2 m/s, with substantial clipping at several
   checkpoints. Its saved config also used one environment, not the planned 4096, so these are diagnostic results only;
-  the corrected 4096-environment rerun is in progress.
+  the corrected 4096-environment result is recorded below.
 - The MuJoCo attach warnings are expected for the character XML's `<option>` values: `mjlab` warns that `MjSpec.attach`
   keeps the parent defaults. The simulator then calls `MujocoCfg.apply()` on the compiled model (including the variant
   path), which explicitly sets the configured 0.005 s timestep, `implicitfast` integrator, and 20 solver iterations.
   No training configuration or deployed physics fingerprint was changed.
-- The first queue completed at 01:19:59 on 2026-11-12 and restored the Balanced power plan. The next pass will fine-tune
-  Grandma and KIM from their iteration-599 checkpoints using `plain_init.py`; Zombie and MATT are excluded because they
-  showed no G1 improvement. Candidates remain separate from the deployed manifest.
+- The first queue completed at 01:19:59 on 2026-11-12 and restored the Balanced power plan. Subsequent runs fine-tuned
+  Grandma and KIM from their own checkpoints; Zombie and MATT were initially excluded because their first-pass
+  1-environment runs showed no G1 improvement. Candidates remain separate from the deployed manifest.
 - Grandma continuation `g2ramp_v2` completed 600 iterations with final mean reward 117.36 and no NaN/Inf indicators.
   Its iteration-100/200/300/400/500/599 checkpoints scored 30/30, 30/30, 30/30, 29/30, 29/30, and 29/30 G1 Rung 2,
   all with zero falls. Walk/run/sprint probes stayed near target speeds; reward and gate results plateaued near the
   first pass. Its best 30/30 checkpoint, iteration 300, passed the 100-seed G1 Rung 2 gate (100/100, zero falls) and
-  the realism probes; it is eligible for production export with the unchanged v3 interface and physics fingerprint.
+  the realism probes; its actor was exported separately with the unchanged v3 interface and physics fingerprint.
+  Production promotion was withheld because the ramp-task critic has a different observation size, as detailed below.
 - KIM continuation `k2ramp_v2` completed 600 iterations with final mean reward 112.15 and no NaN/Inf indicators.
   Its iteration-100/200/300/400/500/599 checkpoints scored 28/30, 28/30, 28/30, 28/30, 28/30, and 29/30, all with
   zero falls. The iteration-599 candidate scored 89/100 at the graduation gate with zero falls. It is not eligible for
@@ -102,3 +103,29 @@ Checkpoint metrics and continuation decisions are recorded below. The final char
   Added separate `PoOlympic-Zombie-Rung2-Ramp-4096` and `PoOlympic-Matt-Rung2-Ramp-4096` task IDs; corrected runs
   started at 05:07 on 2026-11-12. Existing task IDs, physics, contracts, and rewards remain unchanged. Policy impact:
   Zombie Rung 2 and MATT Rung 2 only.
+- Corrected Zombie run `z2ramp_v2_4096` completed 600 iterations with final mean reward 131.36 and no NaN/Inf
+  indicators. Its iterations 100/200/300/400/500/599 all scored 0/30 G1 Rung 2 (zero G1 falls); its final walk/run/
+  sprint probes were 1.17/2.82/3.27 m/s. It is not eligible for promotion. Corrected MATT run
+  `m2ramp_v2_4096` started at 05:56 with 4096 environments. At iteration 100 it scored 0/30 G1 (zero falls); its
+  walk/run/sprint probes were 1.32/2.81/3.52 m/s.
+- At 06:17 on 2026-11-12, corrected MATT was at iteration 273/600 with mean reward 91.89; watched G1 checkpoints
+  100 and 200 each scored 0/30 with zero falls. Continue the planned run and checkpoint gates; locomotion probes
+  alone do not qualify a policy for promotion.
+- MATT's iteration-300 checkpoint scored 8/30 G1 with zero falls. The remaining planned checkpoints are still
+  required; this screening result does not qualify the policy for promotion.
+- MATT's iteration-400 checkpoint improved to 24/30 G1 with zero falls; continue evaluating later checkpoints and
+  retain the 100-episode gate as the promotion requirement.
+- MATT's iteration-500 checkpoint scored 26/30 G1 with zero falls. It has not met the 30-seed screening threshold;
+  at that stage, final iteration-599 and realism results were pending.
+- Corrected MATT completed all 600 iterations with final mean reward 92.01 and no NaN/Inf markers. Its
+  100/200/300/400/500/599 checkpoints scored 0/30, 0/30, 8/30, 24/30, 26/30, and 29/30 G1, all with zero falls.
+  Final walk/run/sprint probes averaged 1.16/2.99/3.79 m/s. Since no checkpoint reached 30/30, the 100-episode gate
+  was not warranted; this candidate was not promoted.
+
+## Promotion follow-up — 2026-11-12
+
+Grandma's `g2ramp_v2` iteration-300 candidate subsequently passed the 100/100 G1 Rung 2 gate with zero falls and passed
+the realism probes. It is now deployed as `grandma_rung2.onnx` with the unchanged v3 contract and physics fingerprint.
+The old Grandma Rung 2 confidence calibration was removed because it belongs to the previous actor; confidence
+telemetry remains unavailable until a compatible calibration is produced. Zombie and MATT candidates remain
+unpromoted because they did not meet the graduation gate.
