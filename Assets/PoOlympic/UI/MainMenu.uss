@@ -121,10 +121,12 @@
 .event-button--selected { border-color: var(--po-gold); background-color: var(--po-card-selected); }
 .event-button--in-gauntlet { border-color: var(--po-cyan); }
 .event-button--empty { visibility: hidden; }
+.event-button--coming-soon { opacity: 0.58; }
 .event-number { font-size: var(--po-text-h); color: var(--po-gold); -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); }
 .event-name { font-size: var(--po-text); white-space: normal; }
 .event-mark { font-size: var(--po-text); margin-top: var(--po-s4); color: var(--po-green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); }
 .event-mark--none { color: var(--po-muted); }
+.event-mark--unavailable { color: var(--po-muted); }
 .event-order {
     position: absolute;
     top: 8px;

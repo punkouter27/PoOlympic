@@ -14,7 +14,7 @@ namespace PoOlympic
     ///                     lineup presets, demo · Settings) · BL debug · BR version; bottom centre: the last gauntlet result
     ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 8 lanes
     ///   lanes             4 × 2 tiles: tap a lane = the next athlete in it
-    ///   events            fixed grid of the playable events (filled in by EventScenes.BuildMainMenu from the catalogue)
+    ///   events            full catalogue numbered 01–16; each playable event draws 16 entrants for two heats of 8
     ///   detail            the selected event: name, brain, rules and its world record — or, with ★ on, its all-time
     ///                     top 5 (the ★ toggle also puts every event's world record on its tile: the old records board)
     ///   actions           ★ records · GAUNTLET (tapping events builds an ordered series, Gauntlet; one heat per event,
@@ -28,12 +28,15 @@ namespace PoOlympic
         [Serializable]
         public class MenuEvent
         {
-            public int number;
+            public int number;        // canonical event ID used for scene and record lookups
+            public int displayNumber;
             public string name;
             public string rules;
             public string brain;
             public string scene;   // scene name in Build Settings
             public string[] lineup; // athlete per lane in the built scene (MATT / ZOMBIE); scenes are built per lineup
+            [Tooltip("Sixteen random entrants from the current agent roster; duplicates are allowed.")]
+            public string[] participants;
             [Tooltip("Roster athletes the event scene holds (empty = the whole roster). An athlete without a brain for " +
                      "the event sits out: LaneLineup runs the first of these in that lane.")]
             public string[] bodies;
@@ -90,7 +93,8 @@ namespace PoOlympic
         {
             if (!Application.isPlaying) return;
             _lastInput = Time.unscaledTime;
-            DemoMode.Begin(events.Where(e => e.lineup == null || e.lineup.Length != _lineup.Length).Select(e => (e.number, e.scene)));
+            DemoMode.Begin(events.Where(e => IsPlayable(e) && (e.lineup == null || e.lineup.Length != _lineup.Length))
+                .Select(e => (e.number, e.scene)));
         }
 
         /// <summary>Keep the column inside the safe area (status bar, camera cut-out, navigation bar).</summary>
@@ -140,6 +144,9 @@ namespace PoOlympic
 
             _anchors = new HudAnchors(top, bottom, overlay, overlay, "POOLYMPICS", "", "v" + Application.version);
             _anchors.SetMenu(MenuItems);
+            var participantRng = new System.Random();
+            foreach (var ev in events)
+                ev.participants = EventCompetition.DrawParticipants(MeetLineup.Roster, participantRng);
             _last = new Label();
             _last.AddToClassList("menu-last");
             _anchors.BottomCentre.Add(_last);
@@ -189,12 +196,21 @@ namespace PoOlympic
                 string gap = i % cols < cols - 1 ? "event-button--gap" : "event-button--end";
                 if (i >= events.Count) { var pad = new VisualElement(); pad.AddToClassList("event-button"); pad.AddToClassList(gap); pad.AddToClassList("event-button--empty"); row.Add(pad); continue; }
                 var ev = events[i];
-                var button = new Button(() => SelectEvent(ev)) { tooltip = ev.brain };
+                bool playable = IsPlayable(ev);
+                var button = new Button(() => SelectEvent(ev))
+                {
+                    tooltip = playable
+                        ? $"{ev.brain} · 16 participants, 2 heats of 8"
+                        : "Coming soon — playable event scene is not built yet."
+                };
+                button.SetEnabled(playable);
                 button.AddToClassList("event-button");
                 button.AddToClassList(gap);
-                button.Add(MakeLabel($"{ev.number:00}", "event-number"));
+                button.EnableInClassList("event-button--coming-soon", !playable);
+                button.Add(MakeLabel($"{(ev.displayNumber > 0 ? ev.displayNumber : i + 1):00}", "event-number"));
                 button.Add(MakeLabel(ev.name, "event-name"));
                 var mark = MakeLabel("", "event-mark");
+                mark.EnableInClassList("event-mark--unavailable", !playable);
                 button.Add(mark);
                 var order = MakeLabel("", "event-order");
                 order.style.display = DisplayStyle.None;
@@ -225,7 +241,8 @@ namespace PoOlympic
             RefreshSlots();
             RefreshRecords();
             RefreshTournament();
-            SelectEvent(events.FirstOrDefault(e => e.number == MeetLineup.EventNumber) ?? events.FirstOrDefault());
+            SelectEvent(events.FirstOrDefault(e => e.number == MeetLineup.EventNumber && IsPlayable(e))
+                ?? events.FirstOrDefault(IsPlayable));
         }
 
         IEnumerable<(string, Action)> MenuItems()
@@ -236,7 +253,7 @@ namespace PoOlympic
                 {
                     if (LineupFixed) return;
                     for (int k = 0; k < _lineup.Length; k++) _lineup[k] = MeetLineup.Roster[k % MeetLineup.Roster.Length];
-                    RefreshSlots();
+                    RefreshSlots(updateSelectedParticipants: true);
                 });
             yield return (_tournamentMode ? "16-player bracket: hide" : "16-player tournament bracket", ToggleTournament);
             yield return ($"Demo mode (starts by itself after {idleDemoSeconds:0} s idle)", StartDemo);
@@ -268,18 +285,21 @@ namespace PoOlympic
             if (LineupFixed) return;                     // lineup fixed by the event scene
             int i = Array.IndexOf(MeetLineup.Roster, _lineup[lane]);
             _lineup[lane] = MeetLineup.Roster[(i + 1) % MeetLineup.Roster.Length];
-            RefreshSlots();
+            RefreshSlots(updateSelectedParticipants: true);
         }
 
         void FillAll(string athlete)
         {
             if (LineupFixed) return;
             for (int k = 0; k < _lineup.Length; k++) _lineup[k] = athlete;
-            RefreshSlots();
+            RefreshSlots(updateSelectedParticipants: true);
         }
 
-        void RefreshSlots()
+        void RefreshSlots(bool updateSelectedParticipants = false)
         {
+            if (updateSelectedParticipants && _selected?.participants != null &&
+                _selected.participants.Length == EventCompetition.EntrantCount)
+                Array.Copy(_lineup, _selected.participants, _lineup.Length);
             for (int k = 0; k < _slots.Count; k++)
             {
                 var (tile, name) = _slots[k];
@@ -327,10 +347,12 @@ namespace PoOlympic
             _detail.EnableInClassList("detail--records", _recordsMode);
             for (int i = 0; i < _marks.Count && i < events.Count; i++)
             {
-                var top = Records.Top(events[i].number);
-                _marks[i].text = top.Count > 0 ? top[0].mark : "no mark yet";
-                _marks[i].EnableInClassList("event-mark--none", top.Count == 0);
-                _marks[i].style.display = _recordsMode ? DisplayStyle.Flex : DisplayStyle.None;
+                bool playable = IsPlayable(events[i]);
+                var top = playable ? Records.Top(events[i].number) : null;
+                _marks[i].text = !playable ? "SOON" : top.Count > 0 ? top[0].mark : "no mark yet";
+                _marks[i].EnableInClassList("event-mark--none", playable && top.Count == 0);
+                _marks[i].EnableInClassList("event-mark--unavailable", !playable);
+                _marks[i].style.display = _recordsMode || !playable ? DisplayStyle.Flex : DisplayStyle.None;
             }
             FillTop5();
         }
@@ -355,6 +377,7 @@ namespace PoOlympic
 
         void SelectEvent(MenuEvent ev)
         {
+            if (!IsPlayable(ev)) return;
             if (_gauntletMode && ev != null)
             {
                 if (!_gauntlet.Remove(ev)) _gauntlet.Add(ev);   // tap = add to the end / remove
@@ -362,10 +385,13 @@ namespace PoOlympic
             }
             _selected = ev;
             if (LineupFixed) Array.Copy(ev.lineup, _lineup, _lineup.Length);   // the scene's own lineup
+            else if (ev.participants != null && ev.participants.Length == EventCompetition.EntrantCount)
+                Array.Copy(ev.participants, _lineup, _lineup.Length);
             RefreshSlots();
             for (int i = 0; i < _eventButtons.Count; i++)
                 _eventButtons[i].EnableInClassList("event-button--selected", events[i] == ev);
-            _eventTitle.text = ev != null ? $"{ev.number:00}  {ev.name}" : "";
+            int displayNumber = ev != null && ev.displayNumber > 0 ? ev.displayNumber : ev != null ? events.IndexOf(ev) + 1 : 0;
+            _eventTitle.text = ev != null ? $"{displayNumber:00}  {ev.name}" : "";
             _eventBrain.text = ev?.brain ?? "";
             _eventBrain.style.display = string.IsNullOrEmpty(ev?.brain) ? DisplayStyle.None : DisplayStyle.Flex;
             _rules.text = ev?.rules ?? "";
@@ -391,7 +417,7 @@ namespace PoOlympic
         }
 
         TournamentMode.EventChoice[] TournamentChoices() =>
-            events.Where(e => e.lineup == null || e.lineup.Length != _lineup.Length)
+            events.Where(e => IsPlayable(e) && (e.lineup == null || e.lineup.Length != _lineup.Length))
                   .Select(e => new TournamentMode.EventChoice(e.number, e.name, e.scene, e.bodies))
                   .ToArray();
 
@@ -579,16 +605,19 @@ namespace PoOlympic
             }
             bool full = _lineup.All(a => a != null);
             bool loadable = _gauntletMode
-                ? _gauntlet.Count > 0 && _gauntlet.All(e => !Application.isPlaying || Application.CanStreamedLevelBeLoaded(e.scene))
-                : _selected != null && (!Application.isPlaying || Application.CanStreamedLevelBeLoaded(_selected.scene));
+                ? _gauntlet.Count > 0 && _gauntlet.All(e => IsPlayable(e) && (!Application.isPlaying || Application.CanStreamedLevelBeLoaded(e.scene)))
+                : IsPlayable(_selected) && (!Application.isPlaying || Application.CanStreamedLevelBeLoaded(_selected.scene));
             _play.SetEnabled(full && loadable);
             // the status line lives in the title chip (TL): no separate status label under PLAY
             _anchors.Sub.text = _selected == null ? "No playable events"
+                : !IsPlayable(_selected) ? $"{_selected.number:00} is coming soon"
                 : !full ? "Fill all 8 lanes"
                 : !loadable ? $"{_selected.scene} is not in Build Settings"
                 : _gauntletMode ? (_gauntlet.Count == 0 ? "Tap events to build the gauntlet"
                     : $"Gauntlet {string.Join(" → ", _gauntlet.Select(e => e.number.ToString("00")))} · 10-8-6-5-4-3-2-1")
-                : SitOutNote() ?? $"{string.Join(" · ", _lineup.GroupBy(a => a).Select(g => $"{g.Count()}× {g.Key}"))}" + (LineupFixed ? " (event lineup)" : "");
+                : _tournamentMode
+                    ? SitOutNote() ?? $"{string.Join(" · ", _lineup.GroupBy(a => a).Select(g => $"{g.Count()}× {g.Key}"))}"
+                    : "16 entrants · 2 heats";
             _last.text = (Gauntlet.LastResult.Length > 0 ? "Last gauntlet: " + Gauntlet.LastResult.Replace("\n", " · ") : "") +
                          (DemoSeason.SeriesPlayed > 0 ? (Gauntlet.LastResult.Length > 0 ? "\n" : "") + "Demo " + DemoSeason.Summary() : "");
         }
@@ -617,7 +646,7 @@ namespace PoOlympic
                 TournamentMode.Begin(TournamentChoices(), freshIfFinished: true);
                 return;
             }
-            if (_selected == null) return;
+            if (!IsPlayable(_selected)) return;
             if (_gauntletMode && _gauntlet.Count > 0)
             {
                 MeetLineup.Set(_lineup, _gauntlet[0].number);
@@ -625,8 +654,9 @@ namespace PoOlympic
                 return;
             }
             Gauntlet.Abandon();
-            MeetLineup.Set(_lineup, _selected.number);
-            MeetLineup.Load(_selected.scene);
+            EventCompetition.Begin(_selected.number, _selected.scene, _selected.participants);
         }
+
+        static bool IsPlayable(MenuEvent ev) => ev != null && !string.IsNullOrWhiteSpace(ev.scene);
     }
 }

@@ -277,6 +277,11 @@ namespace PoOlympic
 
         void LeaveMatch()
         {
+            if (EventCompetition.Active)
+            {
+                if (EventCompetition.NextHeat()) return;
+                EventCompetition.Abandon();
+            }
             if (MeetLineup.MenuAvailable) MeetLineup.ReturnToMenu();
             else Restart();                                                // a scene played without the menu: next heat
         }
@@ -591,7 +596,12 @@ namespace PoOlympic
                     string.Join(" · ", Gauntlet.Table().Take(4).Select(t => $"{t.lane} {t.points}")));
                 if (DemoMode.Active && DemoSeason.Summary().Length > 0) AddLabel(_resultBox, "bh-card-line", DemoSeason.Summary());
             }
-            else if (!Gauntlet.Active && !TournamentMode.Active)
+            else if (EventCompetition.Active && !EventCompetition.CurrentHeatScored)
+            {
+                EventCompetition.ScoreHeat(rows.Select(r => (r.name, r.place)));
+                AddLabel(_resultBox, "bh-card-line", $"16 ENTRANTS · HEAT {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}");
+            }
+            if (!Gauntlet.Active && !TournamentMode.Active)
             {
                 _matchOver = true;
                 _frozen = rows;
@@ -609,7 +619,10 @@ namespace PoOlympic
         {
             _match.Clear();
             AddLabel(_match, "bh-overlay-title", title);
-            AddLabel(_match, "bh-overlay-sub", $"{subtitle} · heat {b.Heat + 1} · final result");
+            string competitionHeat = EventCompetition.Active
+                ? $" · 16 entrants · heat {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}"
+                : "";
+            AddLabel(_match, "bh-overlay-sub", $"{subtitle} · heat {b.Heat + 1} · final result{competitionHeat}");
             var head = Add(_match, "bh-match-tabs");
             var places = Add(_match, "bh-match-body");
             var telemetry = Add(_match, "bh-match-body");
@@ -648,6 +661,12 @@ namespace PoOlympic
             if (eventNumber > 0 && Records.TryGet(eventNumber, out _, out var record))
                 AddLabel(places, _recordHolder != null ? "bh-card-good" : "bh-card-line",
                          (_recordHolder != null ? "NEW WORLD RECORD · " : "World record · ") + record);
+            if (EventCompetition.Active)
+            {
+                AddLabel(places, "bh-card-line", EventCompetition.IsFinalHeat
+                    ? $"OVERALL 16-ENTRANT RESULTS · {EventCompetition.FinalSummary()}"
+                    : "Heat 2 will run after you tap OK.").style.whiteSpace = WhiteSpace.Normal;
+            }
             HeatBests(rows, telemetry);
             Show(0);
             var bar = Add(_match, "bh-match-bar");

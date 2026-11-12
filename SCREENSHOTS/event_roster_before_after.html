@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PoOlympic Event Roster — Before and After</title>
+  <style>
+    body { margin: 0; background: #101725; color: #eef1f7; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 1200px; margin: auto; padding: 24px; }
+    h1 { margin: 0 0 8px; }
+    p { color: #c5cad8; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    figure { margin: 0; padding: 12px; background: #1a2437; border-radius: 10px; }
+    figcaption { margin-bottom: 8px; font-weight: 600; }
+    img { display: block; width: 100%; height: auto; border-radius: 6px; }
+    @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Event roster: before and after</h1>
+    <p>2026-11-12. The menu displays the 16 retained events as 01–16. Each playable event draws 16 entries from the current four agents and runs two heats of eight. Eleven events have scenes; the other five remain disabled as “SOON.”</p>
+    <div class="pair">
+      <figure>
+        <figcaption>Before — the supplied screenshot showed only the 10 events with scenes</figcaption>
+        <img src="events_roster_before.png" alt="Main menu showing 10 event tiles">
+      </figure>
+      <figure>
+        <figcaption>After — all 16 events are numbered in order; five unbuilt events are dimmed and labeled SOON</figcaption>
+        <img src="events_roster_after.png" alt="Main menu showing 16 sequentially numbered event tiles, with five marked SOON">
+      </figure>
+    </div>
+    <p>Now playable: 10 Crab Shuffle Relay, built with its existing Rung 2 lateral-shuffle policy. Still awaiting their terrain, obstacle scenes, and matching trained policies: 15 Cross-Country Rubble, 16 The Platform Drop, 17 Stadium Stair Climb, 20 Low Hurdle Dash, and 21 The Sandpit Long Jump. Internal event IDs remain unchanged for compatibility with scenes and records.</p>
+    <h2>Browser validation</h2>
+    <p>Native Chrome completed two Iron Pedestal heats without forced results. A separate autonomous tournament completed its three real matches and twelve BYEs, crowned KIM, and saved ELO 1232. The champion and ratings survived a full browser restart and the rebuilt player.</p>
+    <p>SceneIntegrityTests: 15/15. TournamentAndVoiceTests: 7/7. Native Chrome decoded 70 audio payloads without failures or JavaScript exceptions during the tournament. The embedded VS Code browser lacks AAC support and is not the audio acceptance browser. Unity still emits a nonfatal AudioListener DSP diagnostic on event-to-event transitions.</p>
+    <div class="pair">
+      <figure>
+        <figcaption>Results before: the combined podium is clipped to one line</figcaption>
+        <img src="event_results_before.png" alt="Combined 16-entrant results with the podium summary truncated">
+      </figure>
+      <figure>
+        <figcaption>Results after: the combined podium wraps instead of truncating</figcaption>
+        <img src="event_results_after.png" alt="Combined 16-entrant results with all three podium entries visible">
+      </figure>
+    </div>
+    <figure>
+      <figcaption>Persisted tournament: eight starting slots per side, KIM in the center, ELO retained after restart</figcaption>
+      <img src="tournament_browser_verified.png" alt="Symmetric 16-slot tournament bracket with KIM as champion and ELO 1232">
+    </figure>
+  </main>
+</body>
+</html>

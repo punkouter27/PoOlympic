@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 namespace PoOlympic
 {
     /// <summary>
-    /// Stadium hub: all 30 event venues in one scene. IMGUI event picker (placeholder for the broadcast UI) that flies the
+    /// Stadium hub: all 16 retained event venues in one scene. IMGUI event picker (placeholder for the broadcast UI) that flies the
     /// camera to a venue, shows its rules and 8 competitor spots, and loads the event scene when it is built.
     /// </summary>
     public class StadiumDirector : MonoBehaviour

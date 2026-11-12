@@ -204,5 +204,31 @@ namespace PoOlympic.Tests
             Assert.AreEqual(4, lineup.Take(4).Count(x => x == "ZOMBIE"));
             Assert.AreEqual(4, lineup.Skip(4).Count(x => x == "KIM"));
         }
+
+        [Test]
+        public void EventCompetition_Draws16ParticipantsWithReplacementFromCurrentAgents()
+        {
+            var participants = EventCompetition.DrawParticipants(MeetLineup.Roster, new System.Random(17));
+            Assert.AreEqual(EventCompetition.EntrantCount, participants.Length);
+            Assert.IsTrue(participants.All(MeetLineup.Roster.Contains));
+            Assert.AreEqual(MeetLineup.Roster.Length,
+                participants.Take(EventCompetition.HeatSize).Distinct().Count());
+            Assert.AreEqual(MeetLineup.Roster.Length,
+                participants.Skip(EventCompetition.HeatSize).Distinct().Count());
+
+            var singleAgent = EventCompetition.DrawParticipants(new[] { "MATT" }, new System.Random(7));
+            CollectionAssert.AreEqual(Enumerable.Repeat("MATT", EventCompetition.EntrantCount), singleAgent);
+        }
+
+        [Test]
+        public void EventCompetition_SplitsEvery16EntrantFieldIntoTwoEightLaneHeats()
+        {
+            var participants = Enumerable.Range(0, EventCompetition.EntrantCount).Select(i => $"AGENT_{i:00}").ToArray();
+            CollectionAssert.AreEqual(participants.Take(EventCompetition.HeatSize),
+                EventCompetition.ParticipantsForHeat(participants, 0));
+            CollectionAssert.AreEqual(participants.Skip(EventCompetition.HeatSize),
+                EventCompetition.ParticipantsForHeat(participants, 1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => EventCompetition.ParticipantsForHeat(participants, 2));
+        }
     }
 }

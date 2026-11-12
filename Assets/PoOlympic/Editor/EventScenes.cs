@@ -825,23 +825,22 @@ namespace PoOlympic.Editor
 
         public const string HubScene = "Assets/PoOlympic/Scenes/Stadium_Hub.unity";
         public const string CatalogJson = "Assets/PoOlympic/Art/Stadium/events_catalog.json";
+        public const int CatalogEventCount = 16;
 
-        /// <summary>Event number → built event scene (grows as events are implemented).</summary>
+        /// <summary>Retained event number → built event scene.</summary>
         public static readonly System.Collections.Generic.Dictionary<int, string> EventScenePaths = new()
         {
             { 1, IronPedestalHeatScene },   // official 8-runner heat (solo practice: Event_IronPedestal.unity)
-            { 2, SumoScene },
-            { 3, BridgeScene },
-            { 4, FunnelScene },
             { 5, GauntletScene },
-            { 6, CrossroadScene },
-            { 7, PadsScene },
             { 8, AllFoursScene },
-            { 10, BeaconScene },
+            { 9, "Assets/PoOlympic/Scenes/Event_InvertedSprint.unity" },
+            { 10, CrabScene },
+            { 11, SlalomScene },
             { 12, TurntableScene },
-            { 18, PackMileScene },
+            { 13, SteepleScene },
+            { 14, RampScene },
             { 19, "Assets/PoOlympic/Scenes/Event_TerminalVelocity.unity" },
-            { 25, HillScene },
+            { 27, ResurrectionScene },
         };
 
         public const string SumoScene = "Assets/PoOlympic/Scenes/Event_SumoRing.unity";
@@ -995,10 +994,10 @@ namespace PoOlympic.Editor
         }
 
         /// <summary>
-        /// Stadium hub: the stadium in the MuJoCo frame (yaw 180° only) with all 30 events as EventVenue objects (catalogue
+        /// Stadium hub: the stadium in the MuJoCo frame (yaw 180° only) with all 16 retained events as EventVenue objects (catalogue
         /// data + their 8 competitor anchors), an event picker, and Build Settings = hub + every built event scene.
         /// </summary>
-        [MenuItem("PoOlympic/Events/Build Stadium Hub (all 30 events)")]
+        [MenuItem("PoOlympic/Events/Build Stadium Hub (16 events)")]
         public static string BuildStadiumHub()
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
@@ -1047,7 +1046,7 @@ namespace PoOlympic.Editor
                 go.transform.position = v.Centre;
                 venues.Add(v);
             }
-            if (venues.Count != 30) throw new InvalidOperationException($"catalogue has {venues.Count} events, expected 30");
+            if (venues.Count != CatalogEventCount) throw new InvalidOperationException($"catalogue has {venues.Count} events, expected {CatalogEventCount}");
             var director = new GameObject("StadiumDirector").AddComponent<StadiumDirector>();
             director.cam = cam.GetComponent<Camera>();
             director.venues = venues.ToArray();
@@ -1076,8 +1075,9 @@ namespace PoOlympic.Editor
         public const string MenuPanelSettings = "Assets/PoOlympic/UI/PoOlympicPanelSettings.asset";
 
         /// <summary>
-        /// Main menu: pick the athlete for each of the 8 lanes (only MATT so far) and one of the playable events
-        /// (EventScenePaths, names/rules from the catalogue); PLAY loads the event scene. UI Toolkit (MainMenu.uxml),
+        /// Main menu: display the 16 catalogue events in order. Built events draw 16 entrants and run two 8-lane heats;
+        /// events without a built scene remain visible as Coming Soon.
+        /// UI Toolkit (MainMenu.uxml),
         /// portrait reference 1080 × 1920. Becomes the first scene in Build Settings.
         /// </summary>
         [MenuItem("PoOlympic/Events/Build Main Menu")]
@@ -1108,19 +1108,23 @@ namespace PoOlympic.Editor
             var menu = go.AddComponent<MainMenuController>();
             menu.columns = 4;
             var catalog = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(CatalogJson))["events"];
-            foreach (var (num, path) in EventScenePaths.OrderBy(kv => kv.Key))
+            int displayNumber = 0;
+            foreach (var e in catalog.OrderBy(x => (int)x["number"]))
             {
-                var e = catalog.First(x => (int)x["number"] == num);
+                displayNumber++;
+                int num = (int)e["number"];
+                bool playable = EventScenePaths.TryGetValue(num, out var path);
                 menu.events.Add(new MainMenuController.MenuEvent   // roster scenes: any lineup (LaneLineup)
                 {
-                    number = num, name = (string)e["name"], rules = (string)e["rules"],
+                    number = num, displayNumber = displayNumber, name = (string)e["name"], rules = (string)e["rules"],
                     brain = num == 1 ? "rung0" : (string)e["brain"],
-                    scene = Path.GetFileNameWithoutExtension(path), lineup = null, bodies = SceneBodies(path),
+                    scene = playable ? Path.GetFileNameWithoutExtension(path) : "",
+                    lineup = null, bodies = playable ? SceneBodies(path) : Array.Empty<string>(), participants = Array.Empty<string>(),
                 });
             }
             EditorSceneManager.SaveScene(scene, MainMenuScene);
             int n = SetBuildScenes();
-            return $"{MainMenuScene}: {menu.events.Count} events, 8 lanes (roster: {string.Join(", ", MeetLineup.Roster)}); build scenes {n}";
+            return $"{MainMenuScene}: {menu.events.Count} events numbered 01–16, 16 entrants per playable event in two heats of 8; build scenes {n}";
         }
 
         /// <summary>Roster athletes (MeetLineup names) a built event scene holds, from its LaneLineup; a scene of

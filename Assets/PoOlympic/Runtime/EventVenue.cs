@@ -3,7 +3,7 @@ using UnityEngine;
 namespace PoOlympic
 {
     /// <summary>
-    /// One of the 30 PoOlympics events placed in the stadium: catalogue data (events_catalog.json) plus the 8 competitor
+    /// One of the 16 retained PoOlympics events placed in the stadium: catalogue data (events_catalog.json) plus the 8 competitor
     /// spots (Stadium.glb anchors E##_L0..E##_L7, from SourceArt/Stadium/build_venues.py). Render-only — the event's
     /// physics lives in its own event scene / MJCF.
     /// </summary>

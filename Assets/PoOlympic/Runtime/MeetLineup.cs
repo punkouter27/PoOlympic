@@ -48,6 +48,7 @@ namespace PoOlympic
         public static void ReturnToMenu()
         {
             if (!MenuAvailable) return;
+            EventCompetition.Abandon();
             GameSettings.SimSpeed = 1f;
             Load(MenuScene);
         }
@@ -177,5 +178,116 @@ namespace PoOlympic
             Index = 0;
             CurrentHeatPlayed = false;
         }
+    }
+
+    /// <summary>A 16-entrant event field run through the existing eight-lane scene as two heats.</summary>
+    public static class EventCompetition
+    {
+        public const int EntrantCount = 16;
+        public const int HeatSize = 8;
+        public const int HeatCount = EntrantCount / HeatSize;
+
+        static int _eventNumber, _heat;
+        static string _scene = "";
+        static string[] _entrants = Array.Empty<string>();
+        static readonly int[] _points = new int[EntrantCount];
+        public static bool Active { get; private set; }
+        public static bool CurrentHeatScored { get; private set; }
+        public static int HeatNumber => _heat + 1;
+        public static bool HasNextHeat => Active && _heat + 1 < HeatCount;
+        public static bool IsFinalHeat => Active && !HasNextHeat;
+
+        public static string[] DrawParticipants(IReadOnlyList<string> roster, System.Random random)
+        {
+            if (roster == null || roster.Count == 0) throw new ArgumentException("At least one agent is required.", nameof(roster));
+            if (random == null) throw new ArgumentNullException(nameof(random));
+            var participants = new List<string>(EntrantCount);
+            for (int heat = 0; heat < HeatCount; heat++)
+            {
+                var entrants = roster.OrderBy(_ => random.Next()).Take(Math.Min(roster.Count, HeatSize)).ToList();
+                while (entrants.Count < HeatSize) entrants.Add(roster[random.Next(roster.Count)]);
+                participants.AddRange(entrants.OrderBy(_ => random.Next()));
+            }
+            return participants.ToArray();
+        }
+
+        public static string[] ParticipantsForHeat(string[] participants, int heatIndex)
+        {
+            if (participants == null || participants.Length != EntrantCount)
+                throw new ArgumentException($"An event needs exactly {EntrantCount} participants.", nameof(participants));
+            if (heatIndex < 0 || heatIndex >= HeatCount) throw new ArgumentOutOfRangeException(nameof(heatIndex));
+            return participants.Skip(heatIndex * HeatSize).Take(HeatSize).ToArray();
+        }
+
+        public static bool Begin(int eventNumber, string scene, string[] participants)
+        {
+            if (participants == null || participants.Length != EntrantCount)
+                throw new ArgumentException($"An event needs exactly {EntrantCount} participants.", nameof(participants));
+            if (participants.Any(string.IsNullOrWhiteSpace))
+                throw new ArgumentException("Participant names cannot be empty.", nameof(participants));
+
+            _eventNumber = eventNumber;
+            _scene = scene ?? "";
+            _entrants = participants.ToArray();
+            _heat = 0;
+            CurrentHeatScored = false;
+            Array.Clear(_points, 0, _points.Length);
+            Active = true;
+            return LoadHeat();
+        }
+
+        public static bool ScoreHeat(IEnumerable<(string name, int place)> results)
+        {
+            if (!Active || CurrentHeatScored) return false;
+            foreach (var (name, place) in results)
+            {
+                int lane = Gauntlet.LaneOf(name);
+                if (lane < 1 || lane > HeatSize || place < 1 || place > Gauntlet.PointsTable.Length) continue;
+                _points[_heat * HeatSize + lane - 1] = Gauntlet.PointsTable[place - 1];
+            }
+            CurrentHeatScored = true;
+            return true;
+        }
+
+        public static bool NextHeat()
+        {
+            if (!HasNextHeat || !CurrentHeatScored) return false;
+            _heat++;
+            CurrentHeatScored = false;
+            return LoadHeat();
+        }
+
+        public static string FinalSummary()
+        {
+            if (!Active || !IsFinalHeat || !CurrentHeatScored) return "";
+            return string.Join(" · ", Enumerable.Range(0, EntrantCount)
+                .OrderByDescending(i => _points[i])
+                .ThenBy(i => i)
+                .Take(3)
+                .Select((i, rank) => $"{rank + 1}. {_entrants[i]} #{i + 1:00} ({_points[i]} pts)"));
+        }
+
+        public static void Abandon()
+        {
+            Active = false;
+            CurrentHeatScored = false;
+            _eventNumber = 0;
+            _scene = "";
+            _entrants = Array.Empty<string>();
+            _heat = 0;
+            Array.Clear(_points, 0, _points.Length);
+        }
+
+        static bool LoadHeat()
+        {
+            var lineup = ParticipantsForHeat(_entrants, _heat);
+            MeetLineup.Set(lineup, _eventNumber);
+            if (MeetLineup.Load(_scene)) return true;
+            Abandon();
+            return false;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => Abandon();
     }
 }
