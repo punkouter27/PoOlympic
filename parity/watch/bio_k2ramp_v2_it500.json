@@ -1,0 +1,117 @@
+{
+ "onnx": "k2ramp_v2_it500.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.17,
+   "grf_peak_bw_p95": 1.36,
+   "grf_peak_bw_max": 2.13,
+   "power_w": 251,
+   "cot": 0.4,
+   "hill_viol_pct": 0.01,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.0,
+    "shoulder": 5.3,
+    "elbow": 3.0,
+    "hip": 4.0,
+    "knee": 7.6,
+    "ankle": 6.7
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 1.0,
+   "clip_pct": 0.8
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.9,
+   "grf_peak_bw_p95": 1.88,
+   "grf_peak_bw_max": 2.83,
+   "power_w": 621,
+   "cot": 0.4,
+   "hill_viol_pct": 0.08,
+   "cap_sat_pct": 0.33,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.8,
+    "shoulder": 6.7,
+    "elbow": 4.6,
+    "hip": 5.7,
+    "knee": 9.1,
+    "ankle": 6.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.2
+   },
+   "clip_cm": 0.8,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.56,
+   "grf_peak_bw_p95": 1.95,
+   "grf_peak_bw_max": 2.64,
+   "power_w": 842,
+   "cot": 0.45,
+   "hill_viol_pct": 0.14,
+   "cap_sat_pct": 0.42,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.3,
+    "shoulder": 7.3,
+    "elbow": 4.5,
+    "hip": 7.0,
+    "knee": 10.1,
+    "ankle": 8.2
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.6
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.29,
+   "grf_peak_bw_max": 1.63,
+   "power_w": 149,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.5,
+    "shoulder": 4.7,
+    "elbow": 1.7,
+    "hip": 4.4,
+    "knee": 6.3,
+    "ankle": 3.6
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.8,
+   "clip_pct": 0.0
+  }
+ }
+}

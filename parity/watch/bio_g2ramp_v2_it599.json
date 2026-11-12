@@ -1,0 +1,120 @@
+{
+ "onnx": "g2ramp_v2_it599.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.23,
+   "grf_peak_bw_p95": 1.31,
+   "grf_peak_bw_max": 1.72,
+   "power_w": 303,
+   "cot": 0.39,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 4.2,
+    "elbow": 2.9,
+    "hip": 2.4,
+    "knee": 5.9,
+    "ankle": 4.5
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 0.1
+   },
+   "clip_cm": 0.4,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.86,
+   "grf_peak_bw_p95": 1.59,
+   "grf_peak_bw_max": 2.25,
+   "power_w": 777,
+   "cot": 0.43,
+   "hill_viol_pct": 0.91,
+   "cap_sat_pct": 0.12,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.2,
+    "shoulder": 5.0,
+    "elbow": 3.4,
+    "hip": 4.4,
+    "knee": 8.7,
+    "ankle": 6.6
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 1.7
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.52,
+   "grf_peak_bw_p95": 1.8,
+   "grf_peak_bw_max": 2.44,
+   "power_w": 1178,
+   "cot": 0.52,
+   "hill_viol_pct": 4.17,
+   "cap_sat_pct": 2.28,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.7,
+    "shoulder": 5.7,
+    "elbow": 3.8,
+    "hip": 5.6,
+    "knee": 10.1,
+    "ankle": 7.7
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 4.2,
+    "ankle_dorsi": 0.8
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.01,
+   "grf_peak_bw_p95": 1.11,
+   "grf_peak_bw_max": 1.65,
+   "power_w": 189,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.6,
+    "shoulder": 3.9,
+    "elbow": 2.1,
+    "hip": 4.7,
+    "knee": 5.9,
+    "ankle": 4.9
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  }
+ }
+}

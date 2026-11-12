@@ -1,0 +1,117 @@
+{
+ "onnx": "k2ramp_v1_it599.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.19,
+   "grf_peak_bw_p95": 1.36,
+   "grf_peak_bw_max": 1.77,
+   "power_w": 259,
+   "cot": 0.41,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 5.5,
+    "elbow": 3.9,
+    "hip": 3.6,
+    "knee": 8.0,
+    "ankle": 5.4
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.9,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.91,
+   "grf_peak_bw_p95": 1.87,
+   "grf_peak_bw_max": 2.82,
+   "power_w": 638,
+   "cot": 0.41,
+   "hill_viol_pct": 0.04,
+   "cap_sat_pct": 0.27,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.5,
+    "shoulder": 6.6,
+    "elbow": 5.6,
+    "hip": 5.8,
+    "knee": 10.0,
+    "ankle": 7.0
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.3
+   },
+   "clip_cm": 1.4,
+   "clip_pct": 3.2
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.58,
+   "grf_peak_bw_p95": 1.99,
+   "grf_peak_bw_max": 3.0,
+   "power_w": 849,
+   "cot": 0.45,
+   "hill_viol_pct": 0.07,
+   "cap_sat_pct": 0.23,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.1,
+    "shoulder": 7.1,
+    "elbow": 5.7,
+    "hip": 7.0,
+    "knee": 10.7,
+    "ankle": 8.2
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.4
+   },
+   "clip_cm": 1.0,
+   "clip_pct": 0.8
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.29,
+   "grf_peak_bw_max": 1.68,
+   "power_w": 162,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.8,
+    "shoulder": 5.5,
+    "elbow": 1.5,
+    "hip": 4.2,
+    "knee": 5.3,
+    "ankle": 4.8
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 1.0,
+   "clip_pct": 0.0
+  }
+ }
+}

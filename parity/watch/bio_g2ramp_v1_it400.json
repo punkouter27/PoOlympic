@@ -1,0 +1,120 @@
+{
+ "onnx": "g2ramp_v1_it400.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.27,
+   "grf_peak_bw_p95": 1.39,
+   "grf_peak_bw_max": 1.59,
+   "power_w": 315,
+   "cot": 0.39,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 4.1,
+    "elbow": 3.4,
+    "hip": 2.6,
+    "knee": 6.6,
+    "ankle": 5.5
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.5,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.91,
+   "grf_peak_bw_p95": 1.67,
+   "grf_peak_bw_max": 2.31,
+   "power_w": 859,
+   "cot": 0.46,
+   "hill_viol_pct": 1.58,
+   "cap_sat_pct": 0.32,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 5.2,
+    "elbow": 4.4,
+    "hip": 5.0,
+    "knee": 9.5,
+    "ankle": 6.6
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 3.0,
+    "ankle_dorsi": 0.4
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.57,
+   "grf_peak_bw_p95": 1.85,
+   "grf_peak_bw_max": 2.69,
+   "power_w": 1252,
+   "cot": 0.55,
+   "hill_viol_pct": 4.43,
+   "cap_sat_pct": 2.68,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.4,
+    "shoulder": 5.3,
+    "elbow": 5.9,
+    "hip": 6.2,
+    "knee": 11.0,
+    "ankle": 7.9
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 5.2,
+    "ankle_dorsi": 1.3,
+    "hip_rot": 0.5
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.01,
+   "grf_peak_bw_p95": 1.26,
+   "grf_peak_bw_max": 2.52,
+   "power_w": 229,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.4,
+    "shoulder": 4.1,
+    "elbow": 2.9,
+    "hip": 4.4,
+    "knee": 7.4,
+    "ankle": 5.5
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  }
+ }
+}

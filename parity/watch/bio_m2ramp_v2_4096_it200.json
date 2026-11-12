@@ -1,0 +1,124 @@
+{
+ "onnx": "m2ramp_v2_4096_it200.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.25,
+   "grf_peak_bw_p95": 1.24,
+   "grf_peak_bw_max": 1.58,
+   "power_w": 347,
+   "cot": 0.35,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.4,
+    "shoulder": 3.9,
+    "elbow": 1.7,
+    "hip": 2.5,
+    "knee": 6.3,
+    "ankle": 4.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 1.4
+   },
+   "clip_cm": 1.2,
+   "clip_pct": 0.8
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.86,
+   "grf_peak_bw_p95": 1.66,
+   "grf_peak_bw_max": 2.28,
+   "power_w": 966,
+   "cot": 0.43,
+   "hill_viol_pct": 0.06,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.4,
+    "shoulder": 5.3,
+    "elbow": 2.0,
+    "hip": 4.9,
+    "knee": 8.8,
+    "ankle": 8.3
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 3.7,
+    "ankle_inv": 0.2
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.6,
+   "grf_peak_bw_p95": 1.81,
+   "grf_peak_bw_max": 2.51,
+   "power_w": 1126,
+   "cot": 0.4,
+   "hill_viol_pct": 0.07,
+   "cap_sat_pct": 0.02,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.5,
+    "shoulder": 6.4,
+    "elbow": 2.2,
+    "hip": 5.7,
+    "knee": 8.9,
+    "ankle": 9.5
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 2.6,
+    "ankle_inv": 1.7,
+    "abdomen_twist": 1.5
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.2,
+   "grf_peak_bw_max": 1.36,
+   "power_w": 269,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.6,
+    "shoulder": 3.6,
+    "elbow": 2.5,
+    "hip": 4.2,
+    "knee": 5.2,
+    "ankle": 3.7
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 9.9
+   },
+   "clip_cm": 2.8,
+   "clip_pct": 24.8
+  }
+ }
+}

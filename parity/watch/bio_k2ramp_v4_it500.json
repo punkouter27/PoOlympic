@@ -1,0 +1,119 @@
+{
+ "onnx": "k2ramp_v4_it500.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.19,
+   "grf_peak_bw_p95": 1.35,
+   "grf_peak_bw_max": 2.09,
+   "power_w": 251,
+   "cot": 0.4,
+   "hill_viol_pct": 0.01,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 4.4,
+    "elbow": 3.5,
+    "hip": 4.1,
+    "knee": 6.9,
+    "ankle": 6.0
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 1.3,
+   "clip_pct": 0.8
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.92,
+   "grf_peak_bw_p95": 1.87,
+   "grf_peak_bw_max": 2.77,
+   "power_w": 631,
+   "cot": 0.41,
+   "hill_viol_pct": 0.07,
+   "cap_sat_pct": 0.3,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.8,
+    "shoulder": 6.1,
+    "elbow": 5.3,
+    "hip": 5.7,
+    "knee": 8.8,
+    "ankle": 6.7
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.4
+   },
+   "clip_cm": 1.0,
+   "clip_pct": 0.8
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.57,
+   "grf_peak_bw_p95": 1.93,
+   "grf_peak_bw_max": 2.72,
+   "power_w": 865,
+   "cot": 0.46,
+   "hill_viol_pct": 0.18,
+   "cap_sat_pct": 0.38,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.5,
+    "shoulder": 6.7,
+    "elbow": 5.1,
+    "hip": 7.6,
+    "knee": 9.9,
+    "ankle": 8.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.8
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.01,
+   "grf_peak_bw_p95": 1.33,
+   "grf_peak_bw_max": 2.2,
+   "power_w": 163,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 4.3,
+    "elbow": 1.8,
+    "hip": 5.2,
+    "knee": 6.5,
+    "ankle": 4.5
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.1
+   },
+   "clip_cm": 0.3,
+   "clip_pct": 0.0
+  }
+ }
+}

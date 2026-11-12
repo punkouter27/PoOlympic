@@ -1,0 +1,117 @@
+{
+ "onnx": "k2ramp_v3_it599.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.19,
+   "grf_peak_bw_p95": 1.38,
+   "grf_peak_bw_max": 2.07,
+   "power_w": 269,
+   "cot": 0.43,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 5.5,
+    "elbow": 3.3,
+    "hip": 4.0,
+    "knee": 7.4,
+    "ankle": 4.9
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.9,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.91,
+   "grf_peak_bw_p95": 1.95,
+   "grf_peak_bw_max": 2.76,
+   "power_w": 666,
+   "cot": 0.43,
+   "hill_viol_pct": 0.05,
+   "cap_sat_pct": 0.16,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.6,
+    "shoulder": 6.8,
+    "elbow": 5.2,
+    "hip": 6.1,
+    "knee": 8.6,
+    "ankle": 6.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.4
+   },
+   "clip_cm": 0.6,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.58,
+   "grf_peak_bw_p95": 1.94,
+   "grf_peak_bw_max": 2.85,
+   "power_w": 896,
+   "cot": 0.47,
+   "hill_viol_pct": 0.24,
+   "cap_sat_pct": 0.31,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.5,
+    "shoulder": 7.3,
+    "elbow": 5.4,
+    "hip": 7.6,
+    "knee": 9.7,
+    "ankle": 7.6
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.6
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.17,
+   "grf_peak_bw_max": 2.97,
+   "power_w": 151,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 5.1,
+    "elbow": 1.5,
+    "hip": 5.0,
+    "knee": 6.9,
+    "ankle": 3.2
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.3,
+   "clip_pct": 0.0
+  }
+ }
+}

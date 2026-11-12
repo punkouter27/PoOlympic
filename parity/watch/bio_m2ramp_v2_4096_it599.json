@@ -1,0 +1,120 @@
+{
+ "onnx": "m2ramp_v2_4096_it599.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.16,
+   "grf_peak_bw_p95": 1.29,
+   "grf_peak_bw_max": 1.72,
+   "power_w": 263,
+   "cot": 0.29,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 0.8,
+    "shoulder": 3.2,
+    "elbow": 1.1,
+    "hip": 2.3,
+    "knee": 6.5,
+    "ankle": 3.5
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.99,
+   "grf_peak_bw_p95": 1.81,
+   "grf_peak_bw_max": 2.53,
+   "power_w": 807,
+   "cot": 0.34,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 3.9,
+    "elbow": 1.2,
+    "hip": 4.8,
+    "knee": 8.1,
+    "ankle": 7.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 1.6
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.79,
+   "grf_peak_bw_p95": 1.86,
+   "grf_peak_bw_max": 2.35,
+   "power_w": 1075,
+   "cot": 0.36,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.8,
+    "shoulder": 5.6,
+    "elbow": 1.4,
+    "hip": 5.2,
+    "knee": 8.4,
+    "ankle": 8.4
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 2.0,
+    "ankle_inv": 0.4
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.24,
+   "grf_peak_bw_max": 1.69,
+   "power_w": 226,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.1,
+    "shoulder": 3.4,
+    "elbow": 2.5,
+    "hip": 4.3,
+    "knee": 5.2,
+    "ankle": 4.4
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 6.5
+   },
+   "clip_cm": 0.3,
+   "clip_pct": 0.0
+  }
+ }
+}
