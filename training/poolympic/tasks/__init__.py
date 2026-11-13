@@ -882,6 +882,19 @@ if bodies.current().name == "matt":
         rl.algorithm.entropy_coef, rl.algorithm.desired_kl, rl.save_interval = 0.001, 0.004, 50
         register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-Polish", env_cfg=cfg,
                             play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl, runner_cls=SymmetricRunner)
+        rl_s = matt_ppo_cfg("matt_rung2", max_iterations=300)
+        rl_s.algorithm.entropy_coef, rl_s.algorithm.desired_kl, rl_s.save_interval = 0.0002, 0.003, 25
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-Sharp", env_cfg=cfg,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl_s, runner_cls=SymmetricRunner)
+        cfg_ss = matt_rung2_ramp_env_cfg()
+        cfg_ss.scene.num_envs = 4096
+        cfg_ss.commands["athlete"].sprint_fraction = 0.45
+        cfg_ss.rewards["track_lin"].weight = 3.0
+        cfg_ss.rewards["track_ang"].weight = 2.5
+        rl_ss = matt_ppo_cfg("matt_rung2", max_iterations=300)
+        rl_ss.algorithm.entropy_coef, rl_ss.algorithm.desired_kl, rl_ss.save_interval = 0.0002, 0.003, 25
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-SprintSharp", env_cfg=cfg_ss,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl_ss, runner_cls=SymmetricRunner)
     _matt_ramp_polish()
 
 if bodies.current().name == "kim":
@@ -895,12 +908,42 @@ if bodies.current().name == "kim":
         register_mjlab_task(task_id="PoOlympic-Kim-Rung2-Ramp-Bands3", env_cfg=cfg,
                             play_env_cfg=add_ramp_recipe(kim_rung2_bands3_env_cfg(play=True)),
                             rl_cfg=rl, runner_cls=SymmetricRunner)
+        rl_s = matt_ppo_cfg("kim_rung2", max_iterations=300)
+        rl_s.algorithm.entropy_coef, rl_s.algorithm.desired_kl, rl_s.save_interval = 0.0002, 0.003, 25
+        register_mjlab_task(task_id="PoOlympic-Kim-Rung2-Ramp-Sharp", env_cfg=cfg,
+                            play_env_cfg=add_ramp_recipe(kim_rung2_bands3_env_cfg(play=True)),
+                            rl_cfg=rl_s, runner_cls=SymmetricRunner)
+        cfg_l4 = add_ramp_recipe(kim_rung2_bands3_env_cfg())
+        cfg_l4.scene.num_envs = 4096
+        cfg_l4.rewards["track_lin"].weight = 3.5
+        cfg_l4.rewards["track_lin_coarse"].weight = 1.5
+        rl_l4 = matt_ppo_cfg("kim_rung2", max_iterations=400)
+        rl_l4.algorithm.entropy_coef, rl_l4.algorithm.desired_kl, rl_l4.save_interval = 0.0003, 0.003, 50
+        register_mjlab_task(task_id="PoOlympic-Kim-Rung2-Ramp-Bands3-Lin4", env_cfg=cfg_l4,
+                            play_env_cfg=add_ramp_recipe(kim_rung2_bands3_env_cfg(play=True)),
+                            rl_cfg=rl_l4, runner_cls=SymmetricRunner)
+        from . import grandma_env as GE
+        cfg_kss = add_ramp_recipe(kim_rung2_bands3_env_cfg())
+        cfg_kss.scene.num_envs = 4096
+        ss, ws = GE.SS, GE.WS
+        cfg_kss.commands["athlete"].bands = (
+            (0.35, (3.2 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
+            (0.10, (-1.5 * ss, -0.8 * ss), (0.0, 0.0), 0.5 * ws),
+            (0.15, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0),
+        )
+        cfg_kss.rewards["track_lin"].weight = 5.0
+        cfg_kss.rewards["track_lin_coarse"].weight = 2.0
+        rl_kss = matt_ppo_cfg("kim_rung2", max_iterations=300)
+        rl_kss.algorithm.entropy_coef, rl_kss.algorithm.desired_kl, rl_kss.save_interval = 0.00015, 0.0025, 25
+        register_mjlab_task(task_id="PoOlympic-Kim-Rung2-Ramp-SprintSharp", env_cfg=cfg_kss,
+                            play_env_cfg=add_ramp_recipe(kim_rung2_bands3_env_cfg(play=True)),
+                            rl_cfg=rl_kss, runner_cls=SymmetricRunner)
     _kim_ramp_bands3()
 
 if bodies.current().name == "zombie":
     def _zombie_rung2_opts():
         from .matt_env import matt_ppo_cfg
-        from .zombie_env import zombie_rung2_ramp_env_cfg, zombie_rung2_wobble_sprint_env_cfg
+        from .zombie_env import zombie_rung2_polish_env_cfg, zombie_rung2_ramp_env_cfg, zombie_rung2_wobble_sprint_env_cfg
         cfg_ws = zombie_rung2_wobble_sprint_env_cfg()
         cfg_ws.scene.num_envs = 4096
         rl_ws = matt_ppo_cfg("zombie_rung2", max_iterations=400)
@@ -915,6 +958,49 @@ if bodies.current().name == "zombie":
         register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Ramp-LowEnt", env_cfg=cfg_r,
                             play_env_cfg=zombie_rung2_ramp_env_cfg(play=True),
                             rl_cfg=rl_r, runner_cls=SymmetricRunner)
+        cfg_p = zombie_rung2_polish_env_cfg()
+        cfg_p.scene.num_envs = 4096
+        rl_ps = matt_ppo_cfg("zombie_rung2", max_iterations=300)
+        rl_ps.algorithm.entropy_coef, rl_ps.algorithm.desired_kl, rl_ps.save_interval = 0.0002, 0.003, 25
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Polish-Sharp", env_cfg=cfg_p,
+                            play_env_cfg=zombie_rung2_polish_env_cfg(play=True),
+                            rl_cfg=rl_ps, runner_cls=SymmetricRunner)
+        from .zombie_env import SS, WS, zombie_rung2_wobble_env_cfg
+        cfg_ab = zombie_rung2_wobble_env_cfg()
+        cfg_ab.scene.num_envs = 4096
+        cfg_ab.commands["athlete"].bands = (
+            (0.25, (2.0 * SS, 3.8 * SS), (0.0, 0.0), 0.6 * WS),
+            (0.20, (-1.8 * SS, -0.7 * SS), (0.0, 0.0), 0.5 * WS),
+            (0.15, (-0.5 * SS, 0.5 * SS), (0.1 * SS, 1.1 * SS), 0.0),
+        )
+        cfg_ab.rewards["track_lin"].weight = 3.5
+        rl_ab = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl_ab.algorithm.entropy_coef, rl_ab.algorithm.desired_kl, rl_ab.save_interval = 0.0005, 0.004, 50
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Wobble-AllBands", env_cfg=cfg_ab,
+                            play_env_cfg=zombie_rung2_wobble_env_cfg(play=True),
+                            rl_cfg=rl_ab, runner_cls=SymmetricRunner)
+        rl_g = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl_g.algorithm.learning_rate = 1.0e-4
+        rl_g.algorithm.clip_param = 0.08
+        rl_g.algorithm.desired_kl = 0.0015
+        rl_g.algorithm.entropy_coef = 0.0002
+        rl_g.save_interval = 50
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Wobble-Gentle", env_cfg=cfg_ab,
+                            play_env_cfg=zombie_rung2_wobble_env_cfg(play=True),
+                            rl_cfg=rl_g, runner_cls=SymmetricRunner)
+        cfg_ex = zombie_rung2_wobble_env_cfg()
+        cfg_ex.scene.num_envs = 4096
+        cfg_ex.commands["athlete"].bands = (
+            (0.25, (2.2 * SS, 3.8 * SS), (0.0, 0.0), 0.6 * WS),
+            (0.25, (-2.2 * SS, -1.0 * SS), (0.0, 0.0), 0.5 * WS),
+            (0.15, (-0.5 * SS, 0.5 * SS), (0.3 * SS, 1.1 * SS), 0.0),
+        )
+        cfg_ex.rewards["track_lin"].weight = 4.5
+        rl_ex = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl_ex.algorithm.entropy_coef, rl_ex.algorithm.desired_kl, rl_ex.save_interval = 0.002, 0.006, 50
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Wobble-Explore", env_cfg=cfg_ex,
+                            play_env_cfg=zombie_rung2_wobble_env_cfg(play=True),
+                            rl_cfg=rl_ex, runner_cls=SymmetricRunner)
     _zombie_rung2_opts()
 
 

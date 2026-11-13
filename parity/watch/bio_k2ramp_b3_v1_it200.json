@@ -1,0 +1,117 @@
+{
+ "onnx": "k2ramp_b3_v1_it200.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.18,
+   "grf_peak_bw_p95": 1.35,
+   "grf_peak_bw_max": 1.97,
+   "power_w": 254,
+   "cot": 0.41,
+   "hill_viol_pct": 0.01,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 5.4,
+    "elbow": 3.6,
+    "hip": 3.6,
+    "knee": 7.7,
+    "ankle": 5.9
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.9,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.94,
+   "grf_peak_bw_p95": 1.86,
+   "grf_peak_bw_max": 2.76,
+   "power_w": 640,
+   "cot": 0.41,
+   "hill_viol_pct": 0.07,
+   "cap_sat_pct": 0.26,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.7,
+    "shoulder": 6.1,
+    "elbow": 5.1,
+    "hip": 5.7,
+    "knee": 9.2,
+    "ankle": 6.8
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.5
+   },
+   "clip_cm": 0.8,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.64,
+   "grf_peak_bw_p95": 1.91,
+   "grf_peak_bw_max": 2.82,
+   "power_w": 878,
+   "cot": 0.46,
+   "hill_viol_pct": 0.23,
+   "cap_sat_pct": 0.37,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.3,
+    "shoulder": 5.9,
+    "elbow": 4.8,
+    "hip": 7.3,
+    "knee": 10.2,
+    "ankle": 7.6
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.5
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.28,
+   "grf_peak_bw_max": 1.77,
+   "power_w": 153,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.6,
+    "shoulder": 4.6,
+    "elbow": 1.8,
+    "hip": 5.0,
+    "knee": 6.4,
+    "ankle": 4.2
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.6,
+   "clip_pct": 0.0
+  }
+ }
+}

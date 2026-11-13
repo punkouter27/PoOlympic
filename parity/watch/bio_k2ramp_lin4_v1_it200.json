@@ -1,0 +1,117 @@
+{
+ "onnx": "k2ramp_lin4_v1_it200.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.21,
+   "grf_peak_bw_p95": 1.33,
+   "grf_peak_bw_max": 1.99,
+   "power_w": 287,
+   "cot": 0.45,
+   "hill_viol_pct": 0.03,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.3,
+    "shoulder": 5.1,
+    "elbow": 3.7,
+    "hip": 3.7,
+    "knee": 7.7,
+    "ankle": 7.0
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.7,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.96,
+   "grf_peak_bw_p95": 1.85,
+   "grf_peak_bw_max": 2.67,
+   "power_w": 633,
+   "cot": 0.4,
+   "hill_viol_pct": 0.1,
+   "cap_sat_pct": 0.22,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.0,
+    "shoulder": 6.3,
+    "elbow": 5.4,
+    "hip": 5.9,
+    "knee": 9.0,
+    "ankle": 6.3
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.7
+   },
+   "clip_cm": 0.8,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.68,
+   "grf_peak_bw_p95": 1.91,
+   "grf_peak_bw_max": 2.73,
+   "power_w": 885,
+   "cot": 0.45,
+   "hill_viol_pct": 0.24,
+   "cap_sat_pct": 0.4,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.7,
+    "shoulder": 6.0,
+    "elbow": 5.3,
+    "hip": 6.8,
+    "knee": 10.2,
+    "ankle": 7.4
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 0.8
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.0,
+   "grf_peak_bw_p95": 1.22,
+   "grf_peak_bw_max": 2.36,
+   "power_w": 144,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.4,
+    "shoulder": 3.9,
+    "elbow": 1.6,
+    "hip": 5.0,
+    "knee": 5.9,
+    "ankle": 4.6
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.2,
+   "clip_pct": 0.0
+  }
+ }
+}

@@ -270,19 +270,19 @@
     19,
     22
    ],
-   "name": "k2_v3_it600",
+   "name": "k2ramp_ss_v1_it225",
    "experiment": "kim_rung2",
-   "run": "k2_v3",
-   "iteration": 600,
+   "run": "k2ramp_ss_v1",
+   "iteration": 225,
    "contract_version": 3,
-   "sha256": "4b60a92f4744fd9a8d42c623d108d6c40a6b2df7d705bed3f96994adff5d1afc",
+   "sha256": "ef490ae984950ae66a5cab2a250f66d53ffabcdaeaea4cf1cf746735ef09fba2",
    "sidecar_sha256_ok": true,
    "fingerprint_sha256": "b1fa14afabbae823a66389734493e82b668d639f98105ff0f406aa6a59469d07",
    "fingerprint_current": true,
    "critic": "kim_rung2.critic.onnx",
    "gate": {
-    "source": "watch_k2_v3.jsonl",
-    "g1_2": "10/10",
+    "source": "watch_k2ramp_ss_v1.jsonl",
+    "g1_2": "30/30",
     "g1_2_falls": 0
    }
   },
@@ -655,7 +655,11 @@
    "fingerprint_sha256": "5521551798c3942cb235d40a8daab9ef10151ef407fa1815d9c9f9cc80a2b379",
    "fingerprint_current": true,
    "critic": "zombie_rung0.critic.onnx",
-   "gate": null
+   "gate": {
+    "source": "eval_rung0_zombie_rung0.json",
+    "result": "10/10",
+    "PASS": true
+   }
   },
   {
    "file": "zombie_rung2.onnx",

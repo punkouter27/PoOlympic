@@ -1,0 +1,123 @@
+{
+ "onnx": "m2ramp_ss_v1_it100.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.18,
+   "grf_peak_bw_p95": 1.29,
+   "grf_peak_bw_max": 1.5,
+   "power_w": 302,
+   "cot": 0.33,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 0.9,
+    "shoulder": 3.8,
+    "elbow": 0.9,
+    "hip": 2.3,
+    "knee": 6.2,
+    "ankle": 3.7
+   },
+   "bio_cap_over_pct": {
+    "ankle_inv": 4.1
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 2.99,
+   "grf_peak_bw_p95": 1.8,
+   "grf_peak_bw_max": 2.39,
+   "power_w": 849,
+   "cot": 0.36,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.7,
+    "shoulder": 4.2,
+    "elbow": 1.5,
+    "hip": 4.6,
+    "knee": 8.0,
+    "ankle": 7.7
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 1.4
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 3.8,
+   "grf_peak_bw_p95": 1.87,
+   "grf_peak_bw_max": 2.62,
+   "power_w": 1101,
+   "cot": 0.37,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.2,
+    "shoulder": 5.5,
+    "elbow": 1.6,
+    "hip": 5.0,
+    "knee": 8.6,
+    "ankle": 8.6
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 2.6,
+    "ankle_inv": 0.2
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.02,
+   "grf_peak_bw_p95": 1.15,
+   "grf_peak_bw_max": 1.52,
+   "power_w": 202,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 0.9,
+    "shoulder": 2.8,
+    "elbow": 1.9,
+    "hip": 4.0,
+    "knee": 5.2,
+    "ankle": 5.0
+   },
+   "bio_cap_over_pct": {
+    "ankle_dorsi": 3.1,
+    "ankle_inv": 2.0
+   },
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  }
+ }
+}

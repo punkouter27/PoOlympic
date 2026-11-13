@@ -1,0 +1,113 @@
+{
+ "onnx": "z2_polish_v2_it599.onnx",
+ "drills": {
+  "walk_1.2": {
+   "cmd": [
+    1.2,
+    0.0,
+    0.0
+   ],
+   "fell": null,
+   "speed": 1.17,
+   "grf_peak_bw_p95": 1.34,
+   "grf_peak_bw_max": 1.72,
+   "power_w": 101,
+   "cot": 0.4,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 2.1,
+    "shoulder": 2.1,
+    "elbow": 1.3,
+    "hip": 3.1,
+    "knee": 8.9,
+    "ankle": 6.0
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "run_3.0": {
+   "cmd": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "fell": 3.14,
+   "speed": 2.76,
+   "grf_peak_bw_p95": 1.82,
+   "grf_peak_bw_max": 2.39,
+   "power_w": 292,
+   "cot": 0.49,
+   "hill_viol_pct": 1.72,
+   "cap_sat_pct": 0.62,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 3.8,
+    "shoulder": 4.5,
+    "elbow": 2.7,
+    "hip": 5.9,
+    "knee": 14.2,
+    "ankle": 10.9
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "sprint_3.8": {
+   "cmd": [
+    3.8,
+    0.0,
+    0.0
+   ],
+   "fell": 4.18,
+   "speed": 3.17,
+   "grf_peak_bw_p95": 2.23,
+   "grf_peak_bw_max": 3.21,
+   "power_w": 411,
+   "cot": 0.6,
+   "hill_viol_pct": 4.33,
+   "cap_sat_pct": 1.09,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 4.9,
+    "shoulder": 5.9,
+    "elbow": 3.5,
+    "hip": 9.5,
+    "knee": 17.9,
+    "ankle": 12.6
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  },
+  "spin_2.5": {
+   "cmd": [
+    0.0,
+    0.0,
+    2.5
+   ],
+   "fell": null,
+   "speed": 0.02,
+   "grf_peak_bw_p95": 1.32,
+   "grf_peak_bw_max": 1.46,
+   "power_w": 74,
+   "cot": null,
+   "hill_viol_pct": 0.0,
+   "cap_sat_pct": 0.0,
+   "vel18_pct": 0.0,
+   "qd_peak": {
+    "abdomen": 1.9,
+    "shoulder": 2.1,
+    "elbow": 0.9,
+    "hip": 4.5,
+    "knee": 6.7,
+    "ankle": 7.9
+   },
+   "bio_cap_over_pct": {},
+   "clip_cm": 0.0,
+   "clip_pct": 0.0
+  }
+ }
+}
