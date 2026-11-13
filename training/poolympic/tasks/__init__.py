@@ -871,6 +871,53 @@ if bodies.current().name in ("matt", "grandma", "kim"):
                             runner_cls=MjlabOnPolicyRunner)
     _crawl_square()
 
+
+# 2026-11-12 extended run: low-entropy/low-KL Rung 2 polish & targeted follow-ups (opt-in; existing tasks untouched)
+if bodies.current().name == "matt":
+    def _matt_ramp_polish():
+        from .matt_env import matt_ppo_cfg, matt_rung2_ramp_env_cfg
+        cfg = matt_rung2_ramp_env_cfg()
+        cfg.scene.num_envs = 4096
+        rl = matt_ppo_cfg("matt_rung2", max_iterations=600)
+        rl.algorithm.entropy_coef, rl.algorithm.desired_kl, rl.save_interval = 0.001, 0.004, 50
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-Polish", env_cfg=cfg,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl, runner_cls=SymmetricRunner)
+    _matt_ramp_polish()
+
+if bodies.current().name == "kim":
+    def _kim_ramp_bands3():
+        from .kim_env import kim_rung2_bands3_env_cfg
+        from .matt_env import add_ramp_recipe, matt_ppo_cfg
+        cfg = add_ramp_recipe(kim_rung2_bands3_env_cfg())
+        cfg.scene.num_envs = 4096
+        rl = matt_ppo_cfg("kim_rung2", max_iterations=600)
+        rl.algorithm.entropy_coef, rl.algorithm.desired_kl, rl.save_interval = 0.001, 0.004, 50
+        register_mjlab_task(task_id="PoOlympic-Kim-Rung2-Ramp-Bands3", env_cfg=cfg,
+                            play_env_cfg=add_ramp_recipe(kim_rung2_bands3_env_cfg(play=True)),
+                            rl_cfg=rl, runner_cls=SymmetricRunner)
+    _kim_ramp_bands3()
+
+if bodies.current().name == "zombie":
+    def _zombie_rung2_opts():
+        from .matt_env import matt_ppo_cfg
+        from .zombie_env import zombie_rung2_ramp_env_cfg, zombie_rung2_wobble_sprint_env_cfg
+        cfg_ws = zombie_rung2_wobble_sprint_env_cfg()
+        cfg_ws.scene.num_envs = 4096
+        rl_ws = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl_ws.algorithm.entropy_coef, rl_ws.algorithm.desired_kl, rl_ws.save_interval = 0.001, 0.004, 50
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-WobbleSprint-4096", env_cfg=cfg_ws,
+                            play_env_cfg=zombie_rung2_wobble_sprint_env_cfg(play=True),
+                            rl_cfg=rl_ws, runner_cls=SymmetricRunner)
+        cfg_r = zombie_rung2_ramp_env_cfg()
+        cfg_r.scene.num_envs = 4096
+        rl_r = matt_ppo_cfg("zombie_rung2", max_iterations=600)
+        rl_r.algorithm.entropy_coef, rl_r.algorithm.desired_kl, rl_r.save_interval = 0.001, 0.004, 50
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Ramp-LowEnt", env_cfg=cfg_r,
+                            play_env_cfg=zombie_rung2_ramp_env_cfg(play=True),
+                            rl_cfg=rl_r, runner_cls=SymmetricRunner)
+    _zombie_rung2_opts()
+
+
 # ---- registry hygiene -------------------------------------------------------------------------------------------------
 # Task IDs whose recipe a later ID of the same body and skill replaced, or that were tried and dropped. They stay
 # registered (old runs, the queue and the log refer to them) and build exactly what they always built; do not start new
