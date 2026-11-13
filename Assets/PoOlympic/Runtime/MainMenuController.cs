@@ -12,13 +12,15 @@ namespace PoOlympic
     /// 2026-09-29):
     ///   HudAnchors frame  TL POOLYMPICS + the lineup / gauntlet status · TC FPS · TR menu → the bottom sheet (Actions:
     ///                     lineup presets, demo · Settings) · BL debug · BR version; bottom centre: the last gauntlet result
-    ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 8 lanes
-    ///   lanes             4 × 2 tiles: tap a lane = the next athlete in it
-    ///   events            full catalogue numbered 01–16; each playable event draws 16 entrants for two heats of 8
+    ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 16 entrant slots
+    ///   entrants          2 rows of 8: the field of 16 every event is run with (the roster's characters, repeated
+    ///                     as needed); tap a slot = the next athlete in it. Row 1 runs as heat 1, row 2 as heat 2.
+    ///   events            full catalogue numbered 01–16
     ///   detail            the selected event: name, brain, rules and its world record — or, with ★ on, its all-time
     ///                     top 5 (the ★ toggle also puts every event's world record on its tile: the old records board)
-    ///   actions           ★ records · GAUNTLET (tapping events builds an ordered series, Gauntlet; one heat per event,
-    ///                     points per place) · PLAY (loads the event scene / starts the gauntlet)
+    ///   actions           ★ records · GAUNTLET (tapping events builds an ordered series, Gauntlet; one heat per event
+    ///                     with entrants 1-8) · RUN ALL (MeetSeries: every playable event with the 16 entrants,
+    ///                     unattended, to one winner) · PLAY (the selected event / the gauntlet)
     /// Runs in edit mode too, so the full layout shows in the Game view / Device Simulator without entering Play mode.
     /// </summary>
     [ExecuteAlways]
@@ -49,15 +51,21 @@ namespace PoOlympic
         public float idleDemoSeconds = 45f;
         float _lastInput;
 
-        readonly string[] _lineup = new string[8];
+        readonly string[] _entrants = new string[EventCompetition.EntrantCount];
+        /// <summary>The field picked in the menu, kept across the event scenes (the menu scene is reloaded).</summary>
+        static string[] _savedEntrants;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => _savedEntrants = null;
+
         readonly List<(Button tile, Label name)> _slots = new();
         readonly List<Button> _eventButtons = new();
         readonly List<Label> _orderBadges = new();
         readonly List<Label> _marks = new();
         readonly List<MenuEvent> _gauntlet = new();
-        bool _gauntletMode, _recordsMode, _tournamentMode;
-        Button _gauntletButton, _recordsButton, _tournamentButton, _reseedButton, _play;
-        VisualElement _root, _panel, _slotsRoot, _detail, _recordTop, _tournamentView;
+        bool _gauntletMode, _recordsMode;
+        Button _gauntletButton, _recordsButton, _runAllButton, _play;
+        VisualElement _root, _panel, _slotsRoot, _detail, _recordTop;
         MenuEvent _selected;
         Label _rules, _eventRecord, _eventTitle, _eventBrain, _last;
         HudAnchors _anchors;
@@ -84,7 +92,7 @@ namespace PoOlympic
         void IdleDemo()
         {
             if (DemoRunner.AnyInput(held: true)) _lastInput = Time.unscaledTime;
-            else if (idleDemoSeconds > 0f && !DemoMode.Active && !TournamentMode.Active && Time.unscaledTime - _lastInput > idleDemoSeconds) StartDemo();
+            else if (idleDemoSeconds > 0f && !DemoMode.Active && !MeetSeries.Active && Time.unscaledTime - _lastInput > idleDemoSeconds) StartDemo();
         }
 
         /// <summary>Endless gauntlet of every playable event with random lineups (DemoMode); scenes with a fixed
@@ -93,7 +101,7 @@ namespace PoOlympic
         {
             if (!Application.isPlaying) return;
             _lastInput = Time.unscaledTime;
-            DemoMode.Begin(events.Where(e => IsPlayable(e) && (e.lineup == null || e.lineup.Length != _lineup.Length))
+            DemoMode.Begin(events.Where(e => IsPlayable(e) && !FixedLineup(e))
                 .Select(e => (e.number, e.scene)));
         }
 
@@ -123,7 +131,6 @@ namespace PoOlympic
             var bottom = root.Q<VisualElement>("anchorBottom");
             var overlay = root.Q<VisualElement>("overlay");
             _detail = root.Q<VisualElement>("detail");
-            _tournamentView = root.Q<VisualElement>("tournamentView");
             _rules = root.Q<Label>("eventRules");
             _eventTitle = root.Q<Label>("eventTitle");
             _eventBrain = root.Q<Label>("eventBrain");
@@ -132,11 +139,10 @@ namespace PoOlympic
             _play = root.Q<Button>("playButton");
             _gauntletButton = root.Q<Button>("gauntletButton");
             _recordsButton = root.Q<Button>("recordsButton");
-            _tournamentButton = root.Q<Button>("tournamentButton");
-            _reseedButton = root.Q<Button>("reseedButton");
+            _runAllButton = root.Q<Button>("runAllButton");
             _slotsRoot = slots;
             root.style.flexGrow = 1;                     // the document root fills the panel: the column is one viewport tall
-            foreach (var v in new[] { slots, roster, grid, top, bottom, overlay, _tournamentView }) v?.Clear();
+            foreach (var v in new[] { slots, roster, grid, top, bottom, overlay }) v?.Clear();
             _slots.Clear();
             _eventButtons.Clear();
             _orderBadges.Clear();
@@ -144,9 +150,14 @@ namespace PoOlympic
 
             _anchors = new HudAnchors(top, bottom, overlay, overlay, "POOLYMPICS", "", "v" + Application.version);
             _anchors.SetMenu(MenuItems);
-            var participantRng = new System.Random();
-            foreach (var ev in events)
-                ev.participants = EventCompetition.DrawParticipants(MeetLineup.Roster, participantRng);
+            // one field of 16 for every event. Kept from the last visit to the menu; else a fresh draw: each row
+            // of 8 holds every character at least once, the other slots are repeats.
+            var field = _savedEntrants != null && _savedEntrants.Length == _entrants.Length &&
+                        _savedEntrants.All(a => Array.IndexOf(MeetLineup.Roster, a) >= 0)
+                ? _savedEntrants
+                : EventCompetition.DrawParticipants(MeetLineup.Roster, new System.Random());
+            Array.Copy(field, _entrants, _entrants.Length);
+            foreach (var ev in events) ev.participants = _entrants;
             _last = new Label();
             _last.AddToClassList("menu-last");
             _anchors.BottomCentre.Add(_last);
@@ -154,7 +165,7 @@ namespace PoOlympic
             foreach (var athlete in MeetLineup.Roster)
             {
                 int elo = AgentElo.GetRoundedElo(athlete);
-                var card = new Button(() => FillAll(athlete)) { tooltip = $"{MeetLineup.Stats(athlete).Replace("\n", " · ")} · ELO {elo}" };
+                var card = new Button(() => FillAll(athlete)) { tooltip = $"{MeetLineup.Stats(athlete).Replace("\n", " · ")} · ELO {elo} · tap: all 16 entrants" };
                 card.AddToClassList("athlete-card");
                 card.EnableInClassList("athlete-card--gap", athlete != MeetLineup.Roster[^1]);
                 // three cards share the row: chip + name + ×8 on one line, the stats + ELO on their own line below
@@ -162,21 +173,19 @@ namespace PoOlympic
                 head.AddToClassList("athlete-head");
                 head.Add(Chip(athlete));
                 head.Add(MakeLabel(athlete, "athlete-name"));
-                head.Add(MakeLabel("×8", "athlete-fill"));
+                head.Add(MakeLabel("×16", "athlete-fill"));
                 card.Add(head);
                 card.Add(MakeLabel($"{MeetLineup.Stats(athlete).Split('\n')[0]} · ELO {elo}", "athlete-stats"));
                 roster.Add(card);
             }
 
-            for (int k = 0; k < _lineup.Length; k++)
+            for (int k = 0; k < _entrants.Length; k++)
             {
-                string a = MeetLineup.Athletes[k];
-                _lineup[k] = Array.IndexOf(MeetLineup.Roster, a) >= 0 ? a : MeetLineup.Roster[0];
-                int lane = k;
-                var tile = new Button(() => NextAthlete(lane));
-                tile.AddToClassList("slot");
-                tile.Add(MakeLabel($"LANE {k + 1}", "slot-lane"));
-                var name = MakeLabel("", "slot-athlete");
+                int slot = k;
+                var tile = new Button(() => NextAthlete(slot));
+                tile.AddToClassList("entrant");
+                tile.Add(MakeLabel($"{k + 1:00}", "entrant-no"));
+                var name = MakeLabel("", "entrant-name");
                 tile.Add(name);
                 slots.Add(tile);
                 _slots.Add((tile, name));
@@ -227,20 +236,13 @@ namespace PoOlympic
             _gauntletButton.clicked += ToggleGauntlet;
             _recordsButton.clicked -= ToggleRecords;
             _recordsButton.clicked += ToggleRecords;
-            if (_tournamentButton != null)
+            if (_runAllButton != null)
             {
-                _tournamentButton.clicked -= ToggleTournament;
-                _tournamentButton.clicked += ToggleTournament;
+                _runAllButton.clicked -= RunAll;
+                _runAllButton.clicked += RunAll;
             }
-            if (_reseedButton != null)
-            {
-                _reseedButton.clicked -= ReseedTournament;
-                _reseedButton.clicked += ReseedTournament;
-            }
-            _tournamentMode = TournamentMode.ShowBracketOnMenu;
             RefreshSlots();
             RefreshRecords();
-            RefreshTournament();
             SelectEvent(events.FirstOrDefault(e => e.number == MeetLineup.EventNumber && IsPlayable(e))
                 ?? events.FirstOrDefault(IsPlayable));
         }
@@ -252,10 +254,16 @@ namespace PoOlympic
                 yield return ("Alternate " + string.Join(" / ", MeetLineup.Roster), () =>
                 {
                     if (LineupFixed) return;
-                    for (int k = 0; k < _lineup.Length; k++) _lineup[k] = MeetLineup.Roster[k % MeetLineup.Roster.Length];
-                    RefreshSlots(updateSelectedParticipants: true);
+                    for (int k = 0; k < _entrants.Length; k++) _entrants[k] = MeetLineup.Roster[k % MeetLineup.Roster.Length];
+                    RefreshSlots();
                 });
-            yield return (_tournamentMode ? "16-player bracket: hide" : "16-player tournament bracket", ToggleTournament);
+            yield return ("Shuffle the 16 entrants", () =>
+            {
+                if (LineupFixed) return;
+                Array.Copy(EventCompetition.DrawParticipants(MeetLineup.Roster, new System.Random()), _entrants, _entrants.Length);
+                RefreshSlots();
+            });
+            yield return ("Run all events (16 entrants, plays by itself)", RunAll);
             yield return ($"Demo mode (starts by itself after {idleDemoSeconds:0} s idle)", StartDemo);
             if (DemoSeason.SeriesPlayed > 0) yield return ("Demo season: reset", () => { DemoSeason.Reset(); UpdateStatus(); });
         }
@@ -277,36 +285,38 @@ namespace PoOlympic
         /// <summary>The selected event's scene fixes the lineup (athlete taps are ignored). Unity serialises a null
         /// array as an empty one, so "any lineup" (roster scenes) arrives here as lineup = [] — only a full 8-lane
         /// lineup is fixed.</summary>
-        bool LineupFixed => _selected?.lineup != null && _selected.lineup.Length == _lineup.Length;
+        bool LineupFixed => FixedLineup(_selected);
 
-        /// <summary>Tap a lane: the next athlete of the roster in it.</summary>
-        void NextAthlete(int lane)
+        static bool FixedLineup(MenuEvent e) => e?.lineup != null && e.lineup.Length > 0 && (e.lineup.Length == 8 || e.lineup.Length == EventCompetition.HeatSize);
+
+        /// <summary>Tap an entrant slot: the next athlete of the roster in it.</summary>
+        void NextAthlete(int slot)
         {
             if (LineupFixed) return;                     // lineup fixed by the event scene
-            int i = Array.IndexOf(MeetLineup.Roster, _lineup[lane]);
-            _lineup[lane] = MeetLineup.Roster[(i + 1) % MeetLineup.Roster.Length];
-            RefreshSlots(updateSelectedParticipants: true);
+            int i = Array.IndexOf(MeetLineup.Roster, _entrants[slot]);
+            _entrants[slot] = MeetLineup.Roster[(i + 1) % MeetLineup.Roster.Length];
+            RefreshSlots();
         }
 
         void FillAll(string athlete)
         {
             if (LineupFixed) return;
-            for (int k = 0; k < _lineup.Length; k++) _lineup[k] = athlete;
-            RefreshSlots(updateSelectedParticipants: true);
+            for (int k = 0; k < _entrants.Length; k++) _entrants[k] = athlete;
+            RefreshSlots();
         }
 
-        void RefreshSlots(bool updateSelectedParticipants = false)
+        void RefreshSlots()
         {
-            if (updateSelectedParticipants && _selected?.participants != null &&
-                _selected.participants.Length == EventCompetition.EntrantCount)
-                Array.Copy(_lineup, _selected.participants, _lineup.Length);
+            _savedEntrants = _entrants.ToArray();
             for (int k = 0; k < _slots.Count; k++)
             {
                 var (tile, name) = _slots[k];
-                name.text = _lineup[k] ?? "empty";
-                foreach (var a in MeetLineup.Roster) tile.EnableInClassList("slot--" + a.ToLowerInvariant(), _lineup[k] == a);
-                tile.EnableInClassList("slot--sub", _lineup[k] != null && !InEvent(_lineup[k]));   // sits this event out
-                tile.EnableInClassList("slot--fixed", LineupFixed);
+                string a = _entrants[k];
+                name.text = ShortName(a);
+                tile.tooltip = $"Entrant {k + 1:00}: {a} · row {k / 8 + 1}, slot {k % 8 + 1}, lane {k + 1}";
+                foreach (var r in MeetLineup.Roster) tile.EnableInClassList("entrant--" + r.ToLowerInvariant(), a == r);
+                tile.EnableInClassList("entrant--sub", a != null && !InEvent(a));   // sits this event out
+                tile.EnableInClassList("entrant--fixed", LineupFixed);
             }
             UpdateStatus();
         }
@@ -384,9 +394,6 @@ namespace PoOlympic
                 RefreshGauntlet();
             }
             _selected = ev;
-            if (LineupFixed) Array.Copy(ev.lineup, _lineup, _lineup.Length);   // the scene's own lineup
-            else if (ev.participants != null && ev.participants.Length == EventCompetition.EntrantCount)
-                Array.Copy(ev.participants, _lineup, _lineup.Length);
             RefreshSlots();
             for (int i = 0; i < _eventButtons.Count; i++)
                 _eventButtons[i].EnableInClassList("event-button--selected", events[i] == ev);
@@ -400,186 +407,18 @@ namespace PoOlympic
             UpdateStatus();
         }
 
-        /// <summary>Toggle the 16-player symmetric tournament bracket view (8 Left · Winner Middle · 8 Right).</summary>
-        public void ToggleTournament()
+        /// <summary>RUN ALL: every playable event in turn with the 16 entrants, unattended, to one winner (MeetSeries).
+        /// Scenes with a fixed lineup are left out.</summary>
+        public void RunAll()
         {
-            _tournamentMode = !_tournamentMode;
-            TournamentMode.ShowBracketOnMenu = _tournamentMode;
-            RefreshTournament();
-            UpdateStatus();
+            if (!Application.isPlaying) return;
+            Gauntlet.Abandon();
+            MeetSeries.Begin(events.Where(e => IsPlayable(e) && !FixedLineup(e))
+                .Select(e => new MeetSeries.EventChoice(e.number, e.name, e.scene)), _entrants);
         }
 
-        public void ReseedTournament()
-        {
-            TournamentMode.ResetBracket(shuffleOrder: true);
-            RefreshTournament();
-            UpdateStatus();
-        }
-
-        TournamentMode.EventChoice[] TournamentChoices() =>
-            events.Where(e => IsPlayable(e) && (e.lineup == null || e.lineup.Length != _lineup.Length))
-                  .Select(e => new TournamentMode.EventChoice(e.number, e.name, e.scene, e.bodies))
-                  .ToArray();
-
-        void RefreshTournament()
-        {
-            _panel?.EnableInClassList("menu-panel--tourney", _tournamentMode);
-            _tournamentButton?.EnableInClassList("tourney-toggle--on", _tournamentMode);
-            if (_tournamentButton != null) _tournamentButton.text = _tournamentMode ? "EVENTS" : "TOURNEY";
-            if (_tournamentView == null) return;
-            _tournamentView.Clear();
-            if (!_tournamentMode)
-            {
-                if (_play != null) _play.text = _gauntletMode ? $"PLAY {_gauntlet.Count}" : "PLAY";
-                return;
-            }
-
-            var bracket = TournamentMode.Bracket;
-            var next = bracket.NextPlayableMatch();
-            var finalMatch = bracket.GetMatch(3, 0);
-            int activeCount = MeetLineup.Roster.Length;
-            int playedReal = bracket.matches.Count(m => m.IsComplete && !m.IsByeMatch);
-
-            var head = new VisualElement();
-            head.AddToClassList("tourney-head");
-            head.Add(MakeLabel($"TOURNAMENT #{bracket.tournamentNumber} · 16 SLOTS (8 LEFT · WINNER · 8 RIGHT)", "tourney-title"));
-            head.Add(MakeLabel(bracket.IsFinished ? $"CHAMPION: {bracket.champion}" : $"{activeCount}/16 ACTIVE · {playedReal} MATCH{(playedReal == 1 ? "" : "ES")}", "tourney-count"));
-            _tournamentView.Add(head);
-
-            string eloSummary = "ELO  " + string.Join(" · ", AgentElo.Leaderboard(MeetLineup.Roster).Select(e => $"{e.agent} {Mathf.RoundToInt(e.elo)}"));
-            _tournamentView.Add(MakeLabel(eloSummary, "tourney-elo-bar"));
-
-            var board = new VisualElement();
-            board.AddToClassList("tourney-bracket");
-
-            // Col 0: Left 8 starting players (matches 0..3 -> 4 pairs)
-            var leftR16 = MakeCol("tourney-col--r16");
-            for (int m = 0; m < 4; m++) leftR16.Add(BuildR16Pair(bracket.GetMatch(0, m), next, isRight: false));
-            board.Add(leftR16);
-
-            // Col 1: Left QF (round 1, matches 0..1)
-            var leftQf = MakeCol("tourney-col--qf");
-            for (int m = 0; m < 2; m++) leftQf.Add(BuildRoundNode(bracket.GetMatch(1, m), next, "L-QF"));
-            board.Add(leftQf);
-
-            // Col 2: Left SF (round 2, match 0)
-            var leftSf = MakeCol("tourney-col--sf");
-            leftSf.Add(BuildRoundNode(bracket.GetMatch(2, 0), next, "L-SF"));
-            board.Add(leftSf);
-
-            // Col 3: Winner in the middle + Grand Final
-            var center = MakeCol("tourney-col--center");
-            var champCard = new VisualElement();
-            champCard.AddToClassList("tourney-champion-card");
-            champCard.Add(MakeLabel("WINNER", "tourney-champion-cap"));
-            champCard.Add(MakeLabel(bracket.IsFinished ? bracket.champion : "TBD", "tourney-champion-name"));
-            champCard.Add(MakeLabel(bracket.IsFinished ? $"ELO {AgentElo.GetRoundedElo(bracket.champion)}" : $"{16 - activeCount} BYE SLOTS", "tourney-champion-elo"));
-            center.Add(champCard);
-
-            var finalCard = new VisualElement();
-            finalCard.AddToClassList("tourney-final-card");
-            finalCard.Add(MakeLabel("FINAL", "tourney-final-cap"));
-            string leftF = string.IsNullOrEmpty(finalMatch?.playerA) ? "LEFT" : finalMatch.playerA;
-            string rightF = string.IsNullOrEmpty(finalMatch?.playerB) ? "RIGHT" : finalMatch.playerB;
-            finalCard.Add(MakeLabel($"{leftF} vs {rightF}", "tourney-final-vs"));
-            string finalStatus = finalMatch != null && finalMatch.IsComplete
-                ? (finalMatch.IsByeMatch ? $"{finalMatch.winner} (BYE)" : $"{finalMatch.winner} {finalMatch.scoreA}-{finalMatch.scoreB}")
-                : next != null ? $"NEXT: {next.playerA} v {next.playerB}" : "READY";
-            finalCard.Add(MakeLabel(finalStatus, "tourney-final-status"));
-            center.Add(finalCard);
-            board.Add(center);
-
-            // Col 4: Right SF (round 2, match 1)
-            var rightSf = MakeCol("tourney-col--sf");
-            rightSf.Add(BuildRoundNode(bracket.GetMatch(2, 1), next, "R-SF"));
-            board.Add(rightSf);
-
-            // Col 5: Right QF (round 1, matches 2..3)
-            var rightQf = MakeCol("tourney-col--qf");
-            for (int m = 2; m < 4; m++) rightQf.Add(BuildRoundNode(bracket.GetMatch(1, m), next, "R-QF"));
-            board.Add(rightQf);
-
-            // Col 6: Right 8 starting players (matches 4..7 -> 4 pairs)
-            var rightR16 = MakeCol("tourney-col--r16");
-            for (int m = 4; m < 8; m++) rightR16.Add(BuildR16Pair(bracket.GetMatch(0, m), next, isRight: true));
-            board.Add(rightR16);
-
-            _tournamentView.Add(board);
-            if (_play != null) _play.text = bracket.IsFinished ? "NEW TOURNEY" : "START TOURNEY";
-        }
-
-        static VisualElement MakeCol(string cls)
-        {
-            var col = new VisualElement();
-            col.AddToClassList("tourney-col");
-            col.AddToClassList(cls);
-            return col;
-        }
-
-        static VisualElement BuildR16Pair(TournamentBracket.Match match, TournamentBracket.Match next, bool isRight)
-        {
-            var pair = new VisualElement();
-            pair.AddToClassList("tourney-pair");
-            pair.AddToClassList(isRight ? "tourney-pair--right" : "tourney-pair--left");
-            bool isActive = match != null && next != null && match.round == next.round && match.index == next.index;
-            pair.Add(BuildSlotTile(match?.playerA, match?.winner == match?.playerA, isActive));
-            pair.Add(BuildSlotTile(match?.playerB, match?.winner == match?.playerB, isActive));
-            return pair;
-        }
-
-        static VisualElement BuildSlotTile(string athlete, bool isWinner, bool isActive)
-        {
-            bool isBye = AgentElo.IsBye(athlete);
-            string display = isBye ? TournamentBracket.Bye : athlete;
-            var slot = new VisualElement();
-            slot.AddToClassList("tourney-slot");
-            if (isBye) slot.AddToClassList("tourney-slot--bye");
-            else slot.AddToClassList("tourney-slot--" + athlete.ToLowerInvariant());
-            slot.EnableInClassList("tourney-slot--winner", isWinner && !isBye);
-            slot.EnableInClassList("tourney-slot--active", isActive && !isBye);
-
-            var name = MakeLabel(display, "tourney-slot-name");
-            name.EnableInClassList("tourney-slot-name--bye", isBye);
-            slot.Add(name);
-            slot.Add(MakeLabel(isBye ? "—" : $"{AgentElo.GetRoundedElo(athlete)}", "tourney-slot-elo"));
-            return slot;
-        }
-
-        static VisualElement BuildRoundNode(TournamentBracket.Match match, TournamentBracket.Match next, string tag)
-        {
-            var node = new VisualElement();
-            node.AddToClassList("tourney-node");
-            bool isActive = match != null && next != null && match.round == next.round && match.index == next.index;
-            bool hasWinner = match != null && !string.IsNullOrEmpty(match.winner);
-            node.EnableInClassList("tourney-node--winner", hasWinner && !AgentElo.IsBye(match.winner));
-            node.EnableInClassList("tourney-node--active", isActive);
-
-            string primary = tag;
-            string sub = "TBD";
-            if (match != null)
-            {
-                if (hasWinner)
-                {
-                    primary = match.winner;
-                    sub = match.IsByeMatch ? "BYE" : $"{match.scoreA}-{match.scoreB}";
-                }
-                else if (match.IsPlayable)
-                {
-                    primary = $"{ShortName(match.playerA)}v{ShortName(match.playerB)}";
-                    sub = isActive ? "NEXT" : tag;
-                }
-                else if (!string.IsNullOrEmpty(match.playerA) || !string.IsNullOrEmpty(match.playerB))
-                {
-                    primary = !string.IsNullOrEmpty(match.playerA) ? match.playerA : match.playerB;
-                    sub = "WAIT";
-                }
-            }
-            node.Add(MakeLabel(primary, "tourney-node-text"));
-            node.Add(MakeLabel(sub, "tourney-node-sub"));
-            return node;
-        }
-
-        static string ShortName(string athlete)
+        /// <summary>3-letter code of an athlete for the narrow entrant tiles ("GRA", "ZOM").</summary>
+        public static string ShortName(string athlete)
         {
             if (string.IsNullOrEmpty(athlete)) return "?";
             return athlete.Length <= 3 ? athlete : athlete.Substring(0, 3);
@@ -588,22 +427,7 @@ namespace PoOlympic
         void UpdateStatus()
         {
             if (_play == null || _anchors == null) return;
-            if (_tournamentMode)
-            {
-                var bracket = TournamentMode.Bracket;
-                var choices = TournamentChoices();
-                bool playable = choices.Any(e => !Application.isPlaying || Application.CanStreamedLevelBeLoaded(e.Scene));
-                _play.SetEnabled(playable);
-                var next = bracket.NextPlayableMatch();
-                _anchors.Sub.text = bracket.IsFinished
-                    ? $"Champion: {bracket.champion} · ELO {AgentElo.GetRoundedElo(bracket.champion)}"
-                    : next != null
-                        ? $"Auto Bracket · Next: {next.playerA} vs {next.playerB}"
-                        : "16-Player Autonomous Tournament";
-                _last.text = TournamentMode.LastMatchSummary;
-                return;
-            }
-            bool full = _lineup.All(a => a != null);
+            bool full = _entrants.All(a => a != null);
             bool loadable = _gauntletMode
                 ? _gauntlet.Count > 0 && _gauntlet.All(e => IsPlayable(e) && (!Application.isPlaying || Application.CanStreamedLevelBeLoaded(e.scene)))
                 : IsPlayable(_selected) && (!Application.isPlaying || Application.CanStreamedLevelBeLoaded(_selected.scene));
@@ -611,14 +435,14 @@ namespace PoOlympic
             // the status line lives in the title chip (TL): no separate status label under PLAY
             _anchors.Sub.text = _selected == null ? "No playable events"
                 : !IsPlayable(_selected) ? $"{_selected.number:00} is coming soon"
-                : !full ? "Fill all 8 lanes"
+                : !full ? "Fill all 16 entrants"
                 : !loadable ? $"{_selected.scene} is not in Build Settings"
                 : _gauntletMode ? (_gauntlet.Count == 0 ? "Tap events to build the gauntlet"
                     : $"Gauntlet {string.Join(" → ", _gauntlet.Select(e => e.number.ToString("00")))} · 10-8-6-5-4-3-2-1")
-                : _tournamentMode
-                    ? SitOutNote() ?? $"{string.Join(" · ", _lineup.GroupBy(a => a).Select(g => $"{g.Count()}× {g.Key}"))}"
-                    : "16 entrants · 2 heats";
-            _last.text = (Gauntlet.LastResult.Length > 0 ? "Last gauntlet: " + Gauntlet.LastResult.Replace("\n", " · ") : "") +
+                : SitOutNote() ?? "16 entrants · 2 rows of 8";
+            _runAllButton?.SetEnabled(full && events.Any(e => IsPlayable(e) && !FixedLineup(e)));
+            _last.text = (MeetSeries.LastResult.Length > 0 ? "Series: " + MeetSeries.LastResult.Replace("\n", " · ") + "\n" : "") +
+                         (Gauntlet.LastResult.Length > 0 ? "Last gauntlet: " + Gauntlet.LastResult.Replace("\n", " · ") : "") +
                          (DemoSeason.SeriesPlayed > 0 ? (Gauntlet.LastResult.Length > 0 ? "\n" : "") + "Demo " + DemoSeason.Summary() : "");
         }
 
@@ -626,7 +450,7 @@ namespace PoOlympic
         /// dimmed), "MATT-only event" when the scene holds one body; null when everyone picked takes part.</summary>
         string SitOutNote()
         {
-            var sitting = _lineup.Where(a => a != null && !InEvent(a)).Distinct().ToArray();
+            var sitting = _entrants.Where(a => a != null && !InEvent(a)).Distinct().ToArray();
             if (sitting.Length == 0) return null;
             return _selected.bodies.Length == 1 ? $"{StandIn}-only event" : $"{string.Join(", ", sitting)} → {StandIn} here";
         }
@@ -641,20 +465,15 @@ namespace PoOlympic
         void Play()
         {
             if (!Application.isPlaying) return;
-            if (_tournamentMode)
-            {
-                TournamentMode.Begin(TournamentChoices(), freshIfFinished: true);
-                return;
-            }
             if (!IsPlayable(_selected)) return;
             if (_gauntletMode && _gauntlet.Count > 0)
             {
-                MeetLineup.Set(_lineup, _gauntlet[0].number);
+                MeetLineup.Set(_entrants.Take(EventCompetition.HeatSize).ToArray(), _gauntlet[0].number);   // one heat per stage: entrants 1-8
                 Gauntlet.Begin(_gauntlet.Select(e => e.number).ToArray(), _gauntlet.Select(e => e.scene).ToArray());
                 return;
             }
             Gauntlet.Abandon();
-            EventCompetition.Begin(_selected.number, _selected.scene, _selected.participants);
+            EventCompetition.Begin(_selected.number, _selected.scene, _entrants);
         }
 
         static bool IsPlayable(MenuEvent ev) => ev != null && !string.IsNullOrWhiteSpace(ev.scene);

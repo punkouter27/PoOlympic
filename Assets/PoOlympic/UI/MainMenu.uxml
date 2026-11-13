@@ -16,12 +16,10 @@
                 <ui:VisualElement name="recordTop" class="record-top" />
                 <ui:Label name="eventRecord" class="event-record" />
             </ui:VisualElement>
-            <ui:VisualElement name="tournamentView" class="tourney-view" />
             <ui:VisualElement class="action-row">
                 <ui:Button name="recordsButton" text="★" tooltip="World records on the event tiles + the selected event's top 5" class="chip-button records-button" />
                 <ui:Button name="gauntletButton" text="GAUNTLET" tooltip="Tap events to build a series" class="chip-button gauntlet-toggle" />
-                <ui:Button name="tournamentButton" text="TOURNEY" tooltip="16-player symmetric bracket &amp; ELO tournament" class="chip-button tourney-toggle" />
-                <ui:Button name="reseedButton" text="RESEED" tooltip="Build a fresh 16-player bracket" class="chip-button reseed-button" />
+                <ui:Button name="runAllButton" text="RUN ALL" tooltip="Every playable event with the 16 entrants, by itself, to one winner" class="chip-button runall-button" />
                 <ui:Button name="playButton" text="PLAY" class="play-button" />
             </ui:VisualElement>
             <ui:VisualElement name="anchorBottom" class="menu-anchor" />

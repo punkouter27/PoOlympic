@@ -69,32 +69,32 @@
 .menu-chip--grandma { background-color: var(--po-grandma); color: var(--po-white); }
 .menu-chip--kim { background-color: var(--po-kim); color: var(--po-on-kim); }
 
-/* ---------- lanes: 4 × 2, tap = next athlete ---------- */
+/* ---------- entrants: 2 rows of 8 (the field of 16), tap = next athlete ---------- */
 .slots { flex-direction: row; flex-wrap: wrap; justify-content: space-between; flex-shrink: 0; }
-.slot {
-    width: 24%;
+.entrant {
+    width: 12%;
     height: var(--po-btn);
     margin: 0;
     margin-bottom: var(--po-pad-s);
-    padding: 0 var(--po-s10);
+    padding: 0;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     background-color: var(--po-tile);
     border-width: var(--po-line);
     border-color: var(--po-tile);
-    border-left-width: var(--po-bar);
-    border-left-color: var(--po-matt);
-    border-radius: var(--po-radius-l);
+    border-bottom-width: var(--po-s6);
+    border-bottom-color: var(--po-matt);
+    border-radius: var(--po-radius);
     color: var(--po-fg);
 }
-.slot:hover { background-color: var(--po-card); }
-.slot--zombie { border-left-color: var(--po-zombie); }
-.slot--grandma { border-left-color: var(--po-grandma); }
-.slot--kim { border-left-color: var(--po-kim); }
-.slot--sub { opacity: 0.55; }
-.slot--fixed { opacity: 0.7; }
-.slot-lane { font-size: var(--po-text); color: var(--po-muted); }
-.slot-athlete { -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); font-size: var(--po-text-em); white-space: nowrap; }
+.entrant:hover { background-color: var(--po-card); }
+.entrant--zombie { border-bottom-color: var(--po-zombie); }
+.entrant--grandma { border-bottom-color: var(--po-grandma); }
+.entrant--kim { border-bottom-color: var(--po-kim); }
+.entrant--sub { opacity: 0.55; }
+.entrant--fixed { opacity: 0.7; }
+.entrant-no { font-size: var(--po-text); color: var(--po-muted); }
+.entrant-name { -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); font-size: var(--po-text); white-space: nowrap; }
 
 /* ---------- events: fixed grid (rows grow to fill the viewport) ---------- */
 .event-grid { flex-grow: 1; flex-shrink: 1; min-height: 0; }
@@ -186,8 +186,6 @@
 .records-button { width: var(--po-btn); padding: 0; font-size: var(--po-text-xl); letter-spacing: 0; color: var(--po-gold); }
 .records-button--on { color: var(--po-ink); background-color: var(--po-gold); }
 .gauntlet-toggle--on { color: var(--po-ink); background-color: var(--po-cyan); }
-.tourney-toggle--on { color: var(--po-ink); background-color: var(--po-gold); }
-.reseed-button { display: none; }
 .play-button {
     flex-grow: 1;
     height: var(--po-btn);
@@ -207,193 +205,3 @@
 
 /* bottom bar centre: the last gauntlet result */
 .menu-last { flex-grow: 1; flex-shrink: 1; font-size: var(--po-text); color: var(--po-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* ---------- 16-player symmetric tournament bracket (8 left · winner middle · 8 right) ---------- */
-.tourney-view { display: none; flex-grow: 1; flex-shrink: 1; min-height: 0; margin-bottom: var(--po-pad); flex-direction: column; }
-.menu-panel--tourney > .roster,
-.menu-panel--tourney > .slots,
-.menu-panel--tourney > .event-grid,
-.menu-panel--tourney > .detail { display: none; }
-.menu-panel--tourney > .tourney-view { display: flex; }
-.menu-panel--tourney .records-button,
-.menu-panel--tourney .gauntlet-toggle { display: none; }
-.menu-panel--tourney .reseed-button { display: flex; }
-
-.tourney-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: var(--po-s6); flex-shrink: 0; }
-.tourney-title { font-size: var(--po-text-m); color: var(--po-gold); -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
-.tourney-count { font-size: var(--po-text); color: var(--po-cyan); -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); white-space: nowrap; margin-left: var(--po-pad-s); flex-shrink: 0; }
-.tourney-elo-bar {
-    font-size: var(--po-text);
-    color: var(--po-body-hi);
-    background-color: var(--po-tile);
-    padding: var(--po-s6) var(--po-pad);
-    border-radius: var(--po-radius);
-    margin-bottom: var(--po-pad-s);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 0;
-}
-
-.tourney-bracket { flex-direction: row; flex-grow: 1; flex-shrink: 1; min-height: 0; align-items: stretch; }
-.tourney-col { flex-direction: column; justify-content: space-around; min-width: 0; min-height: 0; }
-.tourney-col--r16 { width: 19%; }
-.tourney-col--qf { width: 11%; }
-.tourney-col--sf { width: 10%; }
-.tourney-col--center { width: 20%; justify-content: center; align-items: stretch; padding: 0 var(--po-s4); }
-
-.tourney-pair {
-    flex-grow: 1;
-    flex-basis: 0;
-    justify-content: space-around;
-    margin: var(--po-s2) var(--po-s2);
-    padding: var(--po-s2);
-    border-color: var(--po-hairline);
-    border-radius: var(--po-radius);
-}
-.tourney-pair--left { border-right-width: var(--po-line); }
-.tourney-pair--right { border-left-width: var(--po-line); }
-
-.tourney-slot {
-    flex-grow: 1;
-    flex-basis: 0;
-    min-height: 0;
-    min-width: 0;
-    margin: var(--po-s2) 0;
-    padding: var(--po-s4) var(--po-s6);
-    justify-content: center;
-    background-color: var(--po-card);
-    border-radius: var(--po-radius);
-    border-width: var(--po-hair);
-    border-color: var(--po-hairline);
-    border-left-width: var(--po-s6);
-    border-left-color: var(--po-muted);
-    overflow: hidden;
-}
-.tourney-slot--matt { border-left-color: var(--po-matt); }
-.tourney-slot--zombie { border-left-color: var(--po-zombie); }
-.tourney-slot--grandma { border-left-color: var(--po-grandma); }
-.tourney-slot--kim { border-left-color: var(--po-kim); }
-.tourney-slot--bye { background-color: var(--po-tile); opacity: 0.55; border-left-color: var(--po-muted); }
-.tourney-slot--winner { border-color: var(--po-gold); background-color: var(--po-card-selected); }
-.tourney-slot--active { border-color: var(--po-cyan); background-color: var(--po-tint-cyan); }
-
-.tourney-slot-name {
-    font-size: var(--po-text);
-    color: var(--po-fg);
-    -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.tourney-slot-name--bye { color: var(--po-muted); }
-.tourney-slot-elo {
-    font-size: var(--po-text);
-    color: var(--po-soft);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tourney-node {
-    flex-grow: 1;
-    flex-basis: 0;
-    min-height: 0;
-    min-width: 0;
-    margin: var(--po-s4) var(--po-s2);
-    padding: var(--po-s4);
-    justify-content: center;
-    align-items: center;
-    background-color: var(--po-tile);
-    border-radius: var(--po-radius);
-    border-width: var(--po-hair);
-    border-color: var(--po-hairline);
-    overflow: hidden;
-}
-.tourney-node--winner { border-color: var(--po-gold); background-color: var(--po-tint-gold); }
-.tourney-node--active { border-color: var(--po-cyan); background-color: var(--po-tint-cyan); }
-.tourney-node-text {
-    font-size: var(--po-text);
-    color: var(--po-fg);
-    -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.tourney-node-sub {
-    font-size: var(--po-text);
-    color: var(--po-muted);
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tourney-champion-card {
-    padding: var(--po-pad) var(--po-s6);
-    margin-bottom: var(--po-pad);
-    align-items: center;
-    background-color: var(--po-tint-gold);
-    border-width: var(--po-line);
-    border-color: var(--po-gold);
-    border-radius: var(--po-radius-l);
-    overflow: hidden;
-}
-.tourney-champion-cap {
-    font-size: var(--po-text);
-    color: var(--po-gold);
-    -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-}
-.tourney-champion-name {
-    font-size: var(--po-text-m);
-    color: var(--po-white);
-    -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.tourney-champion-elo {
-    font-size: var(--po-text);
-    color: var(--po-green);
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-}
-.tourney-final-card {
-    padding: var(--po-pad-s) var(--po-s6);
-    align-items: center;
-    background-color: var(--po-card);
-    border-width: var(--po-hair);
-    border-color: var(--po-cyan);
-    border-radius: var(--po-radius);
-    overflow: hidden;
-}
-.tourney-final-cap {
-    font-size: var(--po-text);
-    color: var(--po-cyan);
-    -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-}
-.tourney-final-vs {
-    font-size: var(--po-text);
-    color: var(--po-fg);
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.tourney-final-status {
-    font-size: var(--po-text);
-    color: var(--po-soft);
-    margin-top: var(--po-s4);
-    -unity-text-align: middle-center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}

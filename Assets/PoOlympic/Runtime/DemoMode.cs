@@ -50,7 +50,7 @@ namespace PoOlympic
         public static void NextSeries()
         {
             Series++;
-            var lineup = DemoLineups.Random(MeetLineup.Roster, out var theme);
+            var lineup = DemoLineups.Random(MeetLineup.Roster, out var theme, EventCompetition.HeatSize);
             Theme = theme;
             var order = DemoLineups.Shuffle(_events);
             _advancedAt = -1;
@@ -73,7 +73,7 @@ namespace PoOlympic
         /// <summary>Gauntlet.Next at the last stage: score the series into the season, start the next one.</summary>
         public static void SeriesFinished()
         {
-            DemoSeason.Record(MeetLineup.Athletes, Enumerable.Range(0, 8).Select(Gauntlet.PointsOf).ToArray(), Gauntlet.Events.Length);
+            DemoSeason.Record(MeetLineup.Athletes, Enumerable.Range(0, MeetLineup.Athletes.Length).Select(Gauntlet.PointsOf).ToArray(), Gauntlet.Events.Length);
             Gauntlet.Abandon();
             NextSeries();
         }
@@ -96,21 +96,21 @@ namespace PoOlympic
         public static T[] Shuffle<T>(IEnumerable<T> items) => items.OrderBy(_ => Rng.Next()).ToArray();
 
         /// <summary>50 % mixed (every lane random, at least one of two bodies), 25 % all one body, 25 % rivalry
-        /// (4 v 4 halves, or one odd athlete out among 7).</summary>
-        public static string[] Random(IReadOnlyList<string> roster, out string theme)
+        /// (half v half, or one odd athlete out among the rest).</summary>
+        public static string[] Random(IReadOnlyList<string> roster, out string theme, int laneCount = 8)
         {
-            var lanes = new string[8];
+            var lanes = new string[laneCount];
             double roll = Rng.NextDouble();
             if (roster.Count < 2 || (roll >= 0.5 && roll < 0.75))
             {
                 string a = roster[Rng.Next(roster.Count)];
-                for (int k = 0; k < 8; k++) lanes[k] = a;
+                for (int k = 0; k < lanes.Length; k++) lanes[k] = a;
                 theme = $"All {a}";
                 return lanes;
             }
             if (roll < 0.5)
             {
-                do { for (int k = 0; k < 8; k++) lanes[k] = roster[Rng.Next(roster.Count)]; }
+                do { for (int k = 0; k < lanes.Length; k++) lanes[k] = roster[Rng.Next(roster.Count)]; }
                 while (lanes.Distinct().Count() < 2);
                 theme = "Mixed lineup";
                 return lanes;
@@ -118,14 +118,15 @@ namespace PoOlympic
             var pair = Shuffle(roster).Take(2).ToArray();
             if (Rng.NextDouble() < 0.5)
             {
-                for (int k = 0; k < 8; k++) lanes[k] = k < 4 ? pair[0] : pair[1];
-                theme = $"4 v 4: {pair[0]} vs {pair[1]}";
+                int half = lanes.Length / 2;
+                for (int k = 0; k < lanes.Length; k++) lanes[k] = k < half ? pair[0] : pair[1];
+                theme = $"{half} v {lanes.Length - half}: {pair[0]} vs {pair[1]}";
             }
             else
             {
-                int odd = Rng.Next(8);
-                for (int k = 0; k < 8; k++) lanes[k] = k == odd ? pair[1] : pair[0];
-                theme = $"One {pair[1]} among 7 {pair[0]}";
+                int odd = Rng.Next(lanes.Length);
+                for (int k = 0; k < lanes.Length; k++) lanes[k] = k == odd ? pair[1] : pair[0];
+                theme = $"One {pair[1]} among {lanes.Length - 1} {pair[0]}";
             }
             return lanes;
         }

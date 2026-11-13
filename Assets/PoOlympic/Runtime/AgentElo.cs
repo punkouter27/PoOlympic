@@ -7,7 +7,8 @@ namespace PoOlympic
 {
     /// <summary>
     /// Persistent ELO rating table for every agent (PlayerPrefs JSON, survives restarts).
-    /// Standard logistic expectation with K = 32 and initial rating = 1200; BYE slots are never rated.
+    /// Standard logistic expectation with K = 32 and initial rating = 1200. Ratings move after every completed
+    /// 16-entrant event (RecordEvent): each character against each other character, on their best placing.
     /// </summary>
     public static class AgentElo
     {
@@ -46,7 +47,7 @@ namespace PoOlympic
         }
 
         public static bool IsBye(string agent) =>
-            string.IsNullOrWhiteSpace(agent) || string.Equals(agent.Trim(), MeetLineup.ByeName, StringComparison.OrdinalIgnoreCase);
+            string.IsNullOrWhiteSpace(agent) || string.Equals(agent.Trim(), "BYE", StringComparison.OrdinalIgnoreCase);
 
         static Entry EnsureEntry(Table t, string agent)
         {
@@ -115,6 +116,51 @@ namespace PoOlympic
             return (w.elo, l.elo, delta);
         }
 
+        /// <summary>
+        /// Rate one finished event. entrants[i] scored points[i] (repeats of a character allowed); a character's mark
+        /// is its best entrant. Every pair of characters is one game (win 1, tie ½, loss 0) at K / (characters − 1),
+        /// so a whole event moves a rating about as much as one head-to-head match. Expectations use the ratings
+        /// from before the event. Returns the rating change per character (empty with fewer than two characters).
+        /// </summary>
+        public static Dictionary<string, float> RecordEvent(IReadOnlyList<string> entrants, IReadOnlyList<int> points)
+        {
+            var best = new Dictionary<string, int>();
+            for (int i = 0; i < entrants.Count && i < points.Count; i++)
+            {
+                if (IsBye(entrants[i])) continue;
+                string id = entrants[i].Trim().ToUpperInvariant();
+                if (!best.TryGetValue(id, out int b) || points[i] > b) best[id] = points[i];
+            }
+            var deltas = new Dictionary<string, float>();
+            if (best.Count < 2) return deltas;
+
+            var t = Load();
+            var ids = best.Keys.ToList();
+            var rows = ids.Select(id => EnsureEntry(t, id)).ToList();
+            var change = new float[ids.Count];
+            float k = KFactor / (ids.Count - 1);
+            for (int a = 0; a < ids.Count; a++)
+                for (int b = a + 1; b < ids.Count; b++)
+                {
+                    float expectedA = 1f / (1f + Mathf.Pow(10f, (rows[b].elo - rows[a].elo) / 400f));
+                    int pa = best[ids[a]], pb = best[ids[b]];
+                    float scoreA = pa > pb ? 1f : pa == pb ? 0.5f : 0f;
+                    change[a] += k * (scoreA - expectedA);
+                    change[b] -= k * (scoreA - expectedA);
+                    if (pa > pb) { rows[a].wins++; rows[b].losses++; }
+                    else if (pb > pa) { rows[b].wins++; rows[a].losses++; }
+                }
+            for (int a = 0; a < ids.Count; a++)
+            {
+                float before = rows[a].elo;
+                rows[a].elo = Mathf.Max(100f, before + change[a]);
+                deltas[ids[a]] = rows[a].elo - before;
+            }
+            Save(t);
+            return deltas;
+        }
+
+        /// <summary>The character won a whole series (MeetSeries): counted in <see cref="Entry.tournamentsWon"/>.</summary>
         public static void RecordTournamentWin(string champion)
         {
             if (IsBye(champion)) return;

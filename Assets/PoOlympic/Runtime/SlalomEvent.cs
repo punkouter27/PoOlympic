@@ -120,13 +120,14 @@ namespace PoOlympic
         {
             double vx = speed;
             var d = MjScene.Instance.Data;
+            double xw = x + racers[i].runner.laneOriginX;
             double yw = y + racers[i].runner.laneOriginY;
-            for (int j = i - 1; (tactics || aggressive) && j <= i + 1; j += 2)
+            for (int j = 0; (tactics || aggressive) && j < racers.Count; j++)
             {
-                if (j < 0 || j >= racers.Count || !racers[j].Racing) continue;
+                if (j == i || !racers[j].Racing) continue;
                 var o = racers[j].runner;
                 int ra = o.Binding.RootQposAdr;
-                double dx = d->qpos[ra] - o.laneOriginX - x;
+                double dx = d->qpos[ra] - xw;
                 double dy = Math.Abs(d->qpos[ra + 1] - yw);
                 if (aggressive)
                 {

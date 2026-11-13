@@ -81,7 +81,6 @@ namespace PoOlympic
             foreach (var ev in eventNumbers) Records.Clear(ev);
             DemoSeason.Reset();
             AgentElo.Reset();
-            TournamentMode.ClearSavedBracket();
             Changed?.Invoke();
         }
 

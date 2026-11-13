@@ -43,12 +43,11 @@ namespace PoOlympic.Tests
         readonly List<UnityEngine.Object> _trash = new();
         Func<Rect> _safeBefore;
 
-        [SetUp] public void SetUp() { _safeBefore = HudAnchors.SafeArea; Records.Clear(TestEvent); TournamentMode.ShowBracketOnMenu = false; }
+        [SetUp] public void SetUp() { _safeBefore = HudAnchors.SafeArea; Records.Clear(TestEvent); }
 
         [TearDown]
         public void TearDown()
         {
-            TournamentMode.ShowBracketOnMenu = false;
             HudAnchors.SafeArea = _safeBefore;
             foreach (var o in _trash) if (o != null) UnityEngine.Object.DestroyImmediate(o);
             _trash.Clear();
@@ -155,6 +154,27 @@ namespace PoOlympic.Tests
             Assert.AreEqual(11, tiles.Count);
             foreach (var t in tiles) Assert.GreaterOrEqual(t.layout.height, 104f, $"{phone}: event tile under 104");
 
+            // the field of 16: two rows of 8 entrant slots, every one holding a roster character, nothing cut off
+            var entrants = root.Query<Button>(className: "entrant").ToList();
+            Assert.AreEqual(EventCompetition.EntrantCount, entrants.Count, $"{phone}: entrant slots");
+            var rows = entrants.GroupBy(t => Mathf.RoundToInt(t.worldBound.yMin)).OrderBy(g => g.Key).ToList();
+            Assert.AreEqual(2, rows.Count, $"{phone}: entrant rows");
+            Assert.IsTrue(rows.All(g => g.Count() == 8), $"{phone}: 8 entrants per row");
+            var codes = MeetLineup.Roster.Select(MainMenuController.ShortName).ToArray();
+            foreach (var t in entrants)
+            {
+                Assert.GreaterOrEqual(t.layout.height, 103f, $"{phone}: entrant slot under 104 tall");   // --po-btn, snapped to the pixel grid
+                var labels = t.Query<Label>().ToList();
+                Assert.Contains(labels[1].text, codes, $"{phone}: entrant slot without a character");
+                foreach (var l in labels)
+                {
+                    float need = l.MeasureTextSize(l.text, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x;
+                    Assert.LessOrEqual(need, l.contentRect.width + 1f, $"{phone}: entrant label '{l.text}' cut");
+                }
+            }
+            foreach (var g in rows)                                 // each heat row holds every character at least once
+                CollectionAssert.IsSubsetOf(codes, g.Select(t => t.Query<Label>().ToList()[1].text).ToList(), $"{phone}: a row misses a character");
+
             Call(menu, "ToggleRecords");                            // ★: marks on the tiles + top 5 in the detail
             Call(menu, "ToggleGauntlet");
             Layout(doc);
@@ -185,37 +205,6 @@ namespace PoOlympic.Tests
             Assert.IsFalse(HudLayoutAudit.Shown(root.Q(className: "ha-scrim")), $"{phone}: scrim left on after Close");
         }
 
-        [TestCaseSource(nameof(Phones))]
-        public void Menu_TournamentBracket_OneViewport(string phone, int w, int h, Rect safe)
-        {
-            var menu = MakeMenu(w, h, safe);
-            var doc = menu.GetComponent<UIDocument>();
-            var root = doc.rootVisualElement.Q<VisualElement>("root");
-            var bounds = SafeInPanel(doc);
-
-            menu.ToggleTournament();
-            Layout(doc);
-
-            var bad = HudLayoutAudit.Check(root.Q("panel"), bounds, 28f)
-                .Concat(root.Q("overlay").Children().SelectMany(c => HudLayoutAudit.Check(c, bounds, 28f))).ToList();
-            AssertClean($"{phone} tournament bracket", bad);
-
-            var bracket = root.Q<VisualElement>(className: "tourney-bracket");
-            Assert.NotNull(bracket, $"{phone}: bracket container missing");
-            var cols = bracket.Children().ToList();
-            Assert.AreEqual(7, cols.Count, $"{phone}: expected 7 symmetric bracket columns (Left R16/QF/SF · Winner · Right SF/QF/R16)");
-
-            var leftSlots = cols[0].Query<VisualElement>(className: "tourney-slot").ToList();
-            var rightSlots = cols[6].Query<VisualElement>(className: "tourney-slot").ToList();
-            Assert.AreEqual(8, leftSlots.Count, $"{phone}: left side should start with 8 player slots");
-            Assert.AreEqual(8, rightSlots.Count, $"{phone}: right side should start with 8 player slots");
-
-            var champCard = cols[3].Q<VisualElement>(className: "tourney-champion-card");
-            Assert.NotNull(champCard, $"{phone}: winner card should be in middle column");
-            Assert.Less(cols[0].worldBound.center.x, champCard.worldBound.center.x, $"{phone}: left side not left of winner");
-            Assert.Greater(cols[6].worldBound.center.x, champCard.worldBound.center.x, $"{phone}: right side not right of winner");
-        }
-
         /// <summary>The sheet is in thumb reach (the lower half of the screen), sits above the
         /// bottom bar, and its scrim is up behind it.</summary>
         static void AssertSheet(string what, HudAnchors a, VisualElement root, Rect bounds)
@@ -239,7 +228,7 @@ namespace PoOlympic.Tests
             public string InfoLine => "leader 86.8 / 84.4 m";
             public string Banner => BoardState == BoardPhase.Ready ? "3" : BoardState == BoardPhase.Result ? "L5 WINS" : "";
             public IEnumerable<(int place, string name, string result, bool bad, PolicyRunner runner)> Rows =>
-                Enumerable.Range(0, 8).Select(i => (BoardState == BoardPhase.Result ? i + 1 : 0, $"L{i + 1}",
+                Enumerable.Range(0, 16).Select(i => (BoardState == BoardPhase.Result ? i + 1 : 0, $"L{i + 1}",
                     i == 7 ? "FELL 12.3 s" : $"{86.8 - i * 0.4:0.0} m · {4.05 - i * 0.01:0.00} m/s", i == 7, (PolicyRunner)null));
             public bool TryWinningMark(out double value, out bool lowerIsBetter, out string text)
             { value = 4.05; lowerIsBetter = false; text = "4.05 m/s"; return BoardState == BoardPhase.Result; }
@@ -308,14 +297,14 @@ namespace PoOlympic.Tests
             Assert.IsTrue(board.HoldStart, "the heat after a single event's heat is not held");
             Assert.IsTrue(HudLayoutAudit.Shown(match), "no match card after a single event's heat");
             int ShownRows() => match.Query(className: "bh-row").ToList().Count(HudLayoutAudit.Shown);
-            Assert.AreEqual(8, ShownRows(), "match card places");
+            Assert.AreEqual(16, ShownRows(), "match card places");
             foreach (var b in match.Query<Button>().ToList())
                 Assert.GreaterOrEqual(b.resolvedStyle.height, MinButton, $"match card button '{b.text}' under 104");
             AssertClean($"{phone} HUD match card", HudLayoutAudit.Check(hud.Frame, bounds, 28f));
-            // result, telemetry and replay are one card: the Telemetry tab swaps the 8 rows in place
+            // result, telemetry and replay are one card: the Telemetry tab swaps the 16 rows in place
             Click(match.Query<Button>().ToList().First(b => b.text == "Telemetry"));
             Settle(hud, doc);
-            Assert.AreEqual(8, ShownRows(), "match card telemetry rows");
+            Assert.AreEqual(16, ShownRows(), "match card telemetry rows");
             Assert.IsTrue(match.Query<Label>().ToList().Any(l => HudLayoutAudit.Shown(l) && l.text.Contains("no telemetry")), "telemetry tab not shown");
             AssertClean($"{phone} HUD match card (telemetry)", HudLayoutAudit.Check(hud.Frame, bounds, 28f));
             Assert.IsNotNull(match.Query<Button>().ToList().FirstOrDefault(b => b.text == "Replay"), "no Replay on the match card");

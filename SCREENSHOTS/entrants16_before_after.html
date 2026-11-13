@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PoOlympic 16 Entrants — Before and After</title>
+  <style>
+    body { margin: 0; background: #101725; color: #eef1f7; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 1200px; margin: auto; padding: 24px; }
+    h1 { margin: 0 0 8px; }
+    p, li { color: #c5cad8; }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+    figure { margin: 0; padding: 12px; background: #1a2437; border-radius: 10px; }
+    figcaption { margin-bottom: 8px; font-weight: 600; }
+    img { display: block; width: 100%; height: auto; border-radius: 6px; }
+    @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>16 entrants in two rows of 8, no bracket</h1>
+    <p>2026-11-12. The 16-player bracket mode is removed. All 16 entrants (the four characters, repeated) compete simultaneously in two rows of 8 inside every playable event scene, and RUN ALL plays every playable event with that field unattended.</p>
+    <div class="pair">
+      <figure>
+        <figcaption>Before — 8 lane tiles (4 × 2); bracket mode behind TOURNEY</figcaption>
+        <img src="events_roster_after.png" alt="Main menu with eight lane tiles">
+      </figure>
+      <figure>
+        <figcaption>After — 16 entrant slots (2 rows of 8); RUN ALL replaces TOURNEY and RESEED</figcaption>
+        <img src="menu16_after.png" alt="Main menu with sixteen entrant slots and a RUN ALL button">
+      </figure>
+    </div>
+    <div class="pair">
+      <figure>
+        <figcaption>Iron Pedestal live — 16 mixed-roster athletes standing simultaneously on the widened 2×8 beam</figcaption>
+        <img src="pedestal16_live.png" alt="Iron Pedestal with 16 athletes standing in 2 rows of 8">
+      </figure>
+      <figure>
+        <figcaption>30m All Fours live — 16 mixed-roster athletes crawling in 2 rows of 8 with 1–8 / 9–16 HUD paging</figcaption>
+        <img src="allfours16_live.png" alt="30m All Fours with 16 athletes in 2 rows of 8">
+      </figure>
+    </div>
+    <ul>
+      <li>Tap a slot for the next character; tap a roster card to put that character in all 16; the menu sheet has Shuffle and Alternate.</li>
+      <li>All 16 entrants spawn together in 2 rows of 8 (lanes 1–8 in row 1, lanes 9–16 in row 2) inside a single heat per event.</li>
+      <li>HUD standings page top 4 → 1–8 → 9–16 so the center camera hole stays open; Match Card lays 16 Places and Telemetry rows in a 2-column grid.</li>
+      <li>RUN ALL: every playable event runs unattended; points add up per entrant and ELO moves after every completed event on best placing.</li>
+    </ul>
+  </main>
+</body>
+</html>

@@ -13,18 +13,8 @@ namespace PoOlympic
     public static class MeetLineup
     {
         public const string MenuScene = "MainMenu";
-        public const int MaxTournamentPlayers = 16;
-        public const string ByeName = "BYE";
         public static readonly string[] Roster = { "MATT", "ZOMBIE", "GRANDMA", "KIM" };
 
-        /// <summary>16 tournament player slots: current roster players followed by BYE placeholders.</summary>
-        public static string[] TournamentSlots()
-        {
-            var slots = new string[MaxTournamentPlayers];
-            for (int i = 0; i < MaxTournamentPlayers; i++)
-                slots[i] = i < Roster.Length ? Roster[i] : ByeName;
-            return slots;
-        }
         /// <summary>One-line card stats per roster athlete (body + brains).</summary>
         public static string Stats(string athlete) => athlete switch
         {
@@ -82,7 +72,7 @@ namespace PoOlympic
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            Athletes = Enumerable.Repeat(Roster[0], 8).ToArray();
+            Athletes = Enumerable.Repeat(Roster[0], EventCompetition.EntrantCount).ToArray();
             EventNumber = 1;
             _loading = false;
         }
@@ -103,7 +93,7 @@ namespace PoOlympic
         public static bool IsLast => Index == Events.Length - 1;
         /// <summary>The current stage's heat has been scored (further heats of this scene wait for Next()).</summary>
         public static bool CurrentHeatPlayed { get; private set; }
-        static readonly int[] _points = new int[8];
+        static readonly int[] _points = new int[EventCompetition.EntrantCount];
         /// <summary>Final table of the last completed gauntlet (menu), empty if none.</summary>
         public static string LastResult { get; private set; } = "";
 
@@ -144,13 +134,13 @@ namespace PoOlympic
             foreach (var (name, place) in results)
             {
                 int lane = LaneOf(name);
-                if (lane >= 1 && lane <= 8 && place >= 1 && place <= PointsTable.Length) _points[lane - 1] += PointsTable[place - 1];
+                if (lane >= 1 && lane <= _points.Length && place >= 1 && place <= PointsTable.Length) _points[lane - 1] += PointsTable[place - 1];
             }
             CurrentHeatPlayed = true;
         }
 
         public static IEnumerable<(string lane, int points)> Table() =>
-            Enumerable.Range(0, 8).OrderByDescending(k => _points[k])
+            Enumerable.Range(0, Math.Min(_points.Length, MeetLineup.Athletes.Length)).OrderByDescending(k => _points[k])
                 .Select(k => ($"Lane {k + 1} {MeetLineup.Athletes[k]}", _points[k]));
 
         /// <summary>Points of lane index 0-7 in the running gauntlet.</summary>
@@ -180,19 +170,25 @@ namespace PoOlympic
         }
     }
 
-    /// <summary>A 16-entrant event field run through the existing eight-lane scene as two heats.</summary>
+    /// <summary>A 16-entrant event field run together at once in a two-rows-of-eight scene.</summary>
     public static class EventCompetition
     {
         public const int EntrantCount = 16;
-        public const int HeatSize = 8;
+        public const int HeatSize = EntrantCount;
         public const int HeatCount = EntrantCount / HeatSize;
 
         static int _eventNumber, _heat;
         static string _scene = "";
         static string[] _entrants = Array.Empty<string>();
         static readonly int[] _points = new int[EntrantCount];
+        static bool _skipped;
         public static bool Active { get; private set; }
         public static bool CurrentHeatScored { get; private set; }
+        /// <summary>"GRANDMA +8 · KIM +3 · MATT -5 …": the rating changes of the event just finished ("" if unrated).</summary>
+        public static string LastEloSummary { get; private set; } = "";
+        public static IReadOnlyList<string> Entrants => _entrants;
+        /// <summary>Points of entrant 0-15 in the running event (its place in its own heat, 10-8-6-5-4-3-2-1).</summary>
+        public static int PointsOf(int entrant) => _points[entrant];
         public static int HeatNumber => _heat + 1;
         public static bool HasNextHeat => Active && _heat + 1 < HeatCount;
         public static bool IsFinalHeat => Active && !HasNextHeat;
@@ -201,11 +197,13 @@ namespace PoOlympic
         {
             if (roster == null || roster.Count == 0) throw new ArgumentException("At least one agent is required.", nameof(roster));
             if (random == null) throw new ArgumentNullException(nameof(random));
+            const int rowSize = 8;
+            int rows = EntrantCount / rowSize;
             var participants = new List<string>(EntrantCount);
-            for (int heat = 0; heat < HeatCount; heat++)
+            for (int row = 0; row < rows; row++)
             {
-                var entrants = roster.OrderBy(_ => random.Next()).Take(Math.Min(roster.Count, HeatSize)).ToList();
-                while (entrants.Count < HeatSize) entrants.Add(roster[random.Next(roster.Count)]);
+                var entrants = roster.OrderBy(_ => random.Next()).Take(Math.Min(roster.Count, rowSize)).ToList();
+                while (entrants.Count < rowSize) entrants.Add(roster[random.Next(roster.Count)]);
                 participants.AddRange(entrants.OrderBy(_ => random.Next()));
             }
             return participants.ToArray();
@@ -230,6 +228,8 @@ namespace PoOlympic
             _scene = scene ?? "";
             _entrants = participants.ToArray();
             _heat = 0;
+            _skipped = false;
+            LastEloSummary = "";
             CurrentHeatScored = false;
             Array.Clear(_points, 0, _points.Length);
             Active = true;
@@ -246,7 +246,23 @@ namespace PoOlympic
                 _points[_heat * HeatSize + lane - 1] = Gauntlet.PointsTable[place - 1];
             }
             CurrentHeatScored = true;
+            // the event is complete: every character is rated against every other on its best placing. An event
+            // with a heat that never produced a result (SkipHeat) is not rated.
+            if (IsFinalHeat && !_skipped)
+            {
+                var deltas = AgentElo.RecordEvent(_entrants, _points);
+                LastEloSummary = string.Join(" · ", deltas.OrderByDescending(d => d.Value)
+                    .Select(d => $"{d.Key} {(d.Value >= 0f ? "+" : "")}{Mathf.RoundToInt(d.Value)}"));
+            }
             return true;
+        }
+
+        /// <summary>The current heat stalled (the series watchdog): it scores no points and the event is not rated.</summary>
+        public static void SkipHeat()
+        {
+            if (!Active || CurrentHeatScored) return;
+            _skipped = true;
+            CurrentHeatScored = true;
         }
 
         public static bool NextHeat()
@@ -271,6 +287,7 @@ namespace PoOlympic
         {
             Active = false;
             CurrentHeatScored = false;
+            _skipped = false;
             _eventNumber = 0;
             _scene = "";
             _entrants = Array.Empty<string>();
@@ -288,6 +305,6 @@ namespace PoOlympic
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => Abandon();
+        static void ResetStatics() { Abandon(); LastEloSummary = ""; }
     }
 }

@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="68" result="Failed(Child)" total="68" passed="66" failed="2" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:31:25Z" duration="59.1166469">
+  <test-suite type="TestSuite" id="1000" name="PoOlympics" fullname="PoOlympics" runstate="Runnable" testcasecount="841" result="Failed" site="Child" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:31:25Z" duration="59.116647" total="68" passed="66" failed="2" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <failure>
+      <message><![CDATA[One or more child tests had errors]]></message>
+    </failure>
+    <test-suite type="Assembly" id="2041" name="PoOlympic.Tests.Editor.dll" fullname="C:/Users/punko/Downloads/_CODEMATT/PoOlympic/Library/ScriptAssemblies/PoOlympic.Tests.Editor.dll" runstate="Runnable" testcasecount="119" result="Failed" site="Child" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:31:25Z" duration="59.054714" total="68" passed="66" failed="2" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="26832" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <failure>
+        <message><![CDATA[One or more child tests had errors]]></message>
+      </failure>
+      <test-suite type="TestSuite" id="2042" name="PoOlympic" fullname="PoOlympic" runstate="Runnable" testcasecount="119" result="Failed" site="Child" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:31:25Z" duration="59.052674" total="68" passed="66" failed="2" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <failure>
+          <message><![CDATA[One or more child tests had errors]]></message>
+        </failure>
+        <test-suite type="TestSuite" id="2043" name="Tests" fullname="PoOlympic.Tests" runstate="Runnable" testcasecount="119" result="Failed" site="Child" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:31:25Z" duration="59.050544" total="68" passed="66" failed="2" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <failure>
+            <message><![CDATA[One or more child tests had errors]]></message>
+          </failure>
+          <test-suite type="TestFixture" id="1900" name="BroadcastFxTests" fullname="PoOlympic.Tests.BroadcastFxTests" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" testcasecount="6" result="Failed" site="Child" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:30:44Z" duration="17.813807" total="6" passed="5" failed="1" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-case id="1903" name="ConvexHullAndSignedDistance" fullname="PoOlympic.Tests.BroadcastFxTests.ConvexHullAndSignedDistance" methodname="ConvexHullAndSignedDistance" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="1941451391" result="Passed" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:30:26Z" duration="0.050133" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1906" name="EventScenesCarryTheBroadcastFxLayer" fullname="PoOlympic.Tests.BroadcastFxTests.EventScenesCarryTheBroadcastFxLayer" methodname="EventScenesCarryTheBroadcastFxLayer" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="1238031237" result="Passed" start-time="2026-11-13 02:30:26Z" end-time="2026-11-13 02:30:43Z" duration="17.693595" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1905" name="EveryEventBrainHasACalibratedCritic" fullname="PoOlympic.Tests.BroadcastFxTests.EveryEventBrainHasACalibratedCritic" methodname="EveryEventBrainHasACalibratedCritic" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="1416465104" result="Failed" start-time="2026-11-13 02:30:43Z" end-time="2026-11-13 02:30:44Z" duration="0.011759" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <failure>
+                <message><![CDATA[  grandma_rung2: no calibrated confidence entry
+  Expected: not null
+  But was:  null
+]]></message>
+                <stack-trace><![CDATA[at PoOlympic.Tests.BroadcastFxTests.EveryEventBrainHasACalibratedCritic () [0x000a3] in C:\Users\punko\Downloads\_CODEMATT\PoOlympic\Assets\PoOlympic\Tests\Editor\BroadcastFxTests.cs:82
+]]></stack-trace>
+              </failure>
+            </test-case>
+            <test-case id="1902" name="RecordsHigherIsBetterAndLegacyMigration" fullname="PoOlympic.Tests.BroadcastFxTests.RecordsHigherIsBetterAndLegacyMigration" methodname="RecordsHigherIsBetterAndLegacyMigration" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="209198611" result="Passed" start-time="2026-11-13 02:30:44Z" end-time="2026-11-13 02:30:44Z" duration="0.012454" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1901" name="RecordsKeepTopFiveBestFirst" fullname="PoOlympic.Tests.BroadcastFxTests.RecordsKeepTopFiveBestFirst" methodname="RecordsKeepTopFiveBestFirst" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="751123640" result="Passed" start-time="2026-11-13 02:30:44Z" end-time="2026-11-13 02:30:44Z" duration="0.004884" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1904" name="SurfaceComesFromTheGeomName" fullname="PoOlympic.Tests.BroadcastFxTests.SurfaceComesFromTheGeomName" methodname="SurfaceComesFromTheGeomName" classname="PoOlympic.Tests.BroadcastFxTests" runstate="Runnable" seed="1311502097" result="Passed" start-time="2026-11-13 02:30:44Z" end-time="2026-11-13 02:30:44Z" duration="0.002431" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1907" name="ContractV4Tests" fullname="PoOlympic.Tests.ContractV4Tests" classname="PoOlympic.Tests.ContractV4Tests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-11-13 02:30:44Z" end-time="2026-11-13 02:30:48Z" duration="4.048655" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1909" name="MarchCadenceDrivesTheClock" fullname="PoOlympic.Tests.ContractV4Tests.MarchCadenceDrivesTheClock" methodname="MarchCadenceDrivesTheClock" classname="PoOlympic.Tests.ContractV4Tests" runstate="Runnable" seed="662662526" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.016838" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1908" name="SkillBlockFollowsTheV3Obs" fullname="PoOlympic.Tests.ContractV4Tests.SkillBlockFollowsTheV3Obs" methodname="SkillBlockFollowsTheV3Obs" classname="PoOlympic.Tests.ContractV4Tests" runstate="Runnable" seed="2079336750" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.002074" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1910" name="SkillCommandOrderMatchesPython" fullname="PoOlympic.Tests.ContractV4Tests.SkillCommandOrderMatchesPython" methodname="SkillCommandOrderMatchesPython" classname="PoOlympic.Tests.ContractV4Tests" runstate="Runnable" seed="1117073983" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.003111" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1911" name="V4TestBrainSidecarIsVersion4" fullname="PoOlympic.Tests.ContractV4Tests.V4TestBrainSidecarIsVersion4" methodname="V4TestBrainSidecarIsVersion4" classname="PoOlympic.Tests.ContractV4Tests" runstate="Runnable" seed="1766097694" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.011518" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1927" name="DemoModeTests" fullname="PoOlympic.Tests.DemoModeTests" classname="PoOlympic.Tests.DemoModeTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.019224" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1928" name="LineupsFillAllEightLanesFromTheRoster" fullname="PoOlympic.Tests.DemoModeTests.LineupsFillAllEightLanesFromTheRoster" methodname="LineupsFillAllEightLanesFromTheRoster" classname="PoOlympic.Tests.DemoModeTests" runstate="Runnable" seed="306382112" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.009876" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1929" name="OneBodyRosterAlwaysFillsWithThatBody" fullname="PoOlympic.Tests.DemoModeTests.OneBodyRosterAlwaysFillsWithThatBody" methodname="OneBodyRosterAlwaysFillsWithThatBody" classname="PoOlympic.Tests.DemoModeTests" runstate="Runnable" seed="381522255" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.000680" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1930" name="SeasonCountsSeriesWinsAndPointsPerEvent" fullname="PoOlympic.Tests.DemoModeTests.SeasonCountsSeriesWinsAndPointsPerEvent" methodname="SeasonCountsSeriesWinsAndPointsPerEvent" classname="PoOlympic.Tests.DemoModeTests" runstate="Runnable" seed="581279229" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.006472" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1931" name="GameSettingsTests" fullname="PoOlympic.Tests.GameSettingsTests" classname="PoOlympic.Tests.GameSettingsTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.007423" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1932" name="SpeedCyclesThroughEveryStepAndBackToRealTime" fullname="PoOlympic.Tests.GameSettingsTests.SpeedCyclesThroughEveryStepAndBackToRealTime" methodname="SpeedCyclesThroughEveryStepAndBackToRealTime" classname="PoOlympic.Tests.GameSettingsTests" runstate="Runnable" seed="1848071245" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.004847" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1933" name="SpeedIsNotAppliedWhileTimeIsFrozen" fullname="PoOlympic.Tests.GameSettingsTests.SpeedIsNotAppliedWhileTimeIsFrozen" methodname="SpeedIsNotAppliedWhileTimeIsFrozen" classname="PoOlympic.Tests.GameSettingsTests" runstate="Runnable" seed="1893373513" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:48Z" duration="0.000441" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1934" name="HandTunedSaveTests" fullname="PoOlympic.Tests.HandTunedSaveTests" classname="PoOlympic.Tests.HandTunedSaveTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:51Z" duration="3.660698" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1935" name="RebuildKeepsHandPlacedObjects" fullname="PoOlympic.Tests.HandTunedSaveTests.RebuildKeepsHandPlacedObjects" methodname="RebuildKeepsHandPlacedObjects" classname="PoOlympic.Tests.HandTunedSaveTests" runstate="Runnable" seed="1612845880" result="Passed" start-time="2026-11-13 02:30:48Z" end-time="2026-11-13 02:30:51Z" duration="3.641687" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <output><![CDATA[[HandTuned] Assets/PoOlympic/Tests/Editor/_handtuned_tmp.unity: 1 hand-placed object(s) kept
+]]></output>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1977" name="PhysXGuardTests" fullname="PoOlympic.Tests.PhysXGuardTests" classname="PoOlympic.Tests.PhysXGuardTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-11-13 02:30:51Z" end-time="2026-11-13 02:30:55Z" duration="3.476626" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1978" name="CleanSceneHasNoViolations" fullname="PoOlympic.Tests.PhysXGuardTests.CleanSceneHasNoViolations" methodname="CleanSceneHasNoViolations" classname="PoOlympic.Tests.PhysXGuardTests" runstate="Runnable" seed="441929821" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.068234" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1979" name="InjectedBoxColliderIsDetected" fullname="PoOlympic.Tests.PhysXGuardTests.InjectedBoxColliderIsDetected" methodname="InjectedBoxColliderIsDetected" classname="PoOlympic.Tests.PhysXGuardTests" runstate="Runnable" seed="510369953" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.019357" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1980" name="ProjectPhysicsNeverSimulates" fullname="PoOlympic.Tests.PhysXGuardTests.ProjectPhysicsNeverSimulates" methodname="ProjectPhysicsNeverSimulates" classname="PoOlympic.Tests.PhysXGuardTests" runstate="Runnable" seed="929721768" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.001309" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1981" name="PortraitLayoutTests" fullname="PoOlympic.Tests.PortraitLayoutTests" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" testcasecount="16" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:56Z" duration="0.915469" total="16" passed="16" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="ParameterizedMethod" id="1999" name="Hud_OneViewport_EveryPhase" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.647488" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1991" name="Hud_OneViewport_EveryPhase(&quot;1080x1920&quot;,1080,1920,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;1080x1920&quot;,1080,1920,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1186728913" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.445497" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1992" name="Hud_OneViewport_EveryPhase(&quot;Pixel9Pro&quot;,1280,2856,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;Pixel9Pro&quot;,1280,2856,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="292303864" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.023737" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1993" name="Hud_OneViewport_EveryPhase(&quot;720x1280&quot;,720,1280,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;720x1280&quot;,720,1280,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1001336682" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.023087" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1994" name="Hud_OneViewport_EveryPhase(&quot;1080x2400&quot;,1080,2400,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;1080x2400&quot;,1080,2400,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1087922741" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.025913" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1995" name="Hud_OneViewport_EveryPhase(&quot;1080x2520&quot;,1080,2520,(x:0.00, y:0.02, width:1.00, height:0.92))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;1080x2520&quot;,1080,2520,(x:0.00, y:0.02, width:1.00, height:0.92))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1742286830" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.047444" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1996" name="Hud_OneViewport_EveryPhase(&quot;1080x2640&quot;,1080,2640,(x:0.00, y:0.03, width:1.00, height:0.92))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;1080x2640&quot;,1080,2640,(x:0.00, y:0.03, width:1.00, height:0.92))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="160993426" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.026479" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1997" name="Hud_OneViewport_EveryPhase(&quot;Fold1812x2176&quot;,1812,2176,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;Fold1812x2176&quot;,1812,2176,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1780862770" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.022137" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1998" name="Hud_OneViewport_EveryPhase(&quot;Tablet1536x2048&quot;,1536,2048,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Hud_OneViewport_EveryPhase(&quot;Tablet1536x2048&quot;,1536,2048,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Hud_OneViewport_EveryPhase" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="783189269" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.029423" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="ParameterizedMethod" id="1990" name="Menu_OneViewport" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:56Z" duration="0.260231" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1982" name="Menu_OneViewport(&quot;1080x1920&quot;,1080,1920,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;1080x1920&quot;,1080,1920,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1005094521" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:55Z" duration="0.068391" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1983" name="Menu_OneViewport(&quot;Pixel9Pro&quot;,1280,2856,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;Pixel9Pro&quot;,1280,2856,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1505522063" result="Passed" start-time="2026-11-13 02:30:55Z" end-time="2026-11-13 02:30:56Z" duration="0.020279" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1984" name="Menu_OneViewport(&quot;720x1280&quot;,720,1280,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;720x1280&quot;,720,1280,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="2025080888" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.018316" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1985" name="Menu_OneViewport(&quot;1080x2400&quot;,1080,2400,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;1080x2400&quot;,1080,2400,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="460333767" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.028186" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1986" name="Menu_OneViewport(&quot;1080x2520&quot;,1080,2520,(x:0.00, y:0.02, width:1.00, height:0.92))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;1080x2520&quot;,1080,2520,(x:0.00, y:0.02, width:1.00, height:0.92))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1113533885" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.039612" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1987" name="Menu_OneViewport(&quot;1080x2640&quot;,1080,2640,(x:0.00, y:0.03, width:1.00, height:0.92))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;1080x2640&quot;,1080,2640,(x:0.00, y:0.03, width:1.00, height:0.92))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1794328565" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.026171" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1988" name="Menu_OneViewport(&quot;Fold1812x2176&quot;,1812,2176,(x:0.00, y:0.02, width:1.00, height:0.93))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;Fold1812x2176&quot;,1812,2176,(x:0.00, y:0.02, width:1.00, height:0.93))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="1698444645" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.022432" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1989" name="Menu_OneViewport(&quot;Tablet1536x2048&quot;,1536,2048,(x:0.00, y:0.00, width:1.00, height:1.00))" fullname="PoOlympic.Tests.PortraitLayoutTests.Menu_OneViewport(&quot;Tablet1536x2048&quot;,1536,2048,(x:0.00, y:0.00, width:1.00, height:1.00))" methodname="Menu_OneViewport" classname="PoOlympic.Tests.PortraitLayoutTests" runstate="Runnable" seed="528508847" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.022040" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+          <test-suite type="TestFixture" id="2000" name="RuntimeRulesTests" fullname="PoOlympic.Tests.RuntimeRulesTests" classname="PoOlympic.Tests.RuntimeRulesTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.072542" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2001" name="NoInstantiateOrDestroyInRuntimeCode" fullname="PoOlympic.Tests.RuntimeRulesTests.NoInstantiateOrDestroyInRuntimeCode" methodname="NoInstantiateOrDestroyInRuntimeCode" classname="PoOlympic.Tests.RuntimeRulesTests" runstate="Runnable" seed="62803317" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.031059" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2002" name="NoPhysXApiInRuntimeCode" fullname="PoOlympic.Tests.RuntimeRulesTests.NoPhysXApiInRuntimeCode" methodname="NoPhysXApiInRuntimeCode" classname="PoOlympic.Tests.RuntimeRulesTests" runstate="Runnable" seed="1016602275" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.035998" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2003" name="SceneIntegrityTests" fullname="PoOlympic.Tests.SceneIntegrityTests" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:31:20Z" duration="24.392567" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="ParameterizedMethod" id="2019" name="BuildSceneIsWhole" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:31:20Z" duration="23.767478" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="2007" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/MainMenu.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/MainMenu.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1527480114" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:56Z" duration="0.135172" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2008" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_IronPedestal_Heat.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_IronPedestal_Heat.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="246813502" result="Passed" start-time="2026-11-13 02:30:56Z" end-time="2026-11-13 02:30:59Z" duration="3.356719" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2009" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_GustGauntlet.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_GustGauntlet.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="725694869" result="Passed" start-time="2026-11-13 02:30:59Z" end-time="2026-11-13 02:31:02Z" duration="2.487550" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2010" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_30mAllFours.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_30mAllFours.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="706158901" result="Passed" start-time="2026-11-13 02:31:02Z" end-time="2026-11-13 02:31:04Z" duration="2.457772" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2011" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_InvertedSprint.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_InvertedSprint.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1590487421" result="Passed" start-time="2026-11-13 02:31:04Z" end-time="2026-11-13 02:31:06Z" duration="2.142318" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2012" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_CrabShuffle.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_CrabShuffle.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="434763489" result="Passed" start-time="2026-11-13 02:31:06Z" end-time="2026-11-13 02:31:08Z" duration="1.928294" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2013" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_SlalomSprint.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_SlalomSprint.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="567027996" result="Passed" start-time="2026-11-13 02:31:08Z" end-time="2026-11-13 02:31:10Z" duration="2.058179" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2014" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_360Turntable.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_360Turntable.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1292627406" result="Passed" start-time="2026-11-13 02:31:10Z" end-time="2026-11-13 02:31:12Z" duration="1.831411" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2015" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_SteeplechaseJog.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_SteeplechaseJog.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1107553572" result="Passed" start-time="2026-11-13 02:31:12Z" end-time="2026-11-13 02:31:14Z" duration="1.955954" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2016" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_AlpineRamp.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_AlpineRamp.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1599152076" result="Passed" start-time="2026-11-13 02:31:14Z" end-time="2026-11-13 02:31:16Z" duration="1.932642" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2017" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_TerminalVelocity.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_TerminalVelocity.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1939325889" result="Passed" start-time="2026-11-13 02:31:16Z" end-time="2026-11-13 02:31:18Z" duration="1.658032" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="2018" name="BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_ResurrectionDash.unity&quot;)" fullname="PoOlympic.Tests.SceneIntegrityTests.BuildSceneIsWhole(&quot;Assets/PoOlympic/Scenes/Event_ResurrectionDash.unity&quot;)" methodname="BuildSceneIsWhole" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="896256275" result="Passed" start-time="2026-11-13 02:31:18Z" end-time="2026-11-13 02:31:20Z" duration="1.815490" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-case id="2005" name="EventCatalogueAndPlayableScenesUseTheRetainedRoster" fullname="PoOlympic.Tests.SceneIntegrityTests.EventCatalogueAndPlayableScenesUseTheRetainedRoster" methodname="EventCatalogueAndPlayableScenesUseTheRetainedRoster" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="1523031135" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:20Z" duration="0.004373" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2006" name="GeneratedMenuAndHubContainOnlyTheRetainedRoster" fullname="PoOlympic.Tests.SceneIntegrityTests.GeneratedMenuAndHubContainOnlyTheRetainedRoster" methodname="GeneratedMenuAndHubContainOnlyTheRetainedRoster" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="523612414" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:20Z" duration="0.617526" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2004" name="MenuIsTheStartScene" fullname="PoOlympic.Tests.SceneIntegrityTests.MenuIsTheStartScene" methodname="MenuIsTheStartScene" classname="PoOlympic.Tests.SceneIntegrityTests" runstate="Runnable" seed="725625954" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:20Z" duration="0.000551" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2020" name="SeriesAndVoiceTests" fullname="PoOlympic.Tests.SeriesAndVoiceTests" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:22Z" duration="1.372385" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2024" name="AgentElo_EventPlacingsRateEveryCharacterAgainstEveryOther" fullname="PoOlympic.Tests.SeriesAndVoiceTests.AgentElo_EventPlacingsRateEveryCharacterAgainstEveryOther" methodname="AgentElo_EventPlacingsRateEveryCharacterAgainstEveryOther" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="1551741638" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:20Z" duration="0.005512" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2023" name="AgentElo_UpdatesAndIgnoresByeAndPersists" fullname="PoOlympic.Tests.SeriesAndVoiceTests.AgentElo_UpdatesAndIgnoresByeAndPersists" methodname="AgentElo_UpdatesAndIgnoresByeAndPersists" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="279371022" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:20Z" duration="0.001487" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2021" name="CharacterVoices_EveryRosterCharacterHasAll100SoundsAndPlaceholderWavs" fullname="PoOlympic.Tests.SeriesAndVoiceTests.CharacterVoices_EveryRosterCharacterHasAll100SoundsAndPlaceholderWavs" methodname="CharacterVoices_EveryRosterCharacterHasAll100SoundsAndPlaceholderWavs" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="354403103" result="Passed" start-time="2026-11-13 02:31:20Z" end-time="2026-11-13 02:31:21Z" duration="0.957922" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2022" name="CharacterVoices_MissingWavFallsBackProcedurallyForFutureCharacters" fullname="PoOlympic.Tests.SeriesAndVoiceTests.CharacterVoices_MissingWavFallsBackProcedurallyForFutureCharacters" methodname="CharacterVoices_MissingWavFallsBackProcedurallyForFutureCharacters" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="377150690" result="Passed" start-time="2026-11-13 02:31:21Z" end-time="2026-11-13 02:31:21Z" duration="0.396298" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2026" name="EventCompetition_Draws16ParticipantsWithReplacementFromCurrentAgents" fullname="PoOlympic.Tests.SeriesAndVoiceTests.EventCompetition_Draws16ParticipantsWithReplacementFromCurrentAgents" methodname="EventCompetition_Draws16ParticipantsWithReplacementFromCurrentAgents" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="1520341752" result="Passed" start-time="2026-11-13 02:31:21Z" end-time="2026-11-13 02:31:21Z" duration="0.001701" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2027" name="EventCompetition_RunsAll16EntrantsInOneHeat" fullname="PoOlympic.Tests.SeriesAndVoiceTests.EventCompetition_RunsAll16EntrantsInOneHeat" methodname="EventCompetition_RunsAll16EntrantsInOneHeat" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="1681152451" result="Passed" start-time="2026-11-13 02:31:21Z" end-time="2026-11-13 02:31:22Z" duration="0.003167" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2025" name="MeetSeries_OrdersEntrantsByPointsThenByNumber" fullname="PoOlympic.Tests.SeriesAndVoiceTests.MeetSeries_OrdersEntrantsByPointsThenByNumber" methodname="MeetSeries_OrdersEntrantsByPointsThenByNumber" classname="PoOlympic.Tests.SeriesAndVoiceTests" runstate="Runnable" seed="392589141" result="Passed" start-time="2026-11-13 02:31:22Z" end-time="2026-11-13 02:31:22Z" duration="0.001332" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2028" name="ShowcaseTests" fullname="PoOlympic.Tests.ShowcaseTests" classname="PoOlympic.Tests.ShowcaseTests" runstate="Runnable" testcasecount="3" result="Failed" site="Child" start-time="2026-11-13 02:31:22Z" end-time="2026-11-13 02:31:25Z" duration="3.157175" total="3" passed="2" failed="1" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <failure>
+              <message><![CDATA[One or more child tests had errors]]></message>
+            </failure>
+            <test-case id="2031" name="EventScenesCarryTheShowcase" fullname="PoOlympic.Tests.ShowcaseTests.EventScenesCarryTheShowcase" methodname="EventScenesCarryTheShowcase" classname="PoOlympic.Tests.ShowcaseTests" runstate="Runnable" seed="1733139358" result="Failed" start-time="2026-11-13 02:31:22Z" end-time="2026-11-13 02:31:25Z" duration="3.131286" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <failure>
+                <message><![CDATA[  Assets/PoOlympic/Scenes/Event_IronPedestal_Heat.unity: baked lightmap
+  Expected: greater than 0
+  But was:  0
+]]></message>
+                <stack-trace><![CDATA[at PoOlympic.Tests.ShowcaseTests.EventScenesCarryTheShowcase () [0x00389] in C:\Users\punko\Downloads\_CODEMATT\PoOlympic\Assets\PoOlympic\Tests\Editor\ShowcaseTests.cs:70
+]]></stack-trace>
+              </failure>
+            </test-case>
+            <test-case id="2030" name="ShowcaseShadersCompile" fullname="PoOlympic.Tests.ShowcaseTests.ShowcaseShadersCompile" methodname="ShowcaseShadersCompile" classname="PoOlympic.Tests.ShowcaseTests" runstate="Runnable" seed="1621470404" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.004220" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2029" name="StadiumHasTheShowcaseAnchorsAndNoOlympicMarks" fullname="PoOlympic.Tests.ShowcaseTests.StadiumHasTheShowcaseAnchorsAndNoOlympicMarks" methodname="StadiumHasTheShowcaseAnchorsAndNoOlympicMarks" classname="PoOlympic.Tests.ShowcaseTests" runstate="Runnable" seed="151328098" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.014822" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2032" name="SpectacleTests" fullname="PoOlympic.Tests.SpectacleTests" classname="PoOlympic.Tests.SpectacleTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.058993" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2036" name="AggressiveRacersSurgeAndSwingIntoRivals" fullname="PoOlympic.Tests.SpectacleTests.AggressiveRacersSurgeAndSwingIntoRivals" methodname="AggressiveRacersSurgeAndSwingIntoRivals" classname="PoOlympic.Tests.SpectacleTests" runstate="Runnable" seed="944477663" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.002200" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2034" name="CommentatorRequestIsValidJsonAndRepliesBecomeOneLine" fullname="PoOlympic.Tests.SpectacleTests.CommentatorRequestIsValidJsonAndRepliesBecomeOneLine" methodname="CommentatorRequestIsValidJsonAndRepliesBecomeOneLine" classname="PoOlympic.Tests.SpectacleTests" runstate="Runnable" seed="2045426803" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.001754" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2035" name="SlalomSteerKeepsTheYawLimitWhenTheTacticianEasesOff" fullname="PoOlympic.Tests.SpectacleTests.SlalomSteerKeepsTheYawLimitWhenTheTacticianEasesOff" methodname="SlalomSteerKeepsTheYawLimitWhenTheTacticianEasesOff" classname="PoOlympic.Tests.SpectacleTests" runstate="Runnable" seed="354862284" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.000862" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="2033" name="WindDragPointsDownwindAndIsCapped" fullname="PoOlympic.Tests.SpectacleTests.WindDragPointsDownwindAndIsCapped" methodname="WindDragPointsDownwindAndIsCapped" classname="PoOlympic.Tests.SpectacleTests" runstate="Runnable" seed="835629723" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.000897" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2037" name="SteeringTests" fullname="PoOlympic.Tests.SteeringTests" classname="PoOlympic.Tests.SteeringTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.019208" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2038" name="SteerYawRateMatchesPython" fullname="PoOlympic.Tests.SteeringTests.SteerYawRateMatchesPython" methodname="SteerYawRateMatchesPython" classname="PoOlympic.Tests.SteeringTests" runstate="Runnable" seed="1900167123" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.017744" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="2039" name="UiTokenTests" fullname="PoOlympic.Tests.UiTokenTests" classname="PoOlympic.Tests.UiTokenTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.024691" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2040" name="ColoursAndFontSizesAreTokens" fullname="PoOlympic.Tests.UiTokenTests.ColoursAndFontSizesAreTokens" methodname="ColoursAndFontSizesAreTokens" classname="PoOlympic.Tests.UiTokenTests" runstate="Runnable" seed="1862354777" result="Passed" start-time="2026-11-13 02:31:25Z" end-time="2026-11-13 02:31:25Z" duration="0.023749" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <output><![CDATA[Saving results to: C:/Users/punko/AppData/LocalLow/Punkouter Software/PoOlympics\TestResults.xml
+]]></output>
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

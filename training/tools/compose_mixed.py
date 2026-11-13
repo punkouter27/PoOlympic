@@ -109,6 +109,31 @@ def _hill_props() -> list[dict]:
     return props
 
 
+def _shaker_floor16() -> dict:
+    """5 Gust Gauntlet (16 athletes in two 2 x 4 blocks): 4.0 m x 5.0 m spring-mounted floor, scaled to 16 athletes (2.0 Hz)."""
+    fl = B.shaker_floor()
+    return {**fl, "mass": 16 * 150.0, "stiffness": 16 * 36300.0, "damping": 16 * 1160.0,
+            "half": [2.0, 2.5], "pos": [float(fl["pos"][0]), -1.7, 0.0]}
+
+
+def _pedestal_beam16() -> dict:
+    """1 Iron Pedestal (16 athletes in 2 rows of 8 at x = 0 and x = -1.4): 2.4 m x 5.9 m shared beam."""
+    bm = B.venue_box(1, "beam")
+    return {"pos": [-0.7, float(bm["pos"][1]), 0.0], "half": [1.2, bm["half"][1]]}
+
+
+def _turntable16_origins() -> list[tuple[float, float, float, float]]:
+    """12 The 360 Turntable: inner ring of 8 (venue 12) + outer ring of 8 at r = 2.2 m staggered by 22.5 deg."""
+    inner = B.venue_lane_origins(12, 3)
+    cx = float(np.mean([o[0] for o in inner]))
+    cy = float(np.mean([o[1] for o in inner]))
+    outer = []
+    for k in range(8):
+        a = np.radians(90.0 - 45.0 * k - 22.5)
+        outer.append((cx + 2.2 * float(np.cos(a)), cy + 2.2 * float(np.sin(a)), 0.0, 0.0))
+    return [(float(o[0]), float(o[1]), float(o[2]), 0.0) for o in inner] + outer
+
+
 SCENES = {  # scene -> the build_mjcf.compose_meet arguments of that event scene (callables: read from the venues)
     "meet8": dict(),                                  # G6 testbed (Testbed_Rung1): 1.22 m lanes, no venue, lane isolation
     "pedestal8": dict(event=1, pedestal_h=B.PEDESTAL_H, beam=lambda: B.venue_box(1, "beam"), crowd=True),
@@ -134,7 +159,49 @@ SCENES = {  # scene -> the build_mjcf.compose_meet arguments of that event scene
     "pads8": dict(origins=lambda: _ring_origins(3.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "beacon8": dict(origins=lambda: _ring_origins(4.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "hill8": dict(origins=_hill_origins, drop=0.5, park_offset=(0.0, -30.0, 0.0), props=_hill_props, crowd=True),
+    # 16-athlete crowd scenes (2026-11-12): 2 rows of 8 (row 1 = venue lanes 0-7, row 2 shifted back by row_offset)
+    "pedestal16": dict(event=1, lanes=16, row_offset=(-1.4, 0.0, 0.0), pedestal_h=B.PEDESTAL_H, beam=_pedestal_beam16, crowd=True),
+    "shaker16": dict(event=5, lanes=16, row_offset=(0.0, -2.6, 0.0), park_offset=(0.0, -30.0, 0.0), shaker=_shaker_floor16, crowd=True),
+    "crawl16": dict(event=8, lanes=16, row_offset=(-2.2, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "track16": dict(event=22, lanes=16, row_offset=(-2.4, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "inverted16": dict(event=22, lanes=16, row_offset=(2.4, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
+    "crab16": dict(event=10, lanes=16, yaw=90.0, row_offset=(0.0, 2.0, 0.0), park_offset=(0.0, -30.0, 0.0), props=B.crab_rails, crowd=True),
+    "slalom16": dict(event=11, lanes=16, row_offset=(-2.0, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), props=B.slalom_poles, crowd=True),
+    "turntable16": dict(lanes=16, origins=_turntable16_origins, crowd=True),
 }
+
+
+def lanes_of(scene: str) -> int:
+    """Athlete lanes of a scene: 8, or its "lanes" entry (the 16-athlete scenes)."""
+    return int(SCENES[scene].get("lanes", 8))
+
+
+def two_rows_origins(origins: list[np.ndarray], lanes: int, row_offset: tuple[float, float, float]) -> list[np.ndarray]:
+    """2 rows of 8: lanes 0..7 keep the venue's 8 spots, lanes 8..15 sit behind them shifted by `row_offset`."""
+    if lanes == len(origins):
+        return origins
+    assert lanes == 2 * len(origins), f"expected {2 * len(origins)} lanes for 2 rows, got {lanes}"
+    shift = np.asarray(row_offset, float)
+    return list(origins) + [np.asarray(o, float) + shift for o in origins]
+
+
+# 16-athlete crowd scenes. shift_bits + crowd_bits spend 3 bits per lane (upper k, legs 8 + k, crowd 16 + k): 8 lanes
+# fill 24 of the 32 contype / conaffinity bits. wide_bits spends 1 per lane and 1 shared bit, with the same contacts:
+#   athlete k owns bit k (bits 0-15 = ALL_BITS: ground, props and cubes meet every part of every athlete, as before)
+#   and has every OTHER athlete's bit in its conaffinity -> any part meets any part of another athlete (crowd),
+#   never a part of itself; its leg geoms (asset bits 256 / 256) also carry WIDE_LEG both ways -> leg meets leg
+#   inside one athlete, as in its training scene. Upper-body geoms (asset bits 1 / 0) get nothing more.
+WIDE_LANES = 16
+WIDE_LEG = 1 << 16
+WIDE_ALL = (1 << WIDE_LANES) - 1
+
+
+def wide_bits(ct: int, ca: int, lane: int) -> tuple[int, int]:
+    """Asset (lane-0) collision bits -> athlete `lane` of a 16-athlete crowd scene."""
+    assert (ct, ca) in ((1, 0), (256, 256)), f"unknown asset collision bits {ct} / {ca}"
+    assert 0 <= lane < WIDE_LANES
+    own, leg = 1 << lane, WIDE_LEG if ct == 256 else 0
+    return own | leg, (WIDE_ALL & ~own) | leg
 
 
 def shift_bits(v: int, k: int) -> int:
@@ -192,7 +259,8 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
         origins = [np.asarray(o[:3], float) for o in raw_origins]
         yaws = [float(o[3]) if len(o) > 3 else 0.0 for o in raw_origins]
     elif "event" in sc:
-        origins = B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0))
+        origins = two_rows_origins(B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0)),
+                                   len(lineup), sc.get("row_offset", (-2.2, 0.0, 0.0)))
         yaws = [0.0] * len(lineup)
     else:
         origins = [B.lane_origin(k) for k in range(len(lineup))]
@@ -216,6 +284,8 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
     contact = ET.Element("contact")
     actuator = ET.Element("actuator")
     lanes = []
+    wide = len(lineup) > B.N_LANES                    # more athletes than the 3-bits-per-lane scheme holds
+    assert not wide or crowd, "more than 8 lanes: crowd scenes only (wide_bits)"
     key_qpos = B.stage_shared(wb, ped_h, shaker, beam)    # = build_mjcf.compose_meet's stage (shared beam / floor)
     for k, bodies in enumerate(lineup):
         roster = not isinstance(bodies, str)          # roster scene: every roster body in this lane
@@ -231,9 +301,12 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
                 if "name" in el.attrib:
                     el.set("name", p + el.get("name"))
                 if el.tag == "geom":
-                    ct, ca = shift_bits(int(el.get("contype")), k), shift_bits(int(el.get("conaffinity")), k)
-                    if crowd:                         # roster bodies of one lane share its crowd bit: never collide
-                        ct, ca = B.crowd_bits(ct, ca, k)
+                    if wide:                          # roster bodies of one lane share its bit: never collide
+                        ct, ca = wide_bits(int(el.get("contype")), int(el.get("conaffinity")), k)
+                    else:
+                        ct, ca = shift_bits(int(el.get("contype")), k), shift_bits(int(el.get("conaffinity")), k)
+                        if crowd:                     # roster bodies of one lane share its crowd bit: never collide
+                            ct, ca = B.crowd_bits(ct, ca, k)
                     el.set("contype", str(ct))
                     el.set("conaffinity", str(ca))
             pelvis.set("pos", B.vec(np.array([float(x) for x in pelvis.get("pos").split()]) + o))
@@ -255,7 +328,7 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
                 row["yaw_deg"] = yaw
             lanes.append(row)
     inertia = B.CUBE_MASS * (2 * B.CUBE_HALF) ** 2 / 6.0
-    n_cubes = B.N_CUBES_MEET
+    n_cubes = max(B.N_CUBES_MEET, 2 * len(lineup))    # 2 per lane
     for i in range(n_cubes):
         park = B.cube_park_pos(i) - [0, 0, drop] + park_offset
         cb = ET.SubElement(wb, "body", {"name": f"cube{i}", "pos": B.vec(park)})
@@ -313,12 +386,13 @@ def verify_roster() -> int:
     from poolympic.fingerprint import canonical_bytes, fingerprint
     ok_all = True
     for scene in SCENES:
-        xml, _ = compose(scene, [roster_of(scene)] * 8)
+        n = lanes_of(scene)
+        xml, _ = compose(scene, [roster_of(scene)] * n)
         r = mujoco.MjModel.from_xml_string(xml)
         for body in roster_of(scene):
-            m = mujoco.MjModel.from_xml_string(compose(scene, [[body]] * 8)[0])   # same prefixes, one body per lane
+            m = mujoco.MjModel.from_xml_string(compose(scene, [[body]] * n)[0])   # same prefixes, one body per lane
             same = all(canonical_bytes(fingerprint(r, athlete_prefix(k, body, True), f"cube{2 * k}"))
-                       == canonical_bytes(fingerprint(m, athlete_prefix(k, body, True), f"cube{2 * k}")) for k in range(8))
+                       == canonical_bytes(fingerprint(m, athlete_prefix(k, body, True), f"cube{2 * k}")) for k in range(n))
             print(f"roster {scene} {body}:", "PASS" if same else "FAIL")
             ok_all &= same
     return 0 if ok_all else 1
@@ -330,8 +404,8 @@ def main(argv: list[str]) -> int:
     if argv and argv[0] == "--roster-all":
         return max(main([sc, "roster"]) for sc in SCENES if roster_of(sc))
     scene = argv[0]
-    lineup = [roster_of(scene)] * 8 if argv[1] == "roster" else argv[1].split(",")
-    assert len(lineup) == 8, "8 lanes"
+    lineup = [roster_of(scene)] * lanes_of(scene) if argv[1] == "roster" else argv[1].split(",")
+    assert len(lineup) == lanes_of(scene), f"{lanes_of(scene)} lanes"
     xml, layout = compose(scene, lineup)
     tag = tag_of(lineup)
     header = f"<!-- GENERATED by training/tools/compose_mixed.py ({scene}, lineup {tag_of(lineup) if tag_of(lineup) == 'roster' else ','.join(lineup)}). Do not edit. -->\n"

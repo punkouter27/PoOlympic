@@ -23,6 +23,7 @@ namespace PoOlympic.Tests
     {
         const float LoadSeconds = 60f, ReadySeconds = 60f, HeatSeconds = 240f;
         readonly List<string> _warnings = new();
+        string _savedElo;                                           // a completed event rates the characters: put the table back
 
         void OnLog(string message, string stack, LogType type)
         {
@@ -34,6 +35,7 @@ namespace PoOlympic.Tests
         public void Listen()
         {
             _warnings.Clear();
+            _savedElo = PlayerPrefs.GetString(AgentElo.Key, null);
             Application.logMessageReceived += OnLog;
         }
 
@@ -42,6 +44,9 @@ namespace PoOlympic.Tests
         {
             Application.logMessageReceived -= OnLog;
             GameSettings.SimSpeed = 1f;
+            if (_savedElo == null) PlayerPrefs.DeleteKey(AgentElo.Key);
+            else PlayerPrefs.SetString(AgentElo.Key, _savedElo);
+            PlayerPrefs.Save();
         }
 
         [UnityTest, Timeout(900000)]
@@ -64,6 +69,7 @@ namespace PoOlympic.Tests
             Click(Button(hud.Frame, "OK"));
             Assert.IsTrue(MeetLineup.Loading, "OK on the match card did not start a load");
             Click(Button(hud.Frame, "OK"));                         // a double tap while loading must be a no-op
+            Assert.IsTrue(MeetLineup.Loading, "OK after the single 16-entrant heat did not start a load");
             yield return Menu(first: false);
 
             // ---- lap 2: another event, a second heat from the sheet, out through the sheet

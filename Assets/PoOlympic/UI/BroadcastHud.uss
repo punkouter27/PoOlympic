@@ -229,6 +229,8 @@
 }
 /* match card (single event, after the medal ceremony): tabs (.ha-tab) Places · Telemetry · Replay, OK below */
 .bh-match-tabs { flex-direction: row; margin-bottom: var(--po-pad-s); }
+.bh-match-grid { flex-direction: row; flex-wrap: wrap; }
+.bh-match-grid > .bh-row { width: 50%; }
 .bh-match-bar { flex-direction: row; justify-content: flex-end; margin-top: var(--po-s24); }
 .bh-match-bar > .bh-btn-small { margin: 0 0 0 var(--po-s14); }
 .bh-slip-row {

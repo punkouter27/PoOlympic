@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.3775164">
+  <test-suite type="TestSuite" id="1027" name="PoOlympics" fullname="PoOlympics" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.377516" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1030" name="PoOlympic.Tests.Play.dll" fullname="C:/Users/punko/Downloads/_CODEMATT/PoOlympic/Library/ScriptAssemblies/PoOlympic.Tests.Play.dll" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.366693" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="25472" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1031" name="PoOlympic" fullname="PoOlympic" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.365479" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1032" name="Tests" fullname="PoOlympic.Tests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.364435" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestFixture" id="1028" name="StateFlowTests" fullname="PoOlympic.Tests.StateFlowTests" classname="PoOlympic.Tests.StateFlowTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.362454" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1029" name="Menu_Heat_Result_AndBack_Twice" fullname="PoOlympic.Tests.StateFlowTests.Menu_Heat_Result_AndBack_Twice" methodname="Menu_Heat_Result_AndBack_Twice" classname="PoOlympic.Tests.StateFlowTests" runstate="Runnable" seed="222313639" result="Passed" start-time="2026-11-13 02:28:42Z" end-time="2026-11-13 02:29:44Z" duration="61.343015" asserts="0">
+              <properties>
+                <property name="_JOINTYPE" value="UnityCombinatorial" />
+                <property name="Timeout" value="900000" />
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <output><![CDATA[[LaneLineup] K1 G2 K3 M4 Z5 K6 G7 M8 K9 M10 M11 K12 M13 Z14 K15 G16
+Compilation was requested for method `Unity.Jobs.IJobExtensions+JobStruct`1[[Unity.InferenceEngine.CPUBackend+CopyJob`1[[System.Single, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], Unity.InferenceEngine, Version=2.6.1.0, Culture=neutral, PublicKeyToken=null]], UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::Execute(Unity.InferenceEngine.CPUBackend+CopyJob`1[[System.Single, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]&, Unity.InferenceEngine, Version=2.6.1.0, Culture=neutral, PublicKeyToken=null|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|Unity.Jobs.LowLevel.Unsafe.JobRanges&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)` but it is not a known Burst entry point. This may be because the [BurstCompile] method is defined in a generic class, and the generic class is not instantiated with concrete types anywhere in your code.
+[IronPedestalHeat] attempt 0 seed 1: winner M11 after 38.8 s, 13 rounds
+[LaneLineup] K1 G2 K3 M4 Z5 K6 G7 M8 K9 M10 M11 K12 M13 Z14 K15 G16
+[TrackRace] Resurrection heat 0 seed 1: winner L11 (3.63 s) after 7.8 s
+Saving results to: C:/Users/punko/AppData/LocalLow/Punkouter Software/PoOlympics\TestResults.xml
+]]></output>
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

@@ -10,36 +10,18 @@ namespace PoOlympic.Tests
 {
     /// <summary>
     /// Verifies character voice sound coverage (4 emotions x 5 variants x 5 expressiveness levels = 100/character),
-    /// procedural WAV placeholder generation + runtime fallback, persistent ELO ratings, and the symmetric 16-player
-    /// tournament bracket (8 Left · Winner Middle · 8 Right).
+    /// procedural WAV placeholder generation + runtime fallback, persistent ELO ratings (head-to-head and from the
+    /// placings of a 16-entrant event), and the 16-entrant event field.
     /// </summary>
-    public class TournamentAndVoiceTests
+    public class SeriesAndVoiceTests
     {
         string _savedElo;
-        string _savedBracket;
-        bool _savedShowBracket;
 
         [SetUp]
-        public void SetUp()
-        {
-            _savedElo = PlayerPrefs.GetString(AgentElo.Key, null);
-            _savedBracket = PlayerPrefs.GetString("PoOlympic.TournamentBracket", null);
-            _savedShowBracket = TournamentMode.ShowBracketOnMenu;
-        }
+        public void SetUp() => _savedElo = PlayerPrefs.GetString(AgentElo.Key, null);
 
         [TearDown]
-        public void TearDown()
-        {
-            RestorePref(AgentElo.Key, _savedElo);
-            RestorePref("PoOlympic.TournamentBracket", _savedBracket);
-            TournamentMode.ShowBracketOnMenu = _savedShowBracket;
-            TournamentMode.ClearSavedBracket();
-            if (!string.IsNullOrEmpty(_savedBracket))
-            {
-                PlayerPrefs.SetString("PoOlympic.TournamentBracket", _savedBracket);
-                PlayerPrefs.Save();
-            }
-        }
+        public void TearDown() => RestorePref(AgentElo.Key, _savedElo);
 
         static void RestorePref(string key, string value)
         {
@@ -143,66 +125,41 @@ namespace PoOlympic.Tests
         }
 
         [Test]
-        public void TournamentBracket_Symmetric16SlotsWithByesReachesSingleChampion()
+        public void AgentElo_EventPlacingsRateEveryCharacterAgainstEveryOther()
         {
             AgentElo.Reset();
-
-            var slots = MeetLineup.TournamentSlots();
-            Assert.AreEqual(16, slots.Length);
-            Assert.AreEqual(16 - MeetLineup.Roster.Length, slots.Count(s => s == MeetLineup.ByeName));
-
-            // Test with 4 current players -> auto-BYEs resolve down to 4 players reaching QF/SF cleanly and winning
-            var b4 = TournamentBracket.Create(MeetLineup.Roster, shuffleOrder: false, tournamentNumber: 1, rng: new System.Random(42));
-            Assert.AreEqual(16, b4.initialSlots.Length);
-            // Left half (0..7) and Right half (8..15) both contain active players
-            Assert.Greater(b4.initialSlots.Take(8).Count(s => !AgentElo.IsBye(s)), 0);
-            Assert.Greater(b4.initialSlots.Skip(8).Count(s => !AgentElo.IsBye(s)), 0);
-
-            int safety = 0;
-            while (!b4.IsFinished && safety++ < 20)
+            // 16 entrants, two heats of 8: a character's mark is its best entrant
+            var entrants = new[]
             {
-                var m = b4.NextPlayableMatch();
-                Assert.NotNull(m, "Bracket not finished yet but no playable match found");
-                Assert.IsFalse(AgentElo.IsBye(m.playerA));
-                Assert.IsFalse(AgentElo.IsBye(m.playerB));
-                Assert.IsTrue(b4.RecordMatchResult(m.round, m.index, m.playerA, 4, 1, 1, "Test Event", 16f));
-            }
-            Assert.IsTrue(b4.IsFinished);
-            Assert.IsFalse(AgentElo.IsBye(b4.champion));
-            Assert.AreEqual(b4.champion, b4.GetMatch(3, 0).winner);
+                "KIM", "MATT", "ZOMBIE", "GRANDMA", "KIM", "MATT", "ZOMBIE", "GRANDMA",
+                "GRANDMA", "ZOMBIE", "MATT", "KIM", "GRANDMA", "ZOMBIE", "MATT", "KIM",
+            };
+            var points = new[] { 10, 8, 6, 5, 4, 3, 2, 1, 8, 6, 5, 4, 3, 2, 1, 0 };   // best: KIM 10, MATT 8, GRANDMA 8, ZOMBIE 6
 
-            // Test with full 16 players -> 15 played matches -> single champion
-            var sixteen = Enumerable.Range(1, 16).Select(i => $"BOT_{i:00}").ToArray();
-            var b16 = TournamentBracket.Create(sixteen, shuffleOrder: false, tournamentNumber: 2, rng: new System.Random(7));
-            Assert.IsFalse(b16.initialSlots.Any(AgentElo.IsBye));
-            int played16 = 0;
-            while (!b16.IsFinished && played16 < 30)
-            {
-                var m = b16.NextPlayableMatch();
-                Assert.NotNull(m);
-                b16.RecordMatchResult(m.round, m.index, m.playerA, 5, 3);
-                played16++;
-            }
-            Assert.AreEqual(15, played16);
-            Assert.IsTrue(b16.IsFinished);
+            var deltas = AgentElo.RecordEvent(entrants, points);
+            Assert.AreEqual(4, deltas.Count);
+            // equal ratings before: three games each at K/3, expectation ½ per game
+            float k = AgentElo.KFactor / 3f;
+            Assert.AreEqual(k * 1.5f, deltas["KIM"], 0.01f, "KIM beat all three");
+            Assert.AreEqual(0f, deltas["MATT"], 0.01f, "MATT: lost to KIM, tied GRANDMA, beat ZOMBIE");
+            Assert.AreEqual(0f, deltas["GRANDMA"], 0.01f);
+            Assert.AreEqual(-k * 1.5f, deltas["ZOMBIE"], 0.01f, "ZOMBIE lost all three");
+            Assert.AreEqual(0f, deltas.Values.Sum(), 0.01f, "ratings are zero-sum");
+            Assert.AreEqual(1200f + deltas["KIM"], AgentElo.GetElo("KIM"), 0.01f, "stored");
+            Assert.AreEqual(3, AgentElo.GetEntry("KIM").wins);
+            Assert.AreEqual(3, AgentElo.GetEntry("ZOMBIE").losses);
+
+            // one character alone cannot be rated
+            float before = AgentElo.GetElo("MATT");
+            Assert.IsEmpty(AgentElo.RecordEvent(Enumerable.Repeat("MATT", 16).ToArray(), points));
+            Assert.AreEqual(before, AgentElo.GetElo("MATT"), 0.001f);
         }
 
         [Test]
-        public void TournamentMode_EventCompatibilityAndMatchupLineup()
+        public void MeetSeries_OrdersEntrantsByPointsThenByNumber()
         {
-            var pool = new[]
-            {
-                new TournamentMode.EventChoice(1, "Pedestal", "Event_1", new[] { "MATT" }),
-                new TournamentMode.EventChoice(8, "All Fours", "Event_8", new[] { "MATT", "ZOMBIE", "GRANDMA", "KIM" }),
-            };
-
-            var picked = TournamentMode.PickEventForMatch(pool, "GRANDMA", "KIM");
-            Assert.AreEqual(8, picked.Number);
-
-            var lineup = TournamentMode.BuildMatchLineup("ZOMBIE", "KIM");
-            Assert.AreEqual(8, lineup.Length);
-            Assert.AreEqual(4, lineup.Take(4).Count(x => x == "ZOMBIE"));
-            Assert.AreEqual(4, lineup.Skip(4).Count(x => x == "KIM"));
+            var points = new[] { 5, 20, 20, 0, 31, 5 };
+            CollectionAssert.AreEqual(new[] { 4, 1, 2, 0, 5, 3 }, MeetSeries.Order(points).ToArray());
         }
 
         [Test]
@@ -212,23 +169,19 @@ namespace PoOlympic.Tests
             Assert.AreEqual(EventCompetition.EntrantCount, participants.Length);
             Assert.IsTrue(participants.All(MeetLineup.Roster.Contains));
             Assert.AreEqual(MeetLineup.Roster.Length,
-                participants.Take(EventCompetition.HeatSize).Distinct().Count());
-            Assert.AreEqual(MeetLineup.Roster.Length,
-                participants.Skip(EventCompetition.HeatSize).Distinct().Count());
+                participants.Distinct().Count());
 
             var singleAgent = EventCompetition.DrawParticipants(new[] { "MATT" }, new System.Random(7));
             CollectionAssert.AreEqual(Enumerable.Repeat("MATT", EventCompetition.EntrantCount), singleAgent);
         }
 
         [Test]
-        public void EventCompetition_SplitsEvery16EntrantFieldIntoTwoEightLaneHeats()
+        public void EventCompetition_RunsAll16EntrantsInOneHeat()
         {
             var participants = Enumerable.Range(0, EventCompetition.EntrantCount).Select(i => $"AGENT_{i:00}").ToArray();
-            CollectionAssert.AreEqual(participants.Take(EventCompetition.HeatSize),
+            CollectionAssert.AreEqual(participants,
                 EventCompetition.ParticipantsForHeat(participants, 0));
-            CollectionAssert.AreEqual(participants.Skip(EventCompetition.HeatSize),
-                EventCompetition.ParticipantsForHeat(participants, 1));
-            Assert.Throws<ArgumentOutOfRangeException>(() => EventCompetition.ParticipantsForHeat(participants, 2));
+            Assert.Throws<ArgumentOutOfRangeException>(() => EventCompetition.ParticipantsForHeat(participants, 1));
         }
     }
 }
