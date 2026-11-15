@@ -55,5 +55,15 @@ namespace PoOlympic
             }
             if (o != obs.Length) throw new InvalidOperationException($"obs buffer {obs.Length} != built {o}");
         }
+
+        /// <summary>Append tail observations without reordering existing prefix features; extra tail is zero-initialized.</summary>
+        public static void AppendZeroInitInputs(float[] src, int baseCount, float[] dst)
+        {
+            if (dst == null || baseCount < 0 || dst.Length <= baseCount) return;
+            Array.Clear(dst, baseCount, dst.Length - baseCount);
+            if (src == null) return;
+            int copy = Math.Min(src.Length, dst.Length - baseCount);
+            if (copy > 0) Array.Copy(src, 0, dst, baseCount, copy);
+        }
     }
 }

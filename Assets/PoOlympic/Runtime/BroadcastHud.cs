@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PrimeTween;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace PoOlympic
@@ -242,6 +243,26 @@ namespace PoOlympic
 
         /// <summary>Debug readout (TAB / the BL button): what the athlete on camera is doing, in plain words, with the
         /// numbers that say where the game needs work (brain cost, joints over the speed bar, sliding feet).</summary>
+        public enum AppMode { Watch, Play, Testbed }
+        public static AppMode Mode { get; private set; } = AppMode.Watch;
+        public static bool Paused { get; private set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetHudStatics()
+        {
+            Mode = AppMode.Watch;
+            Paused = false;
+        }
+
+        public static AppMode CycleAppMode() => Mode = (AppMode)(((int)Mode + 1) % 3);
+
+        public static bool TogglePause()
+        {
+            Paused = !Paused;
+            Time.timeScale = Paused ? 0f : GameSettings.SimSpeed;
+            return Paused;
+        }
+
         string DebugLines()
         {
             var who = _storyFor != null ? _storyFor : Director != null ? Director.Subject : null;
@@ -249,12 +270,13 @@ namespace PoOlympic
             if (t == null || !t.Ready) return "";
             float brains = 0f;
             int n = 0;
-            foreach (var a in AthleteTelemetry.All) if (a != null && a.Runner != null && a.Runner.isActiveAndEnabled) { brains += a.Runner.BrainMs; n++; }
+            int nanInf = 0;
+            foreach (var a in AthleteTelemetry.All) if (a != null && a.Runner != null && a.Runner.isActiveAndEnabled) { brains += a.Runner.BrainMs; nanInf += a.Runner.NanInfCount; n++; }
             string balance = float.IsNaN(t.BalanceMargin) ? $"in the air ({t.AirborneMs:0} ms)" : t.BalanceMargin >= 0f ? $"+{t.BalanceMargin * 100f:0} cm inside" : $"{-t.BalanceMargin * 100f:0} cm OUTSIDE";
             string over = t.OverSpeedShare > 0.05f ? $"{t.OverSpeedShare * 100f:0}% OVER" : $"{t.OverSpeedShare * 100f:0.#}% over";
             string gait = $"{(t.FootLeftOn ? "L" : "·")}{(t.FootRightOn ? "R" : "·")}";
             string recStage = string.IsNullOrEmpty(t.RecoveryStage) ? "" : $" · recovery {t.RecoveryStage}";
-            return $"{NameOf(who)} {Body(who)} · brain {(who.brain != null ? who.brain.name : "none")} v{who.BrainVersion} · " +
+            return $"{NameOf(who)} {Body(who)} · mode {Mode} · cam {BroadcastDirector.Mode} · seed {(who != null ? who.ActiveSeed : 42)} · NaN/Inf {nanInf} · brain {(who.brain != null ? who.brain.name : "none")} v{who.BrainVersion} · " +
                    $"{who.BrainMs:0.00} ms ({n} brains {brains:0.0} ms/tick) · speed {GameSettings.SpeedLabel}{recStage}\n" +
                    $"balance {balance} · tilt {t.TiltDeg:0}° · effort {t.Effort * 100f:0}% (peak {t.StressJoint} {t.StressMax * 100f:0}%) · tired {t.Fatigue * 100f:0}%\n" +
                    $"steps {t.CadenceSpm:0}/min [{gait}] · foot down {t.GroundContactS:0.00} s · joints {t.JointSpeedMax:0.0} rad/s, {over} {AthleteTelemetry.JointSpeedBar:0} · " +
@@ -325,6 +347,7 @@ namespace PoOlympic
         void LateUpdate()
         {
             if (_frame == null) return;
+            HandleHotkeys();
             _anchors.Tick();
             FitToScreen();
             if (_replay.Playing && !_replay.Step()) StopReplay();
@@ -332,6 +355,36 @@ namespace PoOlympic
             // outside Refresh (tests call it directly) and after the frame's HUD work: this loads the next scene
             if (_demoAdvance) { _demoAdvance = false; DemoMode.Advance(null); }
             if (_seriesAdvance) { _seriesAdvance = false; MeetSeries.Advance(null); }
+        }
+
+        void HandleHotkeys()
+        {
+            var kb = Keyboard.current;
+            if (kb == null) return;
+            if (kb.f1Key.wasPressedThisFrame) { CycleAppMode(); return; }
+            if (kb.f2Key.wasPressedThisFrame) { BroadcastDirector.CycleCameraMode(); return; }
+            if (kb.f4Key.wasPressedThisFrame)
+            {
+                var who = _storyFor != null ? _storyFor : Director != null ? Director.Subject : null;
+                who?.HotSwapBrain();
+                return;
+            }
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                if (_replay.Playing) StopReplay();
+                else TogglePause();
+                return;
+            }
+            if (kb.rKey.wasPressedThisFrame) { Restart(); return; }
+            if (BroadcastDirector.Mode == BroadcastDirector.CameraMode.Free)
+            {
+                Vector3 pan = Vector3.zero;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) pan.z += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) pan.z -= 1f;
+                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan.x -= 1f;
+                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan.x += 1f;
+                if (pan.sqrMagnitude > 0f) BroadcastDirector.AddFreeOffset(pan.normalized * (6f * Time.unscaledDeltaTime));
+            }
         }
 
         /// <summary>One HUD update from the board (LateUpdate; tests call it directly).</summary>

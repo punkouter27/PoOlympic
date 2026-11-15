@@ -35,6 +35,19 @@ namespace PoOlympic
     {
         public enum Kind { Race, Arena }
         public enum Shot { Establishing, Trackside, HeadOn, HighWide, Hot, Winner, Podium, Leader }
+        public enum CameraMode { Broadcast, Follow, Orbit, Free }
+        public static CameraMode Mode { get; set; } = CameraMode.Broadcast;
+        public static Vector3 FreeOffset { get; set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetCameraStatics()
+        {
+            Mode = CameraMode.Broadcast;
+            FreeOffset = Vector3.zero;
+        }
+
+        public static CameraMode CycleCameraMode() => Mode = (CameraMode)(((int)Mode + 1) % 4);
+        public static void AddFreeOffset(Vector3 delta) => FreeOffset += delta;
         public MonoBehaviour board;                     // IBroadcastBoard
         public Kind kind = Kind.Race;
         [Tooltip("Race direction in Unity world space (MuJoCo +x = Unity +x).")]
@@ -361,10 +374,19 @@ namespace PoOlympic
             bool phaseChanged = b.BoardState != _last;
             if (phaseChanged)
             {
-                _shotClock = 0; _shot = 0; _last = b.BoardState; _snap = true;
+                _shotClock = 0; _shot = 0; _last = b.BoardState; _snap = true; FreeOffset = Vector3.zero;
                 if (b.BoardState == BoardPhase.Ready) { _startRot.Clear(); _faceSmooth.Clear(); }   // re-read the start pose each heat
             }
             _shotClock += Time.unscaledDeltaTime;
+            if (Mode == CameraMode.Free)
+            {
+                Vector3 freeLook = focus + FreeOffset;
+                Vector3 freeWant = freeLook + establishing;
+                freeWant.y = Mathf.Min(freeWant.y, maxCameraHeight);
+                transform.position = freeWant;
+                transform.rotation = Quaternion.LookRotation(freeLook - freeWant, Vector3.up);
+                return;
+            }
             if (wide != null) Direct(b, bodies, focus, f, left);
             else Legacy(b, bodies, focus, f, left);
         }
@@ -445,6 +467,10 @@ namespace PoOlympic
                 // entering: placed on the athlete (the hot camera is not live yet, the blend does the move); then glides
                 if (ht != null) hotProxy.position = _hotGlide.Step(ht.position, snap || _shotNow != Shot.Hot, this);
             }
+            if (Mode == CameraMode.Follow && leaderClose != null)
+                want = Shot.Leader;
+            else if (Mode == CameraMode.Orbit)
+                want = Shot.Establishing;
             // leader close-up target: chest height (the composer centres it, the face sits in the upper third)
             bool crawl = _closeRunner != null && _closeRunner.crawlSteering;
             var lt = Pelvis(_closeRunner);
@@ -456,9 +482,9 @@ namespace PoOlympic
             }
 
             // offsets (world space, relative to the proxies)
-            if (kind == Kind.Arena && b.BoardState == BoardPhase.Live)
+            if (Mode == CameraMode.Orbit || (kind == Kind.Arena && b.BoardState == BoardPhase.Live))
             {
-                if (_shotClock > shotSeconds * 1.5f) _orbit += orbitSpeed * Time.unscaledDeltaTime;
+                if (Mode == CameraMode.Orbit || _shotClock > shotSeconds * 1.5f) _orbit += orbitSpeed * Time.unscaledDeltaTime;
                 SetOffset(wide, focusProxy, Quaternion.AngleAxis(Mathf.Rad2Deg * _orbit, Vector3.up) * establishing);
             }
             else SetOffset(wide, focusProxy, establishing);

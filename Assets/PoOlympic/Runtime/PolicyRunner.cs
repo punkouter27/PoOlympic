@@ -134,6 +134,28 @@ namespace PoOlympic
         public Vector3 AppliedForce { get; private set; }
         /// <summary>Brain inference time per control tick (ms, smoothed over ~20 ticks): the debug readout.</summary>
         public float BrainMs { get; private set; }
+        public int NanInfCount { get; private set; }
+        public int ActiveSeed { get; private set; } = 42;
+        public void ResetTelemetry() => NanInfCount = 0;
+
+        /// <summary>Hot-swap the loaded ONNX policy at runtime or toggle fallback pose hold when no alternate asset is provided.</summary>
+        public bool HotSwapBrain(ModelAsset nextBrain = null, TextAsset nextSidecar = null)
+        {
+            if (nextBrain == null || nextSidecar == null)
+            {
+                holdDefaultPose = !holdDefaultPose;
+                return true;
+            }
+            var sc = JsonUtility.FromJson<BrainSidecar>(nextSidecar.text);
+            if (sc == null || sc.fingerprint_sha256 != Contract.fingerprint_sha256) return false;
+            var swapped = new PolicyBrain(nextBrain, _obs.Length);
+            _brain?.Dispose();
+            _brain = swapped;
+            brain = nextBrain;
+            brainSidecar = nextSidecar;
+            holdDefaultPose = false;
+            return true;
+        }
 
         Transform _pelvisT;
         bool _pelvisSearched;
@@ -169,6 +191,12 @@ namespace PoOlympic
 
         void Awake()
         {
+            if (int.TryParse(Environment.GetEnvironmentVariable("POOLYMPIC_SEED"), out int envSeed))
+                ActiveSeed = envSeed;
+            var cli = Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < cli.Length; i++)
+                if (cli[i] == "-seed" && int.TryParse(cli[i + 1], out int cliSeed)) ActiveSeed = cliSeed;
+            if (noiseSeed == 0) noiseSeed = ActiveSeed;
             Contract = Contract.Parse(contractJson.text);
             if (!holdDefaultPose) ValidateBrain();
             var scene = MjScene.Instance;
@@ -454,11 +482,18 @@ namespace PoOlympic
             }
             else
             {
+                for (int i = 0; i < _obs.Length; i++)
+                    if (!float.IsFinite(_obs[i])) { NanInfCount++; _obs[i] = 0f; }
                 long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 (Recovering ? _recover : _brain).Run(_obs, _ctrlF, _actionRaw);
                 float ms = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency;
                 BrainMs += (ms - BrainMs) * 0.05f;
-                for (int i = 0; i < _ctrl.Length; i++) _ctrl[i] = _ctrlF[i];
+                for (int i = 0; i < _ctrl.Length; i++)
+                {
+                    if (!float.IsFinite(_ctrlF[i])) { NanInfCount++; _ctrl[i] = Binding.DefaultPos[i]; }
+                    else _ctrl[i] = _ctrlF[i];
+                    if (!float.IsFinite(_actionRaw[i])) { NanInfCount++; _actionRaw[i] = 0f; }
+                }
             }
             Array.Copy(_actionRaw, _lastAction, _lastAction.Length);
             if (ActionLog.Active)
