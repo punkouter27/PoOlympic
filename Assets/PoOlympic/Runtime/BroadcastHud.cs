@@ -41,7 +41,10 @@ namespace PoOlympic
         public string title = "EVENT";
         public string subtitle = "Event";
         public int eventNumber;
-        public string version = HudAnchors.BuildStamp;
+        // The brains this scene runs (scenes serialize e.g. "v0 · rung2 + zombie_rung2"). HudAnchors turns an empty
+        // or "v0…" value into the YYMMDD build stamp. Not initialised from HudAnchors.BuildStamp: that is a
+        // Resources.Load, which Unity refuses in a field initializer (it threw on every scene load).
+        public string version = "";
         public TextAsset oddsModel;
         public StyleSheet style;
         [Tooltip("Betting slip before every heat (holds the start up to betWindowSeconds). Off by default (user, " +
