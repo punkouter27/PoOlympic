@@ -69,7 +69,8 @@ namespace PoOlympic.Tests
                 var cmd = track.BrawlCommand(myY: 1.22, laneOriginY: 1.22, rivalY: 0.0, yaw: 0.0, baseVx: 3.5f, contract);
                 Assert.Greater(cmd.x, 3.5f, "track brawler surges forward speed when alongside a rival");
                 Assert.Less(cmd.z, 0f, "track brawler steers toward rival on the right (y = 0 < 1.22)");
-                Assert.AreEqual("261111", HudAnchors.BuildStamp, "BR build watermark matches YYMMDD");
+                // The stamp is the build date, so check its YYMMDD shape rather than a date that goes stale.
+                StringAssert.IsMatch(@"^\d{6}$", HudAnchors.BuildStamp, "BR build watermark matches YYMMDD");
             }
             finally { Object.DestroyImmediate(go); }
         }

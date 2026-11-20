@@ -22,7 +22,11 @@ namespace PoOlympic.Tests
     {
         static IEnumerable<string> EventScenes() => PoOlympic.Editor.EventScenes.EventScenePaths.Values.Distinct().OrderBy(p => p);
 
-        // roster scenes hold 3 bodies per lane (24 athletes, 145,656 part pairs): ~1 min each, up to 5 min on a busy editor
+        // roster scenes hold 3 bodies per lane (24 athletes, 145,656 part pairs): ~1 min each, up to 5 min on a busy editor.
+        // Explicit (2026-11-19): measured at over 5 min for the first scene alone, so every default EditMode run sat in this
+        // fixture for an hour or more and looked hung. Run it by name (-testFilter PoOlympic.Tests.CrowdContactTests);
+        // training/tools/check_crowd_contacts.py makes the same check on the MJCF.
+        [Explicit("Slow exhaustive check (minutes per scene); run by name")]
         [TestCaseSource(nameof(EventScenes))]
         [Timeout(900000)]
         public void EveryPartCollidesWithEveryPartOfTheOtherLanes(string scenePath)
