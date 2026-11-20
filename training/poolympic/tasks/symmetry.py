@@ -40,18 +40,24 @@ def _obs_maps() -> tuple[list[int], list[float]]:
     off = 0
     for name, size in C.OBS_LAYOUT:
         if name in ("base_lin_vel_heading", "projected_gravity"):
-            idx += [off, off + 1, off + 2]; sgn += [1, -1, 1]
+            idx += [off, off + 1, off + 2]
+            sgn += [1, -1, 1]
         elif name == "base_ang_vel_local":
-            idx += [off, off + 1, off + 2]; sgn += [-1, 1, -1]
+            idx += [off, off + 1, off + 2]
+            sgn += [-1, 1, -1]
         elif name == "base_height":
-            idx += [off]; sgn += [1]
+            idx += [off]
+            sgn += [1]
         elif name == "command":
-            idx += [off, off + 1, off + 2]; sgn += [1, -1, -1]
+            idx += [off, off + 1, off + 2]
+            sgn += [1, -1, -1]
         elif name == "gait_phase_sincos":
-            idx += [off, off + 1]; sgn += [-1, -1]
+            idx += [off, off + 1]
+            sgn += [-1, -1]
         else:  # joint blocks
             assert size == len(_NAMES), name
-            idx += [off + p for p in PERM]; sgn += SIGN
+            idx += [off + p for p in PERM]
+            sgn += SIGN
         off += size
     assert off == C.OBS_DIM and len(lay) == len(C.OBS_LAYOUT)
     return idx, sgn
@@ -73,11 +79,17 @@ _PRIV_PERM, _PRIV_SIGN = [2, 3, 0, 1, 4, 5, 6, 7], [1, 1, 1, 1, 1, 1, 1, -1]
 
 def _tails() -> dict:
     from .mdp import PRIV_DIM
+
     assert len(_PRIV_PERM) == PRIV_DIM
     fat = (list(range(_S, _S + C.FATIGUE_DIM)), [1] * C.FATIGUE_DIM)
     priv = lambda o: ([o + p for p in _PRIV_PERM], _PRIV_SIGN)  # noqa: E731
-    return {C.OBS_DIM: ([], []), C.OBS_DIM_V4: (SKILL_IDX, SKILL_SIGN), C.OBS_DIM_V5: fat, _S + PRIV_DIM: priv(_S),
-            C.OBS_DIM_V5 + PRIV_DIM: (fat[0] + priv(C.OBS_DIM_V5)[0], fat[1] + _PRIV_SIGN)}
+    return {
+        C.OBS_DIM: ([], []),
+        C.OBS_DIM_V4: (SKILL_IDX, SKILL_SIGN),
+        C.OBS_DIM_V5: fat,
+        _S + PRIV_DIM: priv(_S),
+        C.OBS_DIM_V5 + PRIV_DIM: (fat[0] + priv(C.OBS_DIM_V5)[0], fat[1] + _PRIV_SIGN),
+    }
 
 
 TAILS = _tails()
@@ -102,7 +114,7 @@ def mirror_obs(x: torch.Tensor) -> torch.Tensor:
     # standing sample carry phase 0.5 — an impossible state.) v4: a march cadence > 0 runs the clock too.
     moving = x[..., CMD_SLICE].norm(dim=-1, keepdim=True) >= C.PHASE_CMD_THRESHOLD
     if v4:
-        moving = moving | (x[..., MARCH_HZ:MARCH_HZ + 1] > 0)
+        moving = moving | (x[..., MARCH_HZ : MARCH_HZ + 1] > 0)
     y[..., PHASE_SLICE] = torch.where(moving, y[..., PHASE_SLICE], x[..., PHASE_SLICE])
     return y
 
@@ -129,6 +141,7 @@ def augment(env=None, obs=None, actions=None):
 
 def _runner_base():
     from mjlab.rl import MjlabOnPolicyRunner
+
     return MjlabOnPolicyRunner
 
 

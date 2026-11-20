@@ -32,27 +32,32 @@ from mjlab.envs import ManagerBasedRlEnv  # noqa: E402
 def make_cfg(task: str):
     if task.endswith("_v5") and "rung" in task:
         from poolympic.tasks import matt_env
+
         return getattr(matt_env, f"matt_{task}_env_cfg")()
     if task == "stance":
         from poolympic.tasks.stance_env import matt_stance_env_cfg
+
         return matt_stance_env_cfg()
     from poolympic.tasks import matt_env
+
     return getattr(matt_env, f"matt_{task}_env_cfg")()
 
 
 def load_actor(ckpt: Path, obs_dim: int, device: str):
     """rsl_rl actor: mlp((obs - mean) / (std + 0.01)); a checkpoint with fewer inputs gets zero columns (Rung S warm start)."""
     from poolympic.policy_export import make_mlp
+
     sd = torch.load(ckpt, map_location=device, weights_only=False)["actor_state_dict"]
     mean, std = sd["obs_normalizer._mean"][0], sd["obs_normalizer._std"][0] + 1e-2
     n = mean.shape[0]
     mlp = make_mlp(n).to(device)
-    mlp.load_state_dict({k[len("mlp."):]: v for k, v in sd.items() if k.startswith("mlp.")})
+    mlp.load_state_dict({k[len("mlp.") :]: v for k, v in sd.items() if k.startswith("mlp.")})
     mlp.eval()
 
     @torch.no_grad()
     def act(obs):
         return mlp((obs[:, :n] - mean) / std)
+
     return act
 
 
@@ -68,9 +73,9 @@ def apply_knobs(cfg, a):
         cfg.sim.nconmax = a.nconmax
     if a.cubes is not None:
         names = [n for n in cfg.scene.entities if n.startswith("cube")]
-        for n in names[a.cubes:]:
+        for n in names[a.cubes :]:
             cfg.scene.entities.pop(n)
-        keep = tuple(names[:a.cubes])
+        keep = tuple(names[: a.cubes])
         if keep:
             cfg.events["drop_cube"].params["cube_names"] = keep
         else:
@@ -97,14 +102,19 @@ class Timers:
             self.t[label] += time.perf_counter() - t0
             self.n[label] += 1
             return out
+
         setattr(obj, attr, timed)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="rung2_sym5")
-    ap.add_argument("--ckpt", type=Path, required=True,
-                    help="rsl_rl checkpoint that drives the envs (model_XXXX.pt of the same body; 84 or 95 inputs)")
+    ap.add_argument(
+        "--ckpt",
+        type=Path,
+        required=True,
+        help="rsl_rl checkpoint that drives the envs (model_XXXX.pt of the same body; 84 or 95 inputs)",
+    )
     ap.add_argument("--envs", type=int, default=4096)
     ap.add_argument("--steps", type=int, default=240, help="policy steps timed (24 = one PPO iteration)")
     ap.add_argument("--warmup", type=int, default=60)
@@ -150,23 +160,40 @@ def main() -> int:
     sps = a.envs * a.steps / wall
     peak_con, peak_efc, niter = run(48, track=True)
 
-    res = {"task": a.task, "envs": a.envs, "steps_per_s": round(sps), "s_per_ppo_collection": round(24 * wall / a.steps, 3),
-           "solver_iters_mean": round(niter, 2), "peak_contacts_per_world": round(peak_con / a.envs, 1),
-           "peak_nefc_world": peak_efc, "gpu_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2),
-           "knobs": {k: getattr(a, k) for k in ("tolerance", "iterations", "ls_iterations", "ls_tolerance", "njmax",
-                                                 "nconmax", "cubes") if getattr(a, k) is not None}}
+    res = {
+        "task": a.task,
+        "envs": a.envs,
+        "steps_per_s": round(sps),
+        "s_per_ppo_collection": round(24 * wall / a.steps, 3),
+        "solver_iters_mean": round(niter, 2),
+        "peak_contacts_per_world": round(peak_con / a.envs, 1),
+        "peak_nefc_world": peak_efc,
+        "gpu_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2),
+        "knobs": {
+            k: getattr(a, k)
+            for k in ("tolerance", "iterations", "ls_iterations", "ls_tolerance", "njmax", "nconmax", "cubes")
+            if getattr(a, k) is not None
+        },
+    }
 
     if not a.no_breakdown:
         T = Timers()
         for obj, attr, label in [
-            (env.sim, "step", "physics (mj_step graph)"), (env.sim, "forward", "physics (forward graph)"),
-            (env.sim, "sense", "sensors"), (env.scene, "update", "scene.update"),
-            (env.scene, "write_data_to_sim", "scene.write"), (env.action_manager, "apply_action", "actions"),
+            (env.sim, "step", "physics (mj_step graph)"),
+            (env.sim, "forward", "physics (forward graph)"),
+            (env.sim, "sense", "sensors"),
+            (env.scene, "update", "scene.update"),
+            (env.scene, "write_data_to_sim", "scene.write"),
+            (env.action_manager, "apply_action", "actions"),
             (env.action_manager, "process_action", "actions"),
-            (env.termination_manager, "compute", "terminations"), (env.reward_manager, "compute", "rewards"),
-            (env.metrics_manager, "compute", "metrics"), (env.metrics_manager, "compute_substep", "metrics"),
-            (env.event_manager, "apply", "events"), (env, "_reset_idx", "resets"),
-            (env.command_manager, "compute", "commands"), (env.observation_manager, "compute", "observations"),
+            (env.termination_manager, "compute", "terminations"),
+            (env.reward_manager, "compute", "rewards"),
+            (env.metrics_manager, "compute", "metrics"),
+            (env.metrics_manager, "compute_substep", "metrics"),
+            (env.event_manager, "apply", "events"),
+            (env, "_reset_idx", "resets"),
+            (env.command_manager, "compute", "commands"),
+            (env.observation_manager, "compute", "observations"),
         ]:
             T.wrap(obj, attr, label)
         rm = env.reward_manager
@@ -189,12 +216,18 @@ def main() -> int:
         total = time.perf_counter() - t0
         top = {k: v for k, v in T.t.items() if not k.startswith("reward:")}
         res["breakdown_pct"] = {k: round(100 * v / total, 1) for k, v in sorted(top.items(), key=lambda kv: -kv[1])}
-        res["reward_terms_ms_per_step"] = {k[7:]: round(1e3 * v / n, 2)
-                                           for k, v in sorted(T.t.items(), key=lambda kv: -kv[1]) if k.startswith("reward:")}
+        res["reward_terms_ms_per_step"] = {
+            k[7:]: round(1e3 * v / n, 2)
+            for k, v in sorted(T.t.items(), key=lambda kv: -kv[1])
+            if k.startswith("reward:")
+        }
 
-    rm = env.reward_manager                      # weighted per-step value of every term on the current state
-    res["reward_terms_weighted_mean"] = {n: round(float(tc.func(env, **tc.params).float().mean()) * tc.weight, 4)
-                                         for n, tc in zip(rm._term_names, rm._term_cfgs) if n != "terminated"}
+    rm = env.reward_manager  # weighted per-step value of every term on the current state
+    res["reward_terms_weighted_mean"] = {
+        n: round(float(tc.func(env, **tc.params).float().mean()) * tc.weight, 4)
+        for n, tc in zip(rm._term_names, rm._term_cfgs)
+        if n != "terminated"
+    }
     print(json.dumps(res, indent=1))
     if a.json:
         with a.json.open("a") as fh:

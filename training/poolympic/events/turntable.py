@@ -12,25 +12,25 @@ Rank by score; fallers / DQs / unfinished after them. Traits as in the Iron Pede
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import math
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import mujoco
 import numpy as np
-import onnxruntime as ort
+import onnxruntime as ort  # noqa: F401  (kept from before the lint pass)
 
 from .. import action_log as AL
 from .. import contract as C
-from .iron_pedestal import Traits, _Lane, make_lanes
+from .iron_pedestal import Traits, make_lanes
 
 SCENE = C.ROOT / "assets" / "scene_turntable8.xml"
 LAYOUT = C.ROOT / "assets" / "turntable8_layout.json"
-WZ = 3.0               # rad/s — Rung 2 training envelope top (the G1 turntable drill uses 2.5)
+WZ = 3.0  # rad/s — Rung 2 training envelope top (the G1 turntable drill uses 2.5)
 TURNS = 3
-DRIFT_PENALTY = 2.0    # s per metre of max drift
-RING_R = 0.75          # m — knocked onto a neighbour's spot (= the ring pitch, build_venues.SPIN_PITCH) = DQ
-START_S = 0.5          # s of zero command before GO (same as the Unity countdown hand-off)
+DRIFT_PENALTY = 2.0  # s per metre of max drift
+RING_R = 0.75  # m — knocked onto a neighbour's spot (= the ring pitch, build_venues.SPIN_PITCH) = DQ
+START_S = 0.5  # s of zero command before GO (same as the Unity countdown hand-off)
 MAX_S = 15.0
 
 
@@ -38,10 +38,10 @@ MAX_S = 15.0
 class SpinLane:
     lane: int
     traits: Traits
-    time_s: float | None = None      # time to complete TURNS turns
+    time_s: float | None = None  # time to complete TURNS turns
     max_drift_m: float = 0.0
     score: float | None = None
-    status: str = ""                 # DONE / FELL / DQ / DNF
+    status: str = ""  # DONE / FELL / DQ / DNF
     place: int = 0
 
 
@@ -59,7 +59,9 @@ def heat_direction(seed: int) -> int:
 
 
 @AL.logged("event_turntable")
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None, brains: dict | None = None) -> SpinResult:
+def run_heat(
+    onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None, brains: dict | None = None
+) -> SpinResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -70,7 +72,7 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
     direction = heat_direction(seed)
     res = [SpinLane(ln.k, ln.traits) for ln in lanes]
     turned = [0.0] * len(lanes)
-    prev_yaw = [C.yaw_of(d.qpos[ln.ath.root_qposadr + 3: ln.ath.root_qposadr + 7]) for ln in lanes]
+    prev_yaw = [C.yaw_of(d.qpos[ln.ath.root_qposadr + 3 : ln.ath.root_qposadr + 7]) for ln in lanes]
     dt = m.opt.timestep * C.DECIMATION
     goal = TURNS * 2 * math.pi
     tick = 0
@@ -88,7 +90,7 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
         for i, ln in enumerate(lanes):
             r = res[i]
             ra = ln.ath.root_qposadr
-            yaw = C.yaw_of(d.qpos[ra + 3: ra + 7])
+            yaw = C.yaw_of(d.qpos[ra + 3 : ra + 7])
             step = (yaw - prev_yaw[i] + math.pi) % (2 * math.pi) - math.pi
             prev_yaw[i] = yaw
             if r.status in ("FELL", "DQ"):
@@ -119,5 +121,9 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
 
 
 def to_json(res: SpinResult) -> dict:
-    return {"seed": res.seed, "direction": res.direction, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "direction": res.direction,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

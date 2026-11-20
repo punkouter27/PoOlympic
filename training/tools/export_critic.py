@@ -46,7 +46,7 @@ class Critic(nn.Module):
             d = h
         layers.append(nn.Linear(d, 1))
         self.mlp = nn.Sequential(*layers)
-        self.mlp.load_state_dict({k[len("mlp."):]: v for k, v in sd.items() if k.startswith("mlp.")})
+        self.mlp.load_state_dict({k[len("mlp.") :]: v for k, v in sd.items() if k.startswith("mlp.")})
         self.register_buffer("mean", mean.float().reshape(1, -1))
         self.register_buffer("std", (std.float() + EPS).reshape(1, -1))
 
@@ -66,13 +66,27 @@ def export_one(brain: str) -> Path:
     actor_dim = state["actor_state_dict"]["obs_normalizer._mean"].shape[1]
     assert obs_dim == actor_dim, (
         f"{name}: the critic reads {obs_dim} inputs, the actor {actor_dim} — a privileged (asymmetric) critic cannot be "
-        "the Unity confidence critic (Unity has only the actor's observation)")
+        "the Unity confidence critic (Unity has only the actor's observation)"
+    )
     out = BRAINS / f"{name}.critic.onnx"
-    torch.onnx.export(critic, (torch.zeros(1, obs_dim),), str(out), input_names=["obs"], output_names=["value"],
-                      opset_version=OPSET, dynamic_axes=None, dynamo=False)
+    torch.onnx.export(
+        critic,
+        (torch.zeros(1, obs_dim),),
+        str(out),
+        input_names=["obs"],
+        output_names=["value"],
+        opset_version=OPSET,
+        dynamic_axes=None,
+        dynamo=False,
+    )
     model = onnx.load(str(out))
-    meta = {"poolympic.name": f"{name}.critic", "poolympic.brain": name, "poolympic.checkpoint": side["checkpoint"],
-            "poolympic.fingerprint_sha256": side.get("fingerprint_sha256", ""), "poolympic.obs_dim": str(obs_dim)}
+    meta = {
+        "poolympic.name": f"{name}.critic",
+        "poolympic.brain": name,
+        "poolympic.checkpoint": side["checkpoint"],
+        "poolympic.fingerprint_sha256": side.get("fingerprint_sha256", ""),
+        "poolympic.obs_dim": str(obs_dim),
+    }
     for k, v in meta.items():
         e = model.metadata_props.add()
         e.key, e.value = k, v

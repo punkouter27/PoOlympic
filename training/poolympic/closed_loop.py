@@ -19,7 +19,7 @@ import numpy as np
 from . import bodies
 from .events.iron_pedestal import body_fall_z
 from .meet import SOLO, Lane
-from .reference import PARITY
+from .reference import PARITY  # noqa: F401  (re-exported for tools/compare_closed_loop.py)
 
 FALL_Z = 0.55
 
@@ -106,7 +106,9 @@ def g5_compare(ref: dict, uni: dict, ref_name: str, uni_name: str) -> dict:
     torque_ratio = float(ut / rt) if rt > 0 else 1.0
 
     obs_diff = float(np.abs(np.array([f["obs"] for f in rf[:n]]) - np.array([f["obs"] for f in uf[:n]])).max())
-    act_diff = float(np.abs(np.array([f["action_raw"] for f in rf[:n]]) - np.array([f["action_raw"] for f in uf[:n]])).max())
+    act_diff = float(
+        np.abs(np.array([f["action_raw"] for f in rf[:n]]) - np.array([f["action_raw"] for f in uf[:n]])).max()
+    )
 
     hip = ref["meta"]["actuators"].index("hip_flex_l"), ref["meta"]["actuators"].index("hip_flex_r")
     ro = np.array([f["obs"] for f in rf[:n]])
@@ -116,20 +118,34 @@ def g5_compare(ref: dict, uni: dict, ref_name: str, uni_name: str) -> dict:
     cu = cadence_hz(uo[:, jp + hip[0]] - uo[:, jp + hip[1]], dt)
     cadence_ok = True if cr is None else (cu is not None and abs(cu - cr) / cr <= 0.05)
 
-    checks = {k: bool(v) for k, v in {
-        "same_fall_outcome": same_fall,
-        "pelvis_height_rms_lt_3cm": height_rms < 0.03,
-        "mean_abs_torque_within_10pct": abs(torque_ratio - 1.0) <= 0.10,
-        "cadence_within_5pct": cadence_ok,
-    }.items()}
+    checks = {
+        k: bool(v)
+        for k, v in {
+            "same_fall_outcome": same_fall,
+            "pelvis_height_rms_lt_3cm": height_rms < 0.03,
+            "mean_abs_torque_within_10pct": abs(torque_ratio - 1.0) <= 0.10,
+            "cadence_within_5pct": cadence_ok,
+        }.items()
+    }
     report = {
-        "reference": ref_name, "unity_run": uni_name, "body": body, "frames": n,
-        "fall_time_ref": fr, "fall_time_unity": fu,
-        "pelvis_height_rms_m": height_rms, "mean_abs_torque_ref": float(rt), "mean_abs_torque_unity": float(ut),
-        "torque_ratio": torque_ratio, "cadence_ref_hz": cr, "cadence_unity_hz": cu,
-        "qpos_max_abs_drift_1s": float(drift[: int(round(1.0 / dt)) + 1].max()), "qpos_max_abs_drift_5s": float(drift.max()),
+        "reference": ref_name,
+        "unity_run": uni_name,
+        "body": body,
+        "frames": n,
+        "fall_time_ref": fr,
+        "fall_time_unity": fu,
+        "pelvis_height_rms_m": height_rms,
+        "mean_abs_torque_ref": float(rt),
+        "mean_abs_torque_unity": float(ut),
+        "torque_ratio": torque_ratio,
+        "cadence_ref_hz": cr,
+        "cadence_unity_hz": cu,
+        "qpos_max_abs_drift_1s": float(drift[: int(round(1.0 / dt)) + 1].max()),
+        "qpos_max_abs_drift_5s": float(drift.max()),
         "cube_qpos_max_abs_drift_after_fire": cube_drift,
-        "obs_max_abs_diff": obs_diff, "action_raw_max_abs_diff": act_diff,
-        "checks": checks, "G5_pass": all(checks.values()),
+        "obs_max_abs_diff": obs_diff,
+        "action_raw_max_abs_diff": act_diff,
+        "checks": checks,
+        "G5_pass": all(checks.values()),
     }
     return report

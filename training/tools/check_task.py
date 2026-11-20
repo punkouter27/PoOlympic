@@ -21,20 +21,39 @@ sys.path.insert(0, str(ROOT))
 from mjlab.envs import ManagerBasedRlEnv  # noqa: E402
 
 from poolympic import contract as C  # noqa: E402
-from poolympic.tasks.matt_env import matt_rung2_sym3_env_cfg, matt_pedestal2_env_cfg, matt_pedestal_env_cfg, matt_rung0_env_cfg, matt_rung1_env_cfg, matt_rung2_env_cfg  # noqa: E402
+from poolympic.tasks.matt_env import (  # noqa: E402
+    matt_pedestal2_env_cfg,
+    matt_pedestal_env_cfg,
+    matt_rung0_env_cfg,
+    matt_rung1_env_cfg,
+    matt_rung2_env_cfg,
+    matt_rung2_sym3_env_cfg,
+)
+
 
 def _stance():
     from poolympic.tasks.stance_env import matt_stance_env_cfg
+
     return matt_stance_env_cfg()
 
 
-TASKS = {"stance": _stance, "rung0": matt_rung0_env_cfg, "rung1": matt_rung1_env_cfg, "rung2": matt_rung2_env_cfg, "pedestal": matt_pedestal_env_cfg, "pedestal2": matt_pedestal2_env_cfg, "rung2_sym3": matt_rung2_sym3_env_cfg}
+TASKS = {
+    "stance": _stance,
+    "rung0": matt_rung0_env_cfg,
+    "rung1": matt_rung1_env_cfg,
+    "rung2": matt_rung2_env_cfg,
+    "pedestal": matt_pedestal_env_cfg,
+    "pedestal2": matt_pedestal2_env_cfg,
+    "rung2_sym3": matt_rung2_sym3_env_cfg,
+}
 
 
 def _zombie(rung: str):
-    def make():   # needs POOLYMPIC_BODY=zombie (zombie_env checks)
+    def make():  # needs POOLYMPIC_BODY=zombie (zombie_env checks)
         from poolympic.tasks import zombie_env
+
         return getattr(zombie_env, f"zombie_{rung}_env_cfg")()
+
     return make
 
 
@@ -42,9 +61,11 @@ TASKS.update({f"zombie_{r}": _zombie(r) for r in ("rung0", "rung1", "rung2", "ru
 
 
 def _grandma(rung: str):
-    def make():   # needs POOLYMPIC_BODY=grandma
+    def make():  # needs POOLYMPIC_BODY=grandma
         from poolympic.tasks import grandma_env
+
         return getattr(grandma_env, f"grandma_{rung}_env_cfg")()
+
     return make
 
 
@@ -52,9 +73,11 @@ TASKS.update({f"grandma_{r}": _grandma(r) for r in ("rung0", "rung1", "rung2_bas
 
 
 def _kim(rung: str):
-    def make():   # needs POOLYMPIC_BODY=kim
+    def make():  # needs POOLYMPIC_BODY=kim
         from poolympic.tasks import kim_env
+
         return getattr(kim_env, f"kim_{rung}_env_cfg")()
+
     return make
 
 
@@ -66,21 +89,28 @@ def check_skill_measures(env, m) -> bool:
     states — training rewards and G1 drills measure the same thing."""
     from poolympic import skills as K
     from poolympic.tasks import skill_mdp as S
+
     sb = K.SkillBodies.bind(m, prefix="robot/", keyframe=None, ground="terrain")
     d = mujoco.MjData(m)
     qpos = env.sim.data.qpos.cpu().numpy().astype(np.float64)
     aim = S.measure_torso_aim(env).cpu().numpy()
     worst_aim = worst_hand = worst_knee = 0.0
     knee = (S.measure_knee_rise(env) + torch.as_tensor(S.SKILL_GEOM["knee_z0"], device=env.device)).cpu().numpy()
-    hands = {a: S.measure_hand(env, torch.full((env.num_envs,), float(a), device=env.device)).cpu().numpy() for a in (-1, 1)}
+    hands = {
+        a: S.measure_hand(env, torch.full((env.num_envs,), float(a), device=env.device)).cpu().numpy() for a in (-1, 1)
+    }
     for e in range(env.num_envs):
         d.qpos[:] = qpos[e]
         mujoco.mj_kinematics(m, d)
         worst_aim = max(worst_aim, float(np.abs(np.array(K.torso_aim(d, sb)) - aim[e]).max()))
         for a in (-1, 1):
             worst_hand = max(worst_hand, float(np.abs(K.hand_in_heading(d, sb, a) - hands[a][e]).max()))
-        worst_knee = max(worst_knee, float(np.abs(np.array([d.xpos[sb.shin[0]][2], d.xpos[sb.shin[1]][2]]) - knee[e]).max()))
-    print(f"skill measures torch vs numpy: torso aim {worst_aim:.1e} rad, hand {worst_hand:.1e} m, knee {worst_knee:.1e} m")
+        worst_knee = max(
+            worst_knee, float(np.abs(np.array([d.xpos[sb.shin[0]][2], d.xpos[sb.shin[1]][2]]) - knee[e]).max())
+        )
+    print(
+        f"skill measures torch vs numpy: torso aim {worst_aim:.1e} rad, hand {worst_hand:.1e} m, knee {worst_knee:.1e} m"
+    )
     modes = torch.bincount(env.command_manager.get_term("athlete").mode, minlength=len(S.SKILL_MODES)).tolist()
     print(f"skill modes in {env.num_envs} envs: {dict(zip(S.SKILL_MODES, modes))}")
     return worst_aim < 1e-4 and worst_hand < 1e-4 and worst_knee < 1e-4
@@ -96,8 +126,19 @@ def main(task: str = "rung0") -> int:
     ok = True
 
     ref = mujoco.MjModel.from_xml_path(str(C.SCENE_XML))
-    for f in ("timestep", "iterations", "ls_iterations", "integrator", "cone", "solver", "jacobian", "disableflags",
-              "tolerance", "ls_tolerance", "impratio"):
+    for f in (
+        "timestep",
+        "iterations",
+        "ls_iterations",
+        "integrator",
+        "cone",
+        "solver",
+        "jacobian",
+        "disableflags",
+        "tolerance",
+        "ls_tolerance",
+        "impratio",
+    ):
         a, b = getattr(m.opt, f), getattr(ref.opt, f)
         same = np.allclose(a, b)
         ok &= bool(same)
@@ -107,7 +148,9 @@ def main(task: str = "rung0") -> int:
     ok &= m.geom_contype[g] == 0xFFFF and m.geom_conaffinity[g] == 0xFFFF
     for n in ("robot/foot_l_geom0", "robot/torso_geom0", "cube0/cube_geom"):
         gi = m.geom(n).id
-        print(f"{n:22s} contype={m.geom_contype[gi]} conaffinity={m.geom_conaffinity[gi]} friction={m.geom_friction[gi]}")
+        print(
+            f"{n:22s} contype={m.geom_contype[gi]} conaffinity={m.geom_conaffinity[gi]} friction={m.geom_friction[gi]}"
+        )
 
     obs, _ = env.reset()
     ath_names = [m.actuator(i).name for i in range(m.nu)]
@@ -128,20 +171,29 @@ def main(task: str = "rung0") -> int:
         policy_obs = obs["actor"].cpu().numpy()
         cmds = term.command.cpu().numpy().astype(np.float64)
         ep = env.episode_length_buf.cpu().numpy()
-        skills = term.skill.cpu().numpy().astype(np.float64) if hasattr(term, "skill") else None   # Rung S (v4)
+        skills = term.skill.cpu().numpy().astype(np.float64) if hasattr(term, "skill") else None  # Rung S (v4)
         for e in range(env.num_envs):
             sk = None if skills is None else skills[e]
             py_phase[e] = C.advance_phase(0.0 if ep[e] == 0 else py_phase[e], cmds[e], C.skill_cadence(sk))
             worst_phase = max(worst_phase, abs(py_phase[e] - float(term.phase[e])) % 1.0)
-            ref_obs = C.build_obs(ath, qpos[e], qvel[e], term.command[e].cpu().numpy().astype(np.float64),
-                                  float(term.phase[e]), last[e], sk)
+            ref_obs = C.build_obs(
+                ath,
+                qpos[e],
+                qvel[e],
+                term.command[e].cpu().numpy().astype(np.float64),
+                float(term.phase[e]),
+                last[e],
+                sk,
+            )
             worst_obs = max(worst_obs, float(np.abs(policy_obs[e] - ref_obs).max()))
             # ctrl written during the last substep = clip(default + scale·a) (delay may hold older targets: skip delayed envs)
             want = C.action_to_ctrl(ath, a[e].cpu().numpy().astype(np.float64))
             worst_ctrl = max(worst_ctrl, float(np.abs(ctrl[e][ath.actuator_ids] - want).min()))
     print(f"obs max |train - contract| = {worst_obs:.2e}   (float32 Warp vs float64 reference)")
     ok &= worst_obs < 1e-3
-    print(f"phase clock max |train - contract.advance_phase| = {worst_phase:.2e}  (commands nonzero: {bool(np.abs(cmds).sum() > 0)})")
+    print(
+        f"phase clock max |train - contract.advance_phase| = {worst_phase:.2e}  (commands nonzero: {bool(np.abs(cmds).sum() > 0)})"
+    )
     ok &= worst_phase < 1e-4
     print(f"actuator order: {ath_names[:4]} …")
     if hasattr(env.command_manager.get_term("athlete"), "skill"):

@@ -34,7 +34,7 @@ def solo_equivalent(fp: dict) -> dict:
         if key not in ("ground", "cube_geom"):
             g["contype"] = g["conaffinity"] = None
     out["bodies"]["pelvis"]["pos"] = None
-    out["geoms"]["ground"]["pos"] = None       # the pedestal scenes lower the ground to -0.5 m
+    out["geoms"]["ground"]["pos"] = None  # the pedestal scenes lower the ground to -0.5 m
     # lane-owned props (event 5 shaker platform: body + geom + x/y slide joints, prefixed like the athlete) are not part
     # of the solo athlete; G0 still compares them Python vs Unity
     for kind in ("bodies", "geoms", "joints"):
@@ -56,7 +56,10 @@ def g0(scene: str = "meet8") -> int:
     lanes = [meet.Lane(l["lane"], l["prefix"], None, tuple(l["cubes"])) for l in layout["lanes"]]
     body_of = {l["lane"]: l.get("body", "matt") for l in layout["lanes"]}
     mm = mujoco.MjModel.from_xml_path(str(xml))
-    solos = {b: F.fingerprint(mujoco.MjModel.from_xml_path(str(ROOT / "assets" / f"scene_{b}.xml"))) for b in set(body_of.values())}
+    solos = {
+        b: F.fingerprint(mujoco.MjModel.from_xml_path(str(ROOT / "assets" / f"scene_{b}.xml")))
+        for b in set(body_of.values())
+    }
     ok = True
     for lane in lanes:
         solo = solos[body_of[lane.lane]]
@@ -66,8 +69,10 @@ def g0(scene: str = "meet8") -> int:
         errs += F.compare(F.normalize_for_compare(py), F.normalize_for_compare(uni))
         same = F.compare(solo_equivalent(solo), solo_equivalent(py))
         bits = {g["contype"] for key, g in py["geoms"].items() if key not in ("ground", "cube_geom")}
-        print(f"L{lane.lane} {body_of[lane.lane]}: G0 {'PASS' if not errs else 'FAIL'} ({len(errs)} mismatches)  "
-              f"== solo athlete: {'yes' if not same else f'NO ({len(same)})'}  contype bits {sorted(bits)}")
+        print(
+            f"L{lane.lane} {body_of[lane.lane]}: G0 {'PASS' if not errs else 'FAIL'} ({len(errs)} mismatches)  "
+            f"== solo athlete: {'yes' if not same else f'NO ({len(same)})'}  contype bits {sorted(bits)}"
+        )
         for e in (errs + same)[:10]:
             print("   ", e)
         ok &= not errs and not same
@@ -85,10 +90,12 @@ def g6(name: str) -> int:
         r = g5_compare(ref, run, pl["reference"], f"g6_{name}_L{k}")
         report["lanes"][f"L{k}"] = r
         fails = [c for c, v in r["checks"].items() if not v]
-        print(f"L{k} cmd={pl['command']}: drift1s={r['qpos_max_abs_drift_1s']:.1e} drift5s={r['qpos_max_abs_drift_5s']:.1e} "
-              f"cube={r['cube_qpos_max_abs_drift_after_fire']:.1e} height_rms={r['pelvis_height_rms_m']:.1e} "
-              f"torque={r['torque_ratio']:.4f} fall={r['fall_time_ref']}/{r['fall_time_unity']} "
-              f"-> {'PASS' if r['G5_pass'] else 'FAIL ' + ','.join(fails)}")
+        print(
+            f"L{k} cmd={pl['command']}: drift1s={r['qpos_max_abs_drift_1s']:.1e} drift5s={r['qpos_max_abs_drift_5s']:.1e} "
+            f"cube={r['cube_qpos_max_abs_drift_after_fire']:.1e} height_rms={r['pelvis_height_rms_m']:.1e} "
+            f"torque={r['torque_ratio']:.4f} fall={r['fall_time_ref']}/{r['fall_time_unity']} "
+            f"-> {'PASS' if r['G5_pass'] else 'FAIL ' + ','.join(fails)}"
+        )
     report["G6_pass"] = all(r["G5_pass"] for r in report["lanes"].values())
     (PARITY / f"g6_report_{name}_unity.json").write_text(json.dumps(report, indent=1))
     print("G6", "PASS" if report["G6_pass"] else "FAIL")

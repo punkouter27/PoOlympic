@@ -24,11 +24,13 @@ GLTF_TO_MJ = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
 
 def _quat_xyzw_to_mat(q) -> np.ndarray:
     x, y, z, w = q
-    return np.array([
-        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
-    ])
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ]
+    )
 
 
 def _node_local(node: dict) -> np.ndarray:
@@ -115,12 +117,14 @@ class Glb:
                 mesh = self.gltf["meshes"][n["mesh"]]
                 for prim in mesh["primitives"]:
                     a = prim["attributes"]
-                    skin.meshes.append(SkinnedMesh(
-                        name=mesh.get("name", f"mesh_{n['mesh']}"),
-                        positions=self.accessor(a["POSITION"]),
-                        joints=self.accessor(a["JOINTS_0"]),
-                        weights=self.accessor(a["WEIGHTS_0"]),
-                    ))
+                    skin.meshes.append(
+                        SkinnedMesh(
+                            name=mesh.get("name", f"mesh_{n['mesh']}"),
+                            positions=self.accessor(a["POSITION"]),
+                            joints=self.accessor(a["JOINTS_0"]),
+                            weights=self.accessor(a["WEIGHTS_0"]),
+                        )
+                    )
             out.append(skin)
         return out
 

@@ -36,7 +36,7 @@ class Lane:
     def joint(self, solo_name: str) -> str | None:
         """Meet joint name for a solo-scene joint name (None: a solo cube slot this lane does not own)."""
         if solo_name.startswith("cube"):
-            i = int(solo_name[4:-len("_free")])
+            i = int(solo_name[4 : -len("_free")])
             return f"cube{self.cubes[i]}_free" if i < len(self.cubes) else None
         return self.prefix + solo_name
 
@@ -82,9 +82,9 @@ def reset_lane(m: mujoco.MjModel, d: mujoco.MjData, lane: Lane, defaults: list[d
         if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE:
             q = q.copy()
             q[0:3] += lane.origin
-        d.qpos[qa: qa + len(q)] = q
+        d.qpos[qa : qa + len(q)] = q
         nv = 6 if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE else 1
-        d.qvel[da: da + nv] = 0.0
+        d.qvel[da : da + nv] = 0.0
     mujoco.mj_forward(m, d)
 
 
@@ -92,16 +92,21 @@ def recorded_joints(m: mujoco.MjModel, lane: Lane) -> list[int]:
     """Joints a lane records: its athlete (bodies under its pelvis) + its cube slots."""
     pelvis = m.body(lane.prefix + "pelvis").id
     cubes = {f"cube{c}_free" for c in lane.cubes}
-    return [j for j in range(m.njnt)
-            if m.body_rootid[m.jnt_bodyid[j]] == pelvis or m.joint(j).name in cubes]
+    return [j for j in range(m.njnt) if m.body_rootid[m.jnt_bodyid[j]] == pelvis or m.joint(j).name in cubes]
 
 
 def _dims(t: int) -> tuple[int, int]:
     return (7, 6) if t == 0 else (4, 3) if t == 1 else (1, 1)
 
 
-def rollout_meet(onnx_path: Path, plan: list[dict], seconds: float = 5.0, scene_xml: Path = MEET_XML,
-                 layout_json: Path = LAYOUT_JSON, brains: dict[str, Path] | None = None) -> dict[int, dict]:
+def rollout_meet(
+    onnx_path: Path,
+    plan: list[dict],
+    seconds: float = 5.0,
+    scene_xml: Path = MEET_XML,
+    layout_json: Path = LAYOUT_JSON,
+    brains: dict[str, Path] | None = None,
+) -> dict[int, dict]:
     """All lanes of `plan` (entries: lane, command, disturbances in lane-local terms) in one CPU meet scene.
     Mixed meets: each lane's body comes from the layout, with its brain (brains[body], default onnx_path), default pose
     and gait clock. Returns per-lane recordings in the Unity run format (PolicyRunner: state at tick start, previous
@@ -116,7 +121,9 @@ def rollout_meet(onnx_path: Path, plan: list[dict], seconds: float = 5.0, scene_
         lane = lanes[p["lane"]]
         body = body_of[lane.lane]
         if body not in sessions:
-            sessions[body] = ort.InferenceSession(str((brains or {}).get(body, onnx_path)), providers=["CPUExecutionProvider"])
+            sessions[body] = ort.InferenceSession(
+                str((brains or {}).get(body, onnx_path)), providers=["CPUExecutionProvider"]
+            )
         ct = json.loads(bodies.BODIES[body].contract_json.read_text())
         reset_lane(m, d, lane, ct["default_joint_qpos"] if body != C.BODY.name else default_joint_qpos())
         by_tick: dict[int, list[Disturbance]] = {}
@@ -124,17 +131,32 @@ def rollout_meet(onnx_path: Path, plan: list[dict], seconds: float = 5.0, scene_
             dist = lane.disturbance(Disturbance(**x))
             by_tick.setdefault(dist.tick, []).append(dist)
         rj = recorded_joints(m, lane)
-        st.append({"lane": lane, "ath": C.Athlete.bind(m, lane.prefix), "cmd": np.asarray(p["command"], float),
-                   "sess": sessions[body], "gait": None if body == C.BODY.name else C.body_gait(ct), "body": body,
-                   "phase": 0.0, "last": np.zeros(C.NUM_ACTIONS), "by_tick": by_tick, "joints": rj, "frames": []})
+        st.append(
+            {
+                "lane": lane,
+                "ath": C.Athlete.bind(m, lane.prefix),
+                "cmd": np.asarray(p["command"], float),
+                "sess": sessions[body],
+                "gait": None if body == C.BODY.name else C.body_gait(ct),
+                "body": body,
+                "phase": 0.0,
+                "last": np.zeros(C.NUM_ACTIONS),
+                "by_tick": by_tick,
+                "joints": rj,
+                "frames": [],
+            }
+        )
     n_ticks = int(round(seconds / (m.opt.timestep * C.DECIMATION)))
     for tick in range(n_ticks):
         for s in st:  # control step per lane (lanes only read/write their own state)
             ath = s["ath"]
             qpos, qvel = d.qpos.copy(), d.qvel.copy()
             force_prev = d.actuator_force[ath.actuator_ids].copy()
-            s["phase"] = (C.advance_phase(s["phase"], s["cmd"]) if s["gait"] is None
-                          else C.advance_phase_clock(s["phase"], s["cmd"], s["gait"]))
+            s["phase"] = (
+                C.advance_phase(s["phase"], s["cmd"])
+                if s["gait"] is None
+                else C.advance_phase_clock(s["phase"], s["cmd"], s["gait"])
+            )
             obs = C.build_obs(ath, qpos, qvel, s["cmd"], s["phase"], s["last"])
             ctrl, action_raw = s["sess"].run(None, {"obs": obs[None]})
             d.ctrl[ath.actuator_ids] = ctrl[0].astype(np.float64)
@@ -142,11 +164,19 @@ def rollout_meet(onnx_path: Path, plan: list[dict], seconds: float = 5.0, scene_
                 dist.apply(m, d)
             qi = [a for j in s["joints"] for a in range(m.jnt_qposadr[j], m.jnt_qposadr[j] + _dims(m.jnt_type[j])[0])]
             vi = [a for j in s["joints"] for a in range(m.jnt_dofadr[j], m.jnt_dofadr[j] + _dims(m.jnt_type[j])[1])]
-            s["frames"].append({"tick": tick, "t": tick * m.opt.timestep * C.DECIMATION, "phase": s["phase"],
-                                "qpos": qpos[qi].tolist(), "qvel": qvel[vi].tolist(),
-                                "actuator_force_prev": force_prev.tolist(), "obs": obs.astype(np.float64).tolist(),
-                                "action_raw": action_raw[0].astype(np.float64).tolist(),
-                                "ctrl": ctrl[0].astype(np.float64).tolist()})
+            s["frames"].append(
+                {
+                    "tick": tick,
+                    "t": tick * m.opt.timestep * C.DECIMATION,
+                    "phase": s["phase"],
+                    "qpos": qpos[qi].tolist(),
+                    "qvel": qvel[vi].tolist(),
+                    "actuator_force_prev": force_prev.tolist(),
+                    "obs": obs.astype(np.float64).tolist(),
+                    "action_raw": action_raw[0].astype(np.float64).tolist(),
+                    "ctrl": ctrl[0].astype(np.float64).tolist(),
+                }
+            )
             s["last"] = action_raw[0].astype(np.float64)
         for _ in range(C.DECIMATION):
             mujoco.mj_step(m, d)
@@ -157,9 +187,19 @@ def rollout_meet(onnx_path: Path, plan: list[dict], seconds: float = 5.0, scene_
             nq, nv = _dims(int(m.jnt_type[j]))
             joints.append({"name": m.joint(j).name, "type": int(m.jnt_type[j]), "qposadr": qa, "dofadr": da})
             qa, da = qa + nq, da + nv
-        out[lane.lane] = {"meta": {"source": "python_meet", **({} if s["body"] == "matt" else {"body": s["body"]}), "timestep": m.opt.timestep, "decimation": C.DECIMATION,
-                                   "prefix": lane.prefix, "origin": lane.origin.tolist(), "cube_slots": list(lane.cubes),
-                                   "joints": joints}, "frames": s["frames"]}
+        out[lane.lane] = {
+            "meta": {
+                "source": "python_meet",
+                **({} if s["body"] == "matt" else {"body": s["body"]}),
+                "timestep": m.opt.timestep,
+                "decimation": C.DECIMATION,
+                "prefix": lane.prefix,
+                "origin": lane.origin.tolist(),
+                "cube_slots": list(lane.cubes),
+                "joints": joints,
+            },
+            "frames": s["frames"],
+        }
     return out
 
 

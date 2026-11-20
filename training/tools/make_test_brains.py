@@ -50,8 +50,11 @@ def main() -> int:
     ath = C.Athlete.bind(mujoco.MjModel.from_xml_path(str(C.SCENE_XML)))
     print(f"fingerprint {fp_path.name} sha256={sha[:16]}…  contract.json written")
     ok = True
-    for kind, dim, version, name in (("zero", C.OBS_DIM, None, "zero_brain"), ("random", C.OBS_DIM, None, "random_brain"),
-                                     ("random", C.OBS_DIM_V4, C.SKILL_VERSION, "random_brain_v4")):
+    for kind, dim, version, name in (
+        ("zero", C.OBS_DIM, None, "zero_brain"),
+        ("random", C.OBS_DIM, None, "random_brain"),
+        ("random", C.OBS_DIM_V4, C.SKILL_VERSION, "random_brain_v4"),
+    ):
         pol = build(kind, ath, dim).eval()
         path = export(pol, OUT / f"{name}.onnx", standard_metadata(contract, name, version))
         sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
@@ -68,7 +71,9 @@ def main() -> int:
         if kind == "zero":
             ctrl, act = sess.run(None, {"obs": obs[:1]})
             assert np.abs(act).max() == 0.0 and np.allclose(ctrl[0], ath.default_pos, atol=1e-6)
-        print(f"{path.name}: ort-vs-torch {worst:.2e} | graph-vs-contract(float64) {worst_contract:.2e} | max|action_raw| {act_max:.2f}")
+        print(
+            f"{path.name}: ort-vs-torch {worst:.2e} | graph-vs-contract(float64) {worst_contract:.2e} | max|action_raw| {act_max:.2f}"
+        )
         ok &= worst < 1e-6 and worst_contract < 1e-6
     print("A11", "PASS" if ok else "FAIL")
     return 0 if ok else 1

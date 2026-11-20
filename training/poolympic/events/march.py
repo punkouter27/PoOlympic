@@ -35,18 +35,21 @@ SCENE = C.ROOT / "assets" / "scene_march8_mattbio.xml"
 LAYOUT = C.ROOT / "assets" / "march8_mattbio_layout.json"
 STAGES = 9
 STAGE_S = 4.0
-HZ_START, HZ_STEP = 1.0, 0.125        # strides / s: 1.0 -> 2.0 (Rung S range 0.8 .. 2.0); multiples of 1/8 are exact in float32
-LIFT = 0.25                           # m knee rise called (Rung S range 0.10 .. 0.35)
-RHYTHM_TOL = 0.25                     # zero rhythm points when a quarter of the lifts are missing (or extra)
+HZ_START, HZ_STEP = (
+    1.0,
+    0.125,
+)  # strides / s: 1.0 -> 2.0 (Rung S range 0.8 .. 2.0); multiples of 1/8 are exact in float32
+LIFT = 0.25  # m knee rise called (Rung S range 0.10 .. 0.35)
+RHYTHM_TOL = 0.25  # zero rhythm points when a quarter of the lifts are missing (or extra)
 STAGE_POINTS = 10.0
 FINISH_BONUS = 10.0
-DRIFT_OUT = 0.60                      # m from the spot = WANDERED
-START_S = 1.0                         # settle before the first stage (Unity countdown hand-off)
+DRIFT_OUT = 0.60  # m from the spot = WANDERED
+START_S = 1.0  # settle before the first stage (Unity countdown hand-off)
 # Spot hold (2026-10-13): the brain sees no position, only velocities, so over 36 s it drifts (3 heats: 19 of 24
 # WANDERED past 0.6 m, 5 DONE). The event steers it back like the races keep a lane: a velocity command towards the
 # spot, HOLD_GAIN x the offset, at most HOLD_CAP m/s — the march brain follows small velocity commands while it marches.
 # With it: 24 of 24 DONE, max drift 0.10 m (median), 74.6 -> 93.3 points. Gains 0.5-2.0 all finish 24 of 24.
-HOLD_GAIN, HOLD_CAP = 1.0, 0.2        # 1/s, m/s
+HOLD_GAIN, HOLD_CAP = 1.0, 0.2  # 1/s, m/s
 
 
 def cadence(s: int) -> float:
@@ -69,12 +72,12 @@ class MarchLane:
     lane: int
     traits: Traits
     points: float = 0.0
-    stages: list[float] = field(default_factory=list)     # points per completed stage
-    lifts: list[int] = field(default_factory=list)        # knee lifts counted per stage (both knees)
-    peaks_m: list[float] = field(default_factory=list)    # mean peak knee rise per stage
+    stages: list[float] = field(default_factory=list)  # points per completed stage
+    lifts: list[int] = field(default_factory=list)  # knee lifts counted per stage (both knees)
+    peaks_m: list[float] = field(default_factory=list)  # mean peak knee rise per stage
     max_drift_m: float = 0.0
     out_at_s: float | None = None
-    status: str = ""                                       # DONE / FELL / WANDERED
+    status: str = ""  # DONE / FELL / WANDERED
     place: int = 0
 
 
@@ -90,7 +93,7 @@ class KneeCounter:
 
     def __init__(self):
         self.up, self.peak = False, 0.0
-        self.done: list[float] = []          # peaks of the lifts that ended since the last take()
+        self.done: list[float] = []  # peaks of the lifts that ended since the last take()
 
     def sample(self, rise: float):
         if rise > 0.5 * LIFT:
@@ -117,11 +120,11 @@ class _MarchJudge:
     def mark(self, d):
         self.knee0 = [float(d.xpos[b][2]) for b in self.shins]
         r = self.ln.ath.root_qposadr
-        self.spot = d.qpos[r: r + 2].copy()
+        self.spot = d.qpos[r : r + 2].copy()
 
     def drift(self, d) -> float:
         r = self.ln.ath.root_qposadr
-        return float(np.linalg.norm(d.qpos[r: r + 2] - self.spot))
+        return float(np.linalg.norm(d.qpos[r : r + 2] - self.spot))
 
     def sample(self, d):
         for k, b in enumerate(self.shins):
@@ -135,8 +138,8 @@ class _MarchJudge:
 def hold_command(d, ln: _Lane, spot: np.ndarray, gain: float, cap: float) -> np.ndarray:
     """Spot hold: a velocity command (athlete heading frame) back towards the spot, gain x the offset, at most cap m/s."""
     r = ln.ath.root_qposadr
-    e = spot - d.qpos[r: r + 2]
-    yaw = C.yaw_of(d.qpos[r + 3: r + 7])
+    e = spot - d.qpos[r : r + 2]
+    yaw = C.yaw_of(d.qpos[r + 3 : r + 7])
     c, s = np.cos(yaw), np.sin(yaw)
     v = gain * np.array([c * e[0] + s * e[1], -s * e[0] + c * e[1]])
     n = float(np.linalg.norm(v))
@@ -145,8 +148,15 @@ def hold_command(d, ln: _Lane, spot: np.ndarray, gain: float, cap: float) -> np.
     return np.array([v[0], v[1], 0.0])
 
 
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None,
-             hold_gain: float = HOLD_GAIN, hold_cap: float = HOLD_CAP) -> MarchResult:
+def run_heat(
+    onnx,
+    seed: int,
+    traits: list[Traits] | None = None,
+    scene=None,
+    layout_path=None,
+    hold_gain: float = HOLD_GAIN,
+    hold_cap: float = HOLD_CAP,
+) -> MarchResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -209,7 +219,7 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
 def _score_stage(stage: int, res: list[MarchLane], judges: list[_MarchJudge]):
     for r, j in zip(res, judges):
         peaks = j.take()
-        if r.status:                   # out during this stage: no points for it
+        if r.status:  # out during this stage: no points for it
             continue
         mean_peak = float(np.mean(peaks)) if peaks else 0.0
         r.lifts.append(len(peaks))
@@ -218,13 +228,17 @@ def _score_stage(stage: int, res: list[MarchLane], judges: list[_MarchJudge]):
 
 
 def to_json(res: MarchResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }
 
 
 if __name__ == "__main__":
     import argparse
     import time
+
     ap = argparse.ArgumentParser(description="Cadence March heats on CPU MuJoCo")
     ap.add_argument("onnx", type=Path)
     ap.add_argument("--seeds", type=int, default=3)
@@ -237,12 +251,16 @@ if __name__ == "__main__":
         t0 = time.time()
         res = run_heat(a.onnx, s)
         runs.append(to_json(res))
-        line = " | ".join(f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
-                          for l in sorted(res.lanes, key=lambda l: l.place))
+        line = " | ".join(
+            f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
+            for l in sorted(res.lanes, key=lambda l: l.place)
+        )
         print(f"seed {s} ({res.duration_s:.1f} s sim, {time.time() - t0:.0f} s wall): {line}", flush=True)
         if a.v:
             for l in res.lanes:
-                print(f"   L{l.lane + 1} str {l.traits.strength:.2f} lat {l.traits.latency_substeps} drift {l.max_drift_m:.2f} m | lifts {l.lifts} "
-                      f"(expected {[round(expected_lifts(k), 1) for k in range(STAGES)]}) | peaks {l.peaks_m} | pts {l.stages}")
+                print(
+                    f"   L{l.lane + 1} str {l.traits.strength:.2f} lat {l.traits.latency_substeps} drift {l.max_drift_m:.2f} m | lifts {l.lifts} "
+                    f"(expected {[round(expected_lifts(k), 1) for k in range(STAGES)]}) | peaks {l.peaks_m} | pts {l.stages}"
+                )
     if a.out:
         a.out.write_text(json.dumps(runs, indent=1))

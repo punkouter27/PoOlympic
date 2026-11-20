@@ -30,8 +30,13 @@ from poolympic.bodies import BIO_TORQUE_CAPS  # noqa: E402
 from poolympic.tasks.mdp import HILL_W_MAX  # noqa: E402
 
 STEADY_S = 3.0
-DRILLS = {"stand": (0.0, 0.0, 0.0), "walk_1.2": (1.2, 0.0, 0.0), "run_3.0": (3.0, 0.0, 0.0),
-          "sprint_3.8": (3.8, 0.0, 0.0), "spin_2.5": (0.0, 0.0, 2.5)}
+DRILLS = {
+    "stand": (0.0, 0.0, 0.0),
+    "walk_1.2": (1.2, 0.0, 0.0),
+    "run_3.0": (3.0, 0.0, 0.0),
+    "sprint_3.8": (3.8, 0.0, 0.0),
+    "spin_2.5": (0.0, 0.0, 2.5),
+}
 ARMS = ("upper_arm_l", "forearm_l", "upper_arm_r", "forearm_r")
 TRUNK_LEGS = ("pelvis", "torso", "chest", "head", "thigh_l", "thigh_r", "shin_l", "shin_r")
 
@@ -53,11 +58,19 @@ def probe(onnx: str, cmd: tuple, seconds: float) -> dict:
     ground = m.geom("ground").id
     foot = {side: {m.geom(f"foot_{side}_geom0").id, m.geom(f"toe_{side}_geom0").id} for side in "lr"}
     cap = np.array([max(abs(m.actuator_forcerange[a][0]), abs(m.actuator_forcerange[a][1])) for a in ath.actuator_ids])
-    wmax = np.array([HILL_W_MAX[next(g for g in HILL_W_MAX if m.actuator(a).name.startswith(g))] for a in ath.actuator_ids])
+    wmax = np.array(
+        [HILL_W_MAX[next(g for g in HILL_W_MAX if m.actuator(a).name.startswith(g))] for a in ath.actuator_ids]
+    )
     dof = np.array([m.jnt_dofadr[m.actuator_trnid[a][0]] for a in ath.actuator_ids])
     groups = {g: [i for i, a in enumerate(ath.actuator_ids) if m.actuator(a).name.startswith(g)] for g in HILL_W_MAX}
-    pairs = [(ga, gb) for a in ARMS for b in TRUNK_LEGS if not (a.startswith("upper_arm") and b == "chest")
-             for ga in geoms_of(m, a) for gb in geoms_of(m, b)]
+    pairs = [
+        (ga, gb)
+        for a in ARMS
+        for b in TRUNK_LEGS
+        if not (a.startswith("upper_arm") and b == "chest")
+        for ga in geoms_of(m, a)
+        for gb in geoms_of(m, b)
+    ]
     names = [m.actuator(a).name for a in ath.actuator_ids]
     base = [n[:-2] if n.endswith(("_l", "_r")) else n for n in names]
     bio_lo = np.array([-BIO_TORQUE_CAPS[b][0] for b in base])
@@ -84,12 +97,12 @@ def probe(onnx: str, cmd: tuple, seconds: float) -> dict:
                 continue
             fz = {"l": 0.0, "r": 0.0}
             f6 = np.zeros(6)
-            for i, c in enumerate(d.contact[:d.ncon]):
+            for i, c in enumerate(d.contact[: d.ncon]):
                 other = c.geom2 if c.geom1 == ground else c.geom1 if c.geom2 == ground else None
                 for side in "lr":
                     if other in foot[side]:
                         mujoco.mj_contactForce(m, d, i, f6)
-                        fz[side] += abs(f6[0] * c.frame[2])      # normal force, vertical part
+                        fz[side] += abs(f6[0] * c.frame[2])  # normal force, vertical part
             grf.extend([fz["l"] / bw, fz["r"] / bw])
             tau = d.actuator_force[ath.actuator_ids]
             qd = d.qvel[dof]
@@ -112,15 +125,26 @@ def probe(onnx: str, cmd: tuple, seconds: float) -> dict:
     v = float(np.linalg.norm(d.qpos[:2] - x0) / steady) if x0 is not None else 0.0
     grf = np.array(grf)
     clip = np.array(clip)
-    return {"cmd": cmd, "fell": fell, "speed": round(v, 2),
-            "grf_peak_bw_p95": round(float(np.percentile(grf, 95)), 2), "grf_peak_bw_max": round(float(grf.max()), 2),
-            "power_w": round(float(np.mean(power))), "cot": round(float(np.mean(power)) / (mass * 9.81 * v), 2) if v > 0.2 else None,
-            "hill_viol_pct": round(100 * float(np.mean(hill)), 2), "cap_sat_pct": round(100 * float(np.mean(sat)), 2),
-            "vel18_pct": round(100 * float(np.mean(v18)), 2),
-            "qd_peak": {g: round(float(qdmax[ix].max()), 1) for g, ix in groups.items() if ix},
-            "bio_cap_over_pct": {b: round(100 * float(x) / max(len(power), 1), 1) for b, x in
-                                 sorted(_merge(base, over).items(), key=lambda kv: -kv[1]) if x > 0},
-            "clip_cm": round(100 * float(clip.max()), 1), "clip_pct": round(100 * float(np.mean(clip > 0.01)), 1)}
+    return {
+        "cmd": cmd,
+        "fell": fell,
+        "speed": round(v, 2),
+        "grf_peak_bw_p95": round(float(np.percentile(grf, 95)), 2),
+        "grf_peak_bw_max": round(float(grf.max()), 2),
+        "power_w": round(float(np.mean(power))),
+        "cot": round(float(np.mean(power)) / (mass * 9.81 * v), 2) if v > 0.2 else None,
+        "hill_viol_pct": round(100 * float(np.mean(hill)), 2),
+        "cap_sat_pct": round(100 * float(np.mean(sat)), 2),
+        "vel18_pct": round(100 * float(np.mean(v18)), 2),
+        "qd_peak": {g: round(float(qdmax[ix].max()), 1) for g, ix in groups.items() if ix},
+        "bio_cap_over_pct": {
+            b: round(100 * float(x) / max(len(power), 1), 1)
+            for b, x in sorted(_merge(base, over).items(), key=lambda kv: -kv[1])
+            if x > 0
+        },
+        "clip_cm": round(100 * float(clip.max()), 1),
+        "clip_pct": round(100 * float(np.mean(clip > 0.01)), 1),
+    }
 
 
 def _merge(base, over):
@@ -152,10 +176,12 @@ def main() -> int:
     a = ap.parse_args()
     rows = {k: probe(a.onnx, DRILLS[k], a.seconds) for k in a.drills.split(",")}
     for k, r in rows.items():
-        print(f"{k:11s} speed {r['speed']:.2f}  GRF p95 {r['grf_peak_bw_p95']:.2f} max {r['grf_peak_bw_max']:.2f} BW  "
-              f"P {r['power_w']} W  CoT {r['cot']}  hill {r['hill_viol_pct']} %  sat {r['cap_sat_pct']} %  "
-              f">18 rad/s {r['vel18_pct']} %  arm clip {r['clip_cm']} cm ({r['clip_pct']} % frames)  fell {r['fell']}")
-        if r['bio_cap_over_pct']:
+        print(
+            f"{k:11s} speed {r['speed']:.2f}  GRF p95 {r['grf_peak_bw_p95']:.2f} max {r['grf_peak_bw_max']:.2f} BW  "
+            f"P {r['power_w']} W  CoT {r['cot']}  hill {r['hill_viol_pct']} %  sat {r['cap_sat_pct']} %  "
+            f">18 rad/s {r['vel18_pct']} %  arm clip {r['clip_cm']} cm ({r['clip_pct']} % frames)  fell {r['fell']}"
+        )
+        if r["bio_cap_over_pct"]:
             print(f"{'':11s} frames above the staged mattbio caps: {r['bio_cap_over_pct']}")
     if a.out:
         Path(a.out).write_text(json.dumps({"onnx": Path(a.onnx).name, "drills": rows}, indent=1))

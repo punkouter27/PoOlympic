@@ -57,9 +57,16 @@ MODES = {
         "max_s": 35.0,
         "recover": True,
         "support": (
-            "ground", "hill_summit",
-            "hill_ramp_e", "hill_ramp_w", "hill_ramp_n", "hill_ramp_s",
-            "hill_pad_e", "hill_pad_w", "hill_pad_n", "hill_pad_s",
+            "ground",
+            "hill_summit",
+            "hill_ramp_e",
+            "hill_ramp_w",
+            "hill_ramp_n",
+            "hill_ramp_s",
+            "hill_pad_e",
+            "hill_pad_w",
+            "hill_pad_n",
+            "hill_pad_s",
         ),
     },
 }
@@ -80,13 +87,13 @@ class ArenaLane:
     lane: int
     traits: Traits
     body: str = "matt"
-    status: str = ""                 # FINISHED / OUT / FELL / DNF
+    status: str = ""  # FINISHED / OUT / FELL / DNF
     finish_s: float | None = None
     out_at: float | None = None
-    score_s: float = 0.0             # zone / summit hold seconds
-    progress_m: float = 0.0          # bridge distance / -center distance tie-break
+    score_s: float = 0.0  # zone / summit hold seconds
+    progress_m: float = 0.0  # bridge distance / -center distance tie-break
     falls: int = 0
-    rounds: int = 0                  # pads: rounds survived
+    rounds: int = 0  # pads: rounds survived
     place: int = 0
 
 
@@ -102,8 +109,16 @@ def wrap_pi(a: float) -> float:
     return (a + math.pi) % (2 * math.pi) - math.pi
 
 
-def steer_to_point(yaw: float, px: float, py: float, tx: float, ty: float,
-                   max_vx: float = 3.5, slow_r: float = 1.2, stop_r: float = 0.0) -> np.ndarray:
+def steer_to_point(
+    yaw: float,
+    px: float,
+    py: float,
+    tx: float,
+    ty: float,
+    max_vx: float = 3.5,
+    slow_r: float = 1.2,
+    stop_r: float = 0.0,
+) -> np.ndarray:
     """Planar homing command in MATT units towards world (tx, ty)."""
     dx, dy = tx - px, ty - py
     dist = math.hypot(dx, dy)
@@ -155,9 +170,16 @@ def hill_waypoint(i: int, px: float, py: float, ox: float, oy: float) -> tuple[f
 
 
 @AL.logged("event_arena_brawl")
-def run_arena(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = None, scene: Path | None = None,
-              layout_path: Path | None = None, brains: dict | None = None,
-              recover: dict | None = None) -> ArenaResult:
+def run_arena(
+    onnx: Path,
+    mode: str,
+    seed: int,
+    traits: list[Traits] | None = None,
+    scene: Path | None = None,
+    layout_path: Path | None = None,
+    brains: dict | None = None,
+    recover: dict | None = None,
+) -> ArenaResult:
     cfg = MODES[mode]
     m = mujoco.MjModel.from_xml_path(str(scene or (C.ROOT / "assets" / cfg["scene"])))
     d = mujoco.MjData(m)
@@ -179,8 +201,8 @@ def run_arena(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = No
         if abs(yaw) > 1e-6:
             c, s = math.cos(0.5 * yaw), math.sin(0.5 * yaw)
             ra = ln.ath.root_qposadr
-            w, x, y, z = d.qpos[ra + 3: ra + 7]
-            d.qpos[ra + 3: ra + 7] = [c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w]
+            w, x, y, z = d.qpos[ra + 3 : ra + 7]
+            d.qpos[ra + 3 : ra + 7] = [c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w]
     mujoco.mj_forward(m, d)
 
     dt = m.opt.timestep * C.DECIMATION
@@ -204,7 +226,7 @@ def run_arena(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = No
                 continue
             ra = ln.ath.root_qposadr
             px, py = positions[i]
-            yaw = C.yaw_of(d.qpos[ra + 3: ra + 7])
+            yaw = C.yaw_of(d.qpos[ra + 3 : ra + 7])
 
             if mode == "sumo":
                 dist_c = math.hypot(px, py)
@@ -331,8 +353,10 @@ def run_arena(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = No
     if mode == "sumo":
         key = lambda r: (0 if r.status == "SURVIVED" else 1, -(r.out_at or 0.0))
     elif mode == "bridge":
-        key = lambda r: (0 if r.status == "FINISHED" else 1 if r.status == "DNF" else 2,
-                         r.finish_s if r.status == "FINISHED" else -r.progress_m)
+        key = lambda r: (
+            0 if r.status == "FINISHED" else 1 if r.status == "DNF" else 2,
+            r.finish_s if r.status == "FINISHED" else -r.progress_m,
+        )
     elif mode == "pads":
         key = lambda r: (0 if r.status == "SURVIVED" else 1, -r.rounds, -(r.out_at or 0.0), -r.progress_m)
     else:  # beacon, hill
@@ -344,5 +368,9 @@ def run_arena(onnx: Path, mode: str, seed: int, traits: list[Traits] | None = No
 
 
 def to_json(res: ArenaResult) -> dict:
-    return {"mode": res.mode, "seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "mode": res.mode,
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

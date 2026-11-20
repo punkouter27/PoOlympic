@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import build_mjcf as B  # noqa: E402  (MATT profile: only the scene helpers / constants are used here)
 
 ASSETS = ROOT / "assets"
-ROSTER = ["matt", "zombie", "grandma", "kim"]      # = Unity MeetLineup.Roster (lower case)
+ROSTER = ["matt", "zombie", "grandma", "kim"]  # = Unity MeetLineup.Roster (lower case)
 
 
 def march_props() -> list[dict]:
@@ -56,8 +56,14 @@ def _ring_origins(radius: float) -> list[tuple[float, float, float, float]]:
 def _bridge_origins() -> list[tuple[float, float, float, float]]:
     """4 west-side athletes (2x2 staggered) facing +x and 4 east-side athletes facing -x on one 1.60 m wide bridge."""
     return [
-        (0.0, 0.42, 0.0, 0.0), (0.0, -0.42, 0.0, 0.0), (-1.4, 0.42, 0.0, 0.0), (-1.4, -0.42, 0.0, 0.0),
-        (12.0, -0.42, 0.0, 180.0), (12.0, 0.42, 0.0, 180.0), (13.4, -0.42, 0.0, 180.0), (13.4, 0.42, 0.0, 180.0),
+        (0.0, 0.42, 0.0, 0.0),
+        (0.0, -0.42, 0.0, 0.0),
+        (-1.4, 0.42, 0.0, 0.0),
+        (-1.4, -0.42, 0.0, 0.0),
+        (12.0, -0.42, 0.0, 180.0),
+        (12.0, 0.42, 0.0, 180.0),
+        (13.4, -0.42, 0.0, 180.0),
+        (13.4, 0.42, 0.0, 180.0),
     ]
 
 
@@ -98,10 +104,38 @@ def _hill_props() -> list[dict]:
     props = [{"name": "hill_summit", "pos": [0.0, 0.0, rise - half_t], "size": [r_inner, r_inner, half_t]}]
     # Ramp normals point inward: +x side slopes up toward -x (euler="0 +deg 0"); -x side up toward +x ("0 -deg 0"), etc.
     sides = [
-        ("e", [r_mid, 0.0, z_mid], [ramp_len / 2, 1.1, half_t], [0.0, deg, 0.0], [5.3, 0.0, -half_t], [1.0, 1.1, half_t]),
-        ("w", [-r_mid, 0.0, z_mid], [ramp_len / 2, 1.1, half_t], [0.0, -deg, 0.0], [-5.3, 0.0, -half_t], [1.0, 1.1, half_t]),
-        ("n", [0.0, r_mid, z_mid], [1.1, ramp_len / 2, half_t], [-deg, 0.0, 0.0], [0.0, 5.3, -half_t], [1.1, 1.0, half_t]),
-        ("s", [0.0, -r_mid, z_mid], [1.1, ramp_len / 2, half_t], [deg, 0.0, 0.0], [0.0, -5.3, -half_t], [1.1, 1.0, half_t]),
+        (
+            "e",
+            [r_mid, 0.0, z_mid],
+            [ramp_len / 2, 1.1, half_t],
+            [0.0, deg, 0.0],
+            [5.3, 0.0, -half_t],
+            [1.0, 1.1, half_t],
+        ),
+        (
+            "w",
+            [-r_mid, 0.0, z_mid],
+            [ramp_len / 2, 1.1, half_t],
+            [0.0, -deg, 0.0],
+            [-5.3, 0.0, -half_t],
+            [1.0, 1.1, half_t],
+        ),
+        (
+            "n",
+            [0.0, r_mid, z_mid],
+            [1.1, ramp_len / 2, half_t],
+            [-deg, 0.0, 0.0],
+            [0.0, 5.3, -half_t],
+            [1.1, 1.0, half_t],
+        ),
+        (
+            "s",
+            [0.0, -r_mid, z_mid],
+            [1.1, ramp_len / 2, half_t],
+            [deg, 0.0, 0.0],
+            [0.0, -5.3, -half_t],
+            [1.1, 1.0, half_t],
+        ),
     ]
     for tag, rpos, rsize, reul, spos, ssize in sides:
         props.append({"name": f"hill_ramp_{tag}", "pos": rpos, "size": rsize, "euler": reul})
@@ -112,8 +146,14 @@ def _hill_props() -> list[dict]:
 def _shaker_floor16() -> dict:
     """5 Gust Gauntlet (16 athletes in two 2 x 4 blocks): 4.0 m x 5.0 m spring-mounted floor, scaled to 16 athletes (2.0 Hz)."""
     fl = B.shaker_floor()
-    return {**fl, "mass": 16 * 150.0, "stiffness": 16 * 36300.0, "damping": 16 * 1160.0,
-            "half": [2.0, 2.5], "pos": [float(fl["pos"][0]), -1.7, 0.0]}
+    return {
+        **fl,
+        "mass": 16 * 150.0,
+        "stiffness": 16 * 36300.0,
+        "damping": 16 * 1160.0,
+        "half": [2.0, 2.5],
+        "pos": [float(fl["pos"][0]), -1.7, 0.0],
+    }
 
 
 def _pedestal_beam16() -> dict:
@@ -135,12 +175,14 @@ def _turntable16_origins() -> list[tuple[float, float, float, float]]:
 
 
 SCENES = {  # scene -> the build_mjcf.compose_meet arguments of that event scene (callables: read from the venues)
-    "meet8": dict(),                                  # G6 testbed (Testbed_Rung1): 1.22 m lanes, no venue, lane isolation
+    "meet8": dict(),  # G6 testbed (Testbed_Rung1): 1.22 m lanes, no venue, lane isolation
     "pedestal8": dict(event=1, pedestal_h=B.PEDESTAL_H, beam=lambda: B.venue_box(1, "beam"), crowd=True),
     "track8": dict(event=22, park_offset=(0.0, -30.0, 0.0), crowd=True),
-    "crawl8": dict(event=8, park_offset=(0.0, -30.0, 0.0), crowd=True),     # GRANDMA crawls too since 2026-10-02 (crawl_grandma.onnx)
+    "crawl8": dict(
+        event=8, park_offset=(0.0, -30.0, 0.0), crowd=True
+    ),  # GRANDMA crawls too since 2026-10-02 (crawl_grandma.onnx)
     "turntable8": dict(event=12, crowd=True),
-    "squat8": dict(event=3, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),   # legacy stance test scene
+    "squat8": dict(event=3, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),  # legacy stance test scene
     "flamingo8": dict(event=6, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
     "archer8": dict(event=2, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
     "reach8": dict(event=4, park_offset=(0.0, -30.0, 0.0), crowd=True, roster=[]),
@@ -150,23 +192,52 @@ SCENES = {  # scene -> the build_mjcf.compose_meet arguments of that event scene
     "slalom8": dict(event=11, park_offset=(0.0, -30.0, 0.0), props=B.slalom_poles, crowd=True),
     "trench8": dict(event=23, park_offset=(0.0, -30.0, 0.0), props=B.trench_props, crowd=True),
     # 8-athlete high-collision event scenes (2026-11-11)
-    "sumo8": dict(origins=lambda: _ring_origins(1.02), drop=0.5, park_offset=(0.0, -30.0, 0.0),
-                  props=lambda: [{"name": "sumo_ring", "type": "cylinder", "pos": [0.0, 0.0, -0.25], "size": [1.45, 0.25]}], crowd=True),
-    "bridge8": dict(origins=_bridge_origins, drop=0.5, park_offset=(0.0, -30.0, 0.0),
-                    props=lambda: [{"name": "bridge", "pos": [6.0, 0.0, -0.25], "size": [8.2, 0.80, 0.25]}], crowd=True),
+    "sumo8": dict(
+        origins=lambda: _ring_origins(1.02),
+        drop=0.5,
+        park_offset=(0.0, -30.0, 0.0),
+        props=lambda: [{"name": "sumo_ring", "type": "cylinder", "pos": [0.0, 0.0, -0.25], "size": [1.45, 0.25]}],
+        crowd=True,
+    ),
+    "bridge8": dict(
+        origins=_bridge_origins,
+        drop=0.5,
+        park_offset=(0.0, -30.0, 0.0),
+        props=lambda: [{"name": "bridge", "pos": [6.0, 0.0, -0.25], "size": [8.2, 0.80, 0.25]}],
+        crowd=True,
+    ),
     "funnel8": dict(event=22, park_offset=(0.0, -30.0, 0.0), props=_funnel_props, crowd=True),
     "crossroad8": dict(origins=_crossroad_origins, park_offset=(0.0, -30.0, 0.0), crowd=True),
     "pads8": dict(origins=lambda: _ring_origins(3.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "beacon8": dict(origins=lambda: _ring_origins(4.2), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "hill8": dict(origins=_hill_origins, drop=0.5, park_offset=(0.0, -30.0, 0.0), props=_hill_props, crowd=True),
     # 16-athlete crowd scenes (2026-11-12): 2 rows of 8 (row 1 = venue lanes 0-7, row 2 shifted back by row_offset)
-    "pedestal16": dict(event=1, lanes=16, row_offset=(-1.4, 0.0, 0.0), pedestal_h=B.PEDESTAL_H, beam=_pedestal_beam16, crowd=True),
-    "shaker16": dict(event=5, lanes=16, row_offset=(0.0, -2.6, 0.0), park_offset=(0.0, -30.0, 0.0), shaker=_shaker_floor16, crowd=True),
+    "pedestal16": dict(
+        event=1, lanes=16, row_offset=(-1.4, 0.0, 0.0), pedestal_h=B.PEDESTAL_H, beam=_pedestal_beam16, crowd=True
+    ),
+    "shaker16": dict(
+        event=5,
+        lanes=16,
+        row_offset=(0.0, -2.6, 0.0),
+        park_offset=(0.0, -30.0, 0.0),
+        shaker=_shaker_floor16,
+        crowd=True,
+    ),
     "crawl16": dict(event=8, lanes=16, row_offset=(-2.2, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "track16": dict(event=22, lanes=16, row_offset=(-2.4, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
     "inverted16": dict(event=22, lanes=16, row_offset=(2.4, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), crowd=True),
-    "crab16": dict(event=10, lanes=16, yaw=90.0, row_offset=(0.0, 2.0, 0.0), park_offset=(0.0, -30.0, 0.0), props=B.crab_rails, crowd=True),
-    "slalom16": dict(event=11, lanes=16, row_offset=(-2.0, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), props=B.slalom_poles, crowd=True),
+    "crab16": dict(
+        event=10,
+        lanes=16,
+        yaw=90.0,
+        row_offset=(0.0, 2.0, 0.0),
+        park_offset=(0.0, -30.0, 0.0),
+        props=B.crab_rails,
+        crowd=True,
+    ),
+    "slalom16": dict(
+        event=11, lanes=16, row_offset=(-2.0, 0.0, 0.0), park_offset=(0.0, -30.0, 0.0), props=B.slalom_poles, crowd=True
+    ),
     "turntable16": dict(lanes=16, origins=_turntable16_origins, crowd=True),
 }
 
@@ -217,10 +288,9 @@ def body_parts(body: str):
     excl = list(robot.find("contact")) if robot.find("contact") is not None else []
     scene = mujoco.MjModel.from_xml_path(str(ASSETS / f"scene_{body}.xml"))
     root = scene.joint("root").id
-    n = sum(1 for j in range(scene.njnt) if not scene.joint(j).name.startswith("cube"))
     last = [j for j in range(scene.njnt) if not scene.joint(j).name.startswith("cube")][-1]
     nq = scene.jnt_qposadr[last] + 1 - scene.jnt_qposadr[root]
-    qdef = scene.key("default").qpos[scene.jnt_qposadr[root]: scene.jnt_qposadr[root] + nq].copy()
+    qdef = scene.key("default").qpos[scene.jnt_qposadr[root] : scene.jnt_qposadr[root] + nq].copy()
     return pelvis, acts, excl, qdef
 
 
@@ -238,12 +308,14 @@ def athlete_prefix(lane: int, body: str, roster: bool) -> str:
 def _quat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     w1, x1, y1, z1 = a
     w2, x2, y2, z2 = b
-    return np.array([
-        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-    ])
+    return np.array(
+        [
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        ]
+    )
 
 
 def compose(scene: str, lineup: list) -> tuple[str, dict]:
@@ -259,8 +331,11 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
         origins = [np.asarray(o[:3], float) for o in raw_origins]
         yaws = [float(o[3]) if len(o) > 3 else 0.0 for o in raw_origins]
     elif "event" in sc:
-        origins = two_rows_origins(B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0)),
-                                   len(lineup), sc.get("row_offset", (-2.2, 0.0, 0.0)))
+        origins = two_rows_origins(
+            B.venue_lane_origins(sc["event"], 3, sc.get("yaw", 0.0)),
+            len(lineup),
+            sc.get("row_offset", (-2.2, 0.0, 0.0)),
+        )
         yaws = [0.0] * len(lineup)
     else:
         origins = [B.lane_origin(k) for k in range(len(lineup))]
@@ -269,26 +344,41 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
     B.option_block(root)
     wb = ET.SubElement(root, "worldbody")
     ET.SubElement(wb, "light", {"name": "sun", "pos": "0 0 5", "dir": "0 0 -1", "directional": "true"})
-    ground = {"name": "ground", "type": "plane", "size": "0 0 0.05", "contype": str(B.ALL_BITS),
-              "conaffinity": str(B.ALL_BITS), "condim": "3", "friction": B.vec(B.GROUND_FRICTION)}
+    ground = {
+        "name": "ground",
+        "type": "plane",
+        "size": "0 0 0.05",
+        "contype": str(B.ALL_BITS),
+        "conaffinity": str(B.ALL_BITS),
+        "condim": "3",
+        "friction": B.vec(B.GROUND_FRICTION),
+    }
     drop = sc.get("drop", 0.0) or ped_h or (shaker["h"] if shaker else 0.0)
     if drop:
         ground["pos"] = B.vec([0, 0, -drop])
     ET.SubElement(wb, "geom", ground)
     for pr in props:
-        attrs = {"name": pr["name"], "type": pr.get("type", "box"), "pos": B.vec(pr["pos"]), "size": B.vec(pr["size"]),
-                 "contype": str(B.ALL_BITS), "conaffinity": str(B.ALL_BITS), "condim": "3", "friction": B.vec(B.GROUND_FRICTION)}
+        attrs = {
+            "name": pr["name"],
+            "type": pr.get("type", "box"),
+            "pos": B.vec(pr["pos"]),
+            "size": B.vec(pr["size"]),
+            "contype": str(B.ALL_BITS),
+            "conaffinity": str(B.ALL_BITS),
+            "condim": "3",
+            "friction": B.vec(B.GROUND_FRICTION),
+        }
         if "euler" in pr:
             attrs["euler"] = B.vec(pr["euler"])
         ET.SubElement(wb, "geom", attrs)
     contact = ET.Element("contact")
     actuator = ET.Element("actuator")
     lanes = []
-    wide = len(lineup) > B.N_LANES                    # more athletes than the 3-bits-per-lane scheme holds
+    wide = len(lineup) > B.N_LANES  # more athletes than the 3-bits-per-lane scheme holds
     assert not wide or crowd, "more than 8 lanes: crowd scenes only (wide_bits)"
-    key_qpos = B.stage_shared(wb, ped_h, shaker, beam)    # = build_mjcf.compose_meet's stage (shared beam / floor)
+    key_qpos = B.stage_shared(wb, ped_h, shaker, beam)  # = build_mjcf.compose_meet's stage (shared beam / floor)
     for k, bodies in enumerate(lineup):
-        roster = not isinstance(bodies, str)          # roster scene: every roster body in this lane
+        roster = not isinstance(bodies, str)  # roster scene: every roster body in this lane
         bodies = list(bodies) if roster else [bodies]
         p, o, yaw = B.lane_prefix(k), np.asarray(origins[k], float), yaws[k]
         key_qpos += B.stage_lane(wb, p, o, ped_h, shaker, beam)
@@ -301,11 +391,11 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
                 if "name" in el.attrib:
                     el.set("name", p + el.get("name"))
                 if el.tag == "geom":
-                    if wide:                          # roster bodies of one lane share its bit: never collide
+                    if wide:  # roster bodies of one lane share its bit: never collide
                         ct, ca = wide_bits(int(el.get("contype")), int(el.get("conaffinity")), k)
                     else:
                         ct, ca = shift_bits(int(el.get("contype")), k), shift_bits(int(el.get("conaffinity")), k)
-                        if crowd:                     # roster bodies of one lane share its crowd bit: never collide
+                        if crowd:  # roster bodies of one lane share its crowd bit: never collide
                             ct, ca = B.crowd_bits(ct, ca, k)
                     el.set("contype", str(ct))
                     el.set("conaffinity", str(ca))
@@ -328,27 +418,45 @@ def compose(scene: str, lineup: list) -> tuple[str, dict]:
                 row["yaw_deg"] = yaw
             lanes.append(row)
     inertia = B.CUBE_MASS * (2 * B.CUBE_HALF) ** 2 / 6.0
-    n_cubes = max(B.N_CUBES_MEET, 2 * len(lineup))    # 2 per lane
+    n_cubes = max(B.N_CUBES_MEET, 2 * len(lineup))  # 2 per lane
     for i in range(n_cubes):
         park = B.cube_park_pos(i) - [0, 0, drop] + park_offset
         cb = ET.SubElement(wb, "body", {"name": f"cube{i}", "pos": B.vec(park)})
         ET.SubElement(cb, "inertial", {"pos": "0 0 0", "mass": B.f(B.CUBE_MASS), "diaginertia": B.vec([inertia] * 3)})
         ET.SubElement(cb, "freejoint", {"name": f"cube{i}_free"})
-        ET.SubElement(cb, "geom", {"name": f"cube{i}_geom", "type": "box", "size": B.vec([B.CUBE_HALF] * 3),
-                                   "contype": str(B.ALL_BITS), "conaffinity": str(B.ALL_BITS), "condim": "3",
-                                   "friction": f"{B.f(B.CUBE_FRICTION)} 0.005 0.0001"})
+        ET.SubElement(
+            cb,
+            "geom",
+            {
+                "name": f"cube{i}_geom",
+                "type": "box",
+                "size": B.vec([B.CUBE_HALF] * 3),
+                "contype": str(B.ALL_BITS),
+                "conaffinity": str(B.ALL_BITS),
+                "condim": "3",
+                "friction": f"{B.f(B.CUBE_FRICTION)} 0.005 0.0001",
+            },
+        )
         key_qpos.append(np.concatenate([park, [1, 0, 0, 0]]))
     root.append(contact)
     root.append(actuator)
     kf = ET.SubElement(root, "keyframe")
     ET.SubElement(kf, "key", {"name": "default", "qpos": B.vec(np.concatenate(key_qpos))})
-    layout = {"n_lanes": len(lineup), "lane_width": B.LANE_WIDTH, "n_cubes": n_cubes, "lanes": lanes, "pedestal_h": ped_h,
-              "crowd": crowd, "lineup": lineup,
-              "note": "lane k: names prefixed L<k>_, athlete body per lane (assets/<body>.xml), pelvis shifted by origin"}
+    layout = {
+        "n_lanes": len(lineup),
+        "lane_width": B.LANE_WIDTH,
+        "n_cubes": n_cubes,
+        "lanes": lanes,
+        "pedestal_h": ped_h,
+        "crowd": crowd,
+        "lineup": lineup,
+        "note": "lane k: names prefixed L<k>_, athlete body per lane (assets/<body>.xml), pelvis shifted by origin",
+    }
     B.stage_layout(layout, shaker, beam)
     if props:
-        layout["props"] = [{"name": pr["name"], "pos": np.asarray(pr["pos"], float).tolist(), "size": list(pr["size"])}
-                           for pr in props]
+        layout["props"] = [
+            {"name": pr["name"], "pos": np.asarray(pr["pos"], float).tolist(), "size": list(pr["size"])} for pr in props
+        ]
     return B.indent(root), layout
 
 
@@ -362,18 +470,29 @@ def verify() -> int:
     """Every all-MATT composition must compile to the model of the existing scene_<scene>.xml (per-lane fingerprints,
     world props, keyframe, sizes)."""
     from poolympic.fingerprint import canonical_bytes, fingerprint
+
     ok_all = True
     for scene in SCENES:
-        if not (ASSETS / f"scene_{scene}.xml").exists():      # composed-only scene (flamingo8, march8)
+        if not (ASSETS / f"scene_{scene}.xml").exists():  # composed-only scene (flamingo8, march8)
             continue
         xml, _ = compose(scene, ["matt"] * 8)
         a = mujoco.MjModel.from_xml_string(xml)
         b = mujoco.MjModel.from_xml_path(str(ASSETS / f"scene_{scene}.xml"))
-        same = all(canonical_bytes(fingerprint(a, f"L{k}_", f"cube{2 * k}")) == canonical_bytes(fingerprint(b, f"L{k}_", f"cube{2 * k}"))
-                   for k in range(8))
-        same &= np.array_equal(a.key("default").qpos, b.key("default").qpos) and (a.nq, a.nu, a.ngeom) == (b.nq, b.nu, b.ngeom)
-        world = lambda m: sorted((m.geom(g).name, tuple(np.round(m.geom_pos[g], 9)), tuple(np.round(m.geom_size[g], 9)))
-                                 for g in range(m.ngeom) if m.geom_bodyid[g] == 0)
+        same = all(
+            canonical_bytes(fingerprint(a, f"L{k}_", f"cube{2 * k}"))
+            == canonical_bytes(fingerprint(b, f"L{k}_", f"cube{2 * k}"))
+            for k in range(8)
+        )
+        same &= np.array_equal(a.key("default").qpos, b.key("default").qpos) and (a.nq, a.nu, a.ngeom) == (
+            b.nq,
+            b.nu,
+            b.ngeom,
+        )
+        world = lambda m: sorted(
+            (m.geom(g).name, tuple(np.round(m.geom_pos[g], 9)), tuple(np.round(m.geom_size[g], 9)))
+            for g in range(m.ngeom)
+            if m.geom_bodyid[g] == 0
+        )
         same &= world(a) == world(b)
         print(f"all-MATT compose == scene_{scene}.xml:", "PASS" if same else "FAIL")
         ok_all &= same
@@ -384,15 +503,19 @@ def verify_roster() -> int:
     """Every athlete of every roster scene == the same body in that lane of a one-body-per-lane composition
     (per-lane fingerprint incl. its cube slot): switching the other bodies off leaves exactly compose(scene, lineup)."""
     from poolympic.fingerprint import canonical_bytes, fingerprint
+
     ok_all = True
     for scene in SCENES:
         n = lanes_of(scene)
         xml, _ = compose(scene, [roster_of(scene)] * n)
         r = mujoco.MjModel.from_xml_string(xml)
         for body in roster_of(scene):
-            m = mujoco.MjModel.from_xml_string(compose(scene, [[body]] * n)[0])   # same prefixes, one body per lane
-            same = all(canonical_bytes(fingerprint(r, athlete_prefix(k, body, True), f"cube{2 * k}"))
-                       == canonical_bytes(fingerprint(m, athlete_prefix(k, body, True), f"cube{2 * k}")) for k in range(n))
+            m = mujoco.MjModel.from_xml_string(compose(scene, [[body]] * n)[0])  # same prefixes, one body per lane
+            same = all(
+                canonical_bytes(fingerprint(r, athlete_prefix(k, body, True), f"cube{2 * k}"))
+                == canonical_bytes(fingerprint(m, athlete_prefix(k, body, True), f"cube{2 * k}"))
+                for k in range(n)
+            )
             print(f"roster {scene} {body}:", "PASS" if same else "FAIL")
             ok_all &= same
     return 0 if ok_all else 1

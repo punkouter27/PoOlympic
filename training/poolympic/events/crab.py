@@ -15,13 +15,13 @@ Rank by finish time + penalties; fallers / unfinished after them.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import math
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import mujoco
 import numpy as np
-import onnxruntime as ort
+import onnxruntime as ort  # noqa: F401  (kept from before the lint pass)
 
 from .. import action_log as AL
 from .. import contract as C
@@ -30,12 +30,12 @@ from .iron_pedestal import Traits, _Lane, make_lanes
 SCENE = C.ROOT / "assets" / "scene_crab8.xml"
 LAYOUT = C.ROOT / "assets" / "crab8_layout.json"
 DISTANCE = 20.0
-VY = 1.2                # m/s side-step command = top of the Rung 2 training envelope (probe: no crossings, rail touches
-                        # or falls from 0.8 to 1.8 m/s — over-commanding adds no risk, so the event stays in range)
+VY = 1.2  # m/s side-step command = top of the Rung 2 training envelope (probe: no crossings, rail touches
+# or falls from 0.8 to 1.8 m/s — over-commanding adds no risk, so the event stays in range)
 HEADING_GAIN, WZ_LIMIT = 2.0, 0.5
 X_GAIN, VX_LIMIT = 1.0, 0.3
-CROSS_PENALTY = 1.0     # s per leg crossing
-RAIL_PENALTY = 1.0      # s per rail touch
+CROSS_PENALTY = 1.0  # s per leg crossing
+RAIL_PENALTY = 1.0  # s per rail touch
 MAX_S = 40.0
 
 
@@ -61,7 +61,7 @@ class CrabLane:
     rail_touches: int = 0
     max_x_drift_m: float = 0.0
     score: float | None = None
-    status: str = ""                 # FINISHED / FELL / DNF
+    status: str = ""  # FINISHED / FELL / DNF
     place: int = 0
 
 
@@ -73,7 +73,15 @@ class CrabResult:
 
 
 @AL.logged("event_crab")
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, vy: float = VY, scene=None, layout_path=None, brains: dict | None = None) -> CrabResult:
+def run_heat(
+    onnx,
+    seed: int,
+    traits: list[Traits] | None = None,
+    vy: float = VY,
+    scene=None,
+    layout_path=None,
+    brains: dict | None = None,
+) -> CrabResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -93,7 +101,7 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, vy: float = VY
             if res[i].status:
                 ln.control(ln.sess, d, np.zeros(3))
             else:
-                ln.control(ln.sess, d, crab_command(d.qpos[ra + 3: ra + 7], d.qpos[ra] - ln.origin[0], vy))
+                ln.control(ln.sess, d, crab_command(d.qpos[ra + 3 : ra + 7], d.qpos[ra] - ln.origin[0], vy))
         for s in range(C.DECIMATION):
             for ln in lanes:
                 ln.write_ctrl(d, s)
@@ -138,5 +146,8 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, vy: float = VY
 
 
 def to_json(res: CrabResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

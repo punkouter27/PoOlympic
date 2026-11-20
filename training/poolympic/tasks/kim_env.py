@@ -14,7 +14,7 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from . import grandma_env as GE
 from . import mdp
 
-QUICK_STEP_MAX_AIR = 0.45        # s (MATT units; MATT / GRANDMA 0.6): swing time that still earns the air-time reward
+QUICK_STEP_MAX_AIR = 0.45  # s (MATT units; MATT / GRANDMA 0.6): swing time that still earns the air-time reward
 
 
 def kim_rung0_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -32,11 +32,13 @@ def kim_rung1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
 def _quick(fn):
     """A grandma_env Rung 2 recipe (each builds on grandma_rung1_env_cfg) with KIM's Rung 1 style instead of GRANDMA's."""
+
     def make(play: bool = False) -> ManagerBasedRlEnvCfg:
         cfg = fn(play=play)
         cfg.rewards.pop("careful_steps", None)
         cfg.rewards["air_time"].params["threshold_max"] = QUICK_STEP_MAX_AIR * GE.TS
         return cfg
+
     return make
 
 
@@ -53,9 +55,11 @@ def kim_rung2_bands2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     moves to the fast end (|vy| 0.7-1.1 x SS = 0.64-1.01 m/s) and takes 30 % of the commands; forward 15 %, backward 10 %."""
     cfg = kim_rung2_bands_env_cfg(play=play)
     ss, ws = GE.SS, GE.WS
-    cfg.commands["athlete"].bands = ((0.15, (2.0 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
-                                     (0.10, (-1.5 * ss, -0.8 * ss), (0.0, 0.0), 0.5 * ws),
-                                     (0.30, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0))
+    cfg.commands["athlete"].bands = (
+        (0.15, (2.0 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
+        (0.10, (-1.5 * ss, -0.8 * ss), (0.0, 0.0), 0.5 * ws),
+        (0.30, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0),
+    )
     return cfg
 
 
@@ -75,9 +79,11 @@ def kim_rung2_bands3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     and takes 30 % of the commands; the fast side-step band keeps 20 %, backward 10 %."""
     cfg = kim_rung2_bands_env_cfg(play=play)
     ss, ws = GE.SS, GE.WS
-    cfg.commands["athlete"].bands = ((0.30, (3.0 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
-                                     (0.10, (-1.5 * ss, -0.8 * ss), (0.0, 0.0), 0.5 * ws),
-                                     (0.20, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0))
+    cfg.commands["athlete"].bands = (
+        (0.30, (3.0 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
+        (0.10, (-1.5 * ss, -0.8 * ss), (0.0, 0.0), 0.5 * ws),
+        (0.20, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0),
+    )
     return cfg
 
 
@@ -87,12 +93,18 @@ def kim_rung2_flight_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     to 120 ms x TS (weight 4), half of the commands come from the forward run band. Warm start: k2_v3 it 600."""
     cfg = kim_rung2_bands2_env_cfg(play=play)
     ss, ws, ts = GE.SS, GE.WS, GE.TS
-    cfg.commands["athlete"].bands = ((0.50, (2.5 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
-                                     (0.10, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0))
-    cfg.rewards["flight"] = RewardTermCfg(func=mdp.flight_phase, weight=0.5,
-                                          params={"command_name": "athlete", "speed_threshold": 2.2 * ss})
-    cfg.rewards["flight_landing"] = RewardTermCfg(func=mdp.flight_landing, weight=4.0, params={
-        "command_name": "athlete", "speed_threshold": 2.2 * ss, "min_s": 0.04 * ts, "cap_s": 0.12 * ts})
+    cfg.commands["athlete"].bands = (
+        (0.50, (2.5 * ss, GE.GRANDMA_VX_TOP * ss), (0.0, 0.0), 0.6 * ws),
+        (0.10, (-0.5 * ss, 0.5 * ss), (0.7 * ss, 1.1 * ss), 0.0),
+    )
+    cfg.rewards["flight"] = RewardTermCfg(
+        func=mdp.flight_phase, weight=0.5, params={"command_name": "athlete", "speed_threshold": 2.2 * ss}
+    )
+    cfg.rewards["flight_landing"] = RewardTermCfg(
+        func=mdp.flight_landing,
+        weight=4.0,
+        params={"command_name": "athlete", "speed_threshold": 2.2 * ss, "min_s": 0.04 * ts, "cap_s": 0.12 * ts},
+    )
     return cfg
 
 
@@ -101,12 +113,14 @@ def kim_rung0_full_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """k0_v2's recipe (Rung0-Tight = kim_rung0) + DESIGN §5's foot-slip and CoM-over-support terms. Warm start: k0_v2
     it 400 (plain_init)."""
     from .matt_env import add_rung0_full
+
     return add_rung0_full(kim_rung0_tight_env_cfg(play=play), GE.LAM)
 
 
 def kim_rung2_ramp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """k2_v3's recipe (Bands2 = kim_rung2) + shove ramp, solref DR, privileged critic. Warm start k2_v3 it 600."""
     from .matt_env import add_ramp_recipe
+
     return add_ramp_recipe(kim_rung2_bands2_env_cfg(play=play))
 
 
@@ -116,4 +130,5 @@ def kim_rung2_bio_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     critic. One change at a time: the shoves and DR are k2_v3's. Warm start k2_v3 it 600 with zero columns for the new
     inputs (tools/expand_obs.py --actor-zeros 6 --critic-zeros 14): the same function at iteration 0."""
     from .matt_env import add_bio_limits, add_privileged_critic
+
     return add_privileged_critic(add_bio_limits(kim_rung2_bands2_env_cfg(play=play)))

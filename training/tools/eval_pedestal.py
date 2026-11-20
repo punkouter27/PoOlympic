@@ -32,8 +32,10 @@ def main() -> int:
             for l in r.lanes:
                 outs.append(l.out_at_s if l.out_at_s is not None else r.duration_s)
                 reasons[l.reason or "winner"] = reasons.get(l.reason or "winner", 0) + 1
-        line = (f"{b.stem:28s} heats {a.heats}: mean heat {np.mean(durs):5.1f} s (min {min(durs):.1f}, max {max(durs):.1f}) | "
-                f"mean survival {np.mean(outs):5.1f} s | first-out mean {np.mean(sorted(outs)[:a.heats]):.1f} s | {reasons}")
+        line = (
+            f"{b.stem:28s} heats {a.heats}: mean heat {np.mean(durs):5.1f} s (min {min(durs):.1f}, max {max(durs):.1f}) | "
+            f"mean survival {np.mean(outs):5.1f} s | first-out mean {np.mean(sorted(outs)[: a.heats]):.1f} s | {reasons}"
+        )
         if a.g1:
             sim = E.Sim(b)
             res = [E.rung0_episode(b, s, sim=sim) for s in range(1000, 1010)]

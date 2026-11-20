@@ -8,8 +8,6 @@ Use with POOLYMPIC_BODY=zombie (contract / mdp then load the zombie's scene, act
 
 from __future__ import annotations
 
-import math
-
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as envs_mdp
@@ -24,15 +22,15 @@ from . import mdp
 
 Z = bodies.BODIES["zombie"]
 LAM, SS, TS = Z.length_scale, Z.speed_scale, Z.time_scale
-WS = 1.0 / TS                     # angular-rate scale
+WS = 1.0 / TS  # angular-rate scale
 
 
-ROOT_Z = M.scene_root_z(Z.scene_xml)             # crouched zombie stance, ~0.562 m
-FALL_Z = M.body_fall_z(ROOT_Z)                   # MATT's fall rule at the same fraction of standing pelvis height
+ROOT_Z = M.scene_root_z(Z.scene_xml)  # crouched zombie stance, ~0.562 m
+FALL_Z = M.body_fall_z(ROOT_Z)  # MATT's fall rule at the same fraction of standing pelvis height
 # style targets
-HUNCH_DEG = 20.0                                  # torso lean
-STANCE_WIDTH = 0.22                               # m between foot centres (hips 0.12 m apart)
-FOOT_MAX_H = 0.05                                 # m, foot box centre height allowed in swing (stance ≈ 0.02)
+HUNCH_DEG = 20.0  # torso lean
+STANCE_WIDTH = 0.22  # m between foot centres (hips 0.12 m apart)
+FOOT_MAX_H = 0.05  # m, foot box centre height allowed in swing (stance ≈ 0.02)
 
 
 def zombie_entity_cfg() -> EntityCfg:
@@ -49,10 +47,14 @@ def _zombify(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
     rw = cfg.rewards
     # personality: hunch instead of upright; arms held forward at every speed; wide stance
     rw.pop("upright", None)
-    rw["hunch"] = RewardTermCfg(func=mdp.torso_pitch_tracking, weight=1.0,
-                                params={"target_deg": HUNCH_DEG, "std_deg": 15.0})
-    rw["arms_forward"] = RewardTermCfg(func=envs_mdp.posture, weight=0.5, params={
-        "std": {".*": 0.3}, "asset_cfg": SceneEntityCfg("robot", joint_names=("shoulder_.*", "elbow_.*"))})
+    rw["hunch"] = RewardTermCfg(
+        func=mdp.torso_pitch_tracking, weight=1.0, params={"target_deg": HUNCH_DEG, "std_deg": 15.0}
+    )
+    rw["arms_forward"] = RewardTermCfg(
+        func=envs_mdp.posture,
+        weight=0.5,
+        params={"std": {".*": 0.3}, "asset_cfg": SceneEntityCfg("robot", joint_names=("shoulder_.*", "elbow_.*"))},
+    )
     rw["wide_stance"] = RewardTermCfg(func=mdp.feet_width, weight=0.5, params={"target": STANCE_WIDTH, "std": 0.06})
     return cfg
 
@@ -72,7 +74,8 @@ def zombie_rung1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.ranges.ang_vel_z = (-0.5 * WS, 0.5 * WS)
     cfg.curriculum["command_vel"].params["velocity_stages"] = [
         {"step": s["step"], "lin_vel_x": (s["lin_vel_x"][0] * SS, s["lin_vel_x"][1] * SS)}
-        for s in cfg.curriculum["command_vel"].params["velocity_stages"]]
+        for s in cfg.curriculum["command_vel"].params["velocity_stages"]
+    ]
     rw = cfg.rewards
     rw["air_time"].params.update({"threshold_min": 0.1 * TS, "threshold_max": 0.6 * TS, "command_threshold": 0.3 * SS})
     rw["posture"].params.update({"walking_threshold": 0.1 * SS, "running_threshold": 1.8 * SS})
@@ -103,19 +106,29 @@ def zombie_rung2_base_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.rel_standing_envs = 0.15
     cmd.resampling_time_range = (3.0 * TS, 8.0 * TS)
     s0 = RUNG2_STAGES[0]
-    cmd.ranges = mdp.AthleteCommandCfg.Ranges(lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"],
-                                              ang_vel_z=s0["ang_vel_z"], heading=None)
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"], ang_vel_z=s0["ang_vel_z"], heading=None
+    )
     rw = cfg.rewards
-    rw["track_ang"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=2.0,
-                                    params={"command_name": "athlete", "std": 0.5 * WS})
-    rw["track_ang_coarse"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=1.0,
-                                           params={"command_name": "athlete", "std": 1.0 * WS})
+    rw["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS}
+    )
+    rw["track_ang_coarse"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0 * WS}
+    )
     rw["posture"].weight = 0.25
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": RUNG2_STAGES})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": RUNG2_STAGES}
+        )
+    }
     if play:
         last = RUNG2_STAGES[-1]
-        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = last["lin_vel_x"], last["lin_vel_y"], last["ang_vel_z"]
+        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+            last["lin_vel_x"],
+            last["lin_vel_y"],
+            last["ang_vel_z"],
+        )
     return cfg
 
 
@@ -126,8 +139,9 @@ def zombie_rung2_sym3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     while the cap fixed yaw (turntable 2.5 -> 2.0 s, yaw segments 30 -> 50 / 50)."""
     cfg = zombie_rung2_env_cfg(play=play)
     cfg.commands["athlete"].sprint_fraction = 0.0
-    cfg.rewards["track_lin"] = RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=2.0,
-                                             params={"command_name": "athlete", "std": 0.5})
+    cfg.rewards["track_lin"] = RewardTermCfg(
+        func=vel_mdp.track_linear_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5}
+    )
     return cfg
 
 
@@ -137,8 +151,9 @@ def zombie_rung2_sym3yaw_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     speed (0.10-0.14) but let a gait yaw wobble grow to 0.56-0.77 rad/s (bar 0.382): reward balance, not capability.
     Keep the wide linear kernel, raise track_ang 2 -> 3 and sharpen it 0.5 -> 0.35 (× √λ-scaled rate)."""
     cfg = zombie_rung2_sym3_env_cfg(play=play)
-    cfg.rewards["track_ang"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=3.0,
-                                             params={"command_name": "athlete", "std": 0.35 * WS})
+    cfg.rewards["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=3.0, params={"command_name": "athlete", "std": 0.35 * WS}
+    )
     return cfg
 
 
@@ -149,8 +164,9 @@ def zombie_rung2_yawgrad_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     Adds a yaw-only kernel (std 1.0 x the scaled rate) and an L1 yaw-rate penalty. (z2_v6 from the z2_v3 line kept
     its precise steering but had stopped running: 0.14 m/s at a 2.0 m/s command.)"""
     cfg = zombie_rung2_sym3_env_cfg(play=play)
-    cfg.rewards["track_yaw_only"] = RewardTermCfg(func=mdp.track_yaw_rate, weight=1.5,
-                                                  params={"command_name": "athlete", "std": 1.0 * WS})
+    cfg.rewards["track_yaw_only"] = RewardTermCfg(
+        func=mdp.track_yaw_rate, weight=1.5, params={"command_name": "athlete", "std": 1.0 * WS}
+    )
     cfg.rewards["yaw_l1"] = RewardTermCfg(func=mdp.yaw_rate_l1, weight=-0.5, params={"command_name": "athlete"})
     return cfg
 
@@ -162,10 +178,12 @@ def zombie_rung2_yawfilt_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     that wobble, so standing still was the cheapest way to cut "yaw error". Filtered terms punish sustained turn
     errors only."""
     cfg = zombie_rung2_sym3_env_cfg(play=play)
-    cfg.rewards["track_yaw_filt"] = RewardTermCfg(func=mdp.track_yaw_rate_filtered, weight=2.0,
-                                                  params={"command_name": "athlete", "std": 0.5 * WS, "tau": 0.5})
-    cfg.rewards["yaw_filt_l1"] = RewardTermCfg(func=mdp.yaw_rate_filtered_l1, weight=-0.5,
-                                               params={"command_name": "athlete", "tau": 0.5})
+    cfg.rewards["track_yaw_filt"] = RewardTermCfg(
+        func=mdp.track_yaw_rate_filtered, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS, "tau": 0.5}
+    )
+    cfg.rewards["yaw_filt_l1"] = RewardTermCfg(
+        func=mdp.yaw_rate_filtered_l1, weight=-0.5, params={"command_name": "athlete", "tau": 0.5}
+    )
     return cfg
 
 
@@ -194,8 +212,9 @@ def zombie_rung2_wobble_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     z2_v10 runs (2.0 -> 1.98 m/s, 2.8 -> 2.67) and steers (stride-averaged yaw 0.05-0.15, turntable 1.9 s); what fails
     the official per-tick bar (0.382) is the sprint wobble: per-tick 0.41-0.44 on segments at 0.07-0.15 averaged."""
     cfg = zombie_rung2_yawfilt_cap3_lin3_env_cfg(play=play)
-    cfg.rewards["yaw_wobble"] = RewardTermCfg(func=mdp.yaw_wobble_l2, weight=-1.0,
-                                              params={"command_name": "athlete", "tau": 0.5})
+    cfg.rewards["yaw_wobble"] = RewardTermCfg(
+        func=mdp.yaw_wobble_l2, weight=-1.0, params={"command_name": "athlete", "tau": 0.5}
+    )
     return cfg
 
 
@@ -229,13 +248,14 @@ def zombie_rung2_bands_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     Without GRANDMA's careful-step term (as KIM). Warm start: the zombie's Rung2-Omni-Base run (plain_init, std <= 0.3).
     A walking brain of another body is no start for it: z2_v15 (KIM's k2_v3 on the Wobble task) never stood."""
     _check_body()
-    from . import grandma_env as GE                # G = the zombie in a zombie process
+    from . import grandma_env as GE  # G = the zombie in a zombie process
+
     cfg = GE.grandma_rung2_bands_env_cfg(play=play)
     cfg.rewards.pop("careful_steps", None)
     return cfg
 
 
-ZOMBIE_VX_TOP = 3.6              # MATT units (x SS = 2.83 m/s): G1 asks up to 2.76; z2_v11 ran 2.8 -> 2.74
+ZOMBIE_VX_TOP = 3.6  # MATT units (x SS = 2.83 m/s): G1 asks up to 2.76; z2_v11 ran 2.8 -> 2.74
 
 
 def zombie_rung2_bands2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -247,15 +267,18 @@ def zombie_rung2_bands2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     curriculum and the forward band) and KIM's band shares (k2_v3): forward 15 %, backward 10 %, fast side-steps 30 %
     (|vy| 0.7-1.1 x SS = 0.55-0.86 m/s; left over at 0.65-0.74 m/s)."""
     from . import grandma_env as GE
+
     cfg = zombie_rung2_bands_env_cfg(play=play)
     cmd = cfg.commands["athlete"]
     top = ZOMBIE_VX_TOP * SS
     cmd.ranges.lin_vel_x = (cmd.ranges.lin_vel_x[0], top)
     for stage in cfg.curriculum["command_vel"].params["velocity_stages"]:
         stage["lin_vel_x"] = (stage["lin_vel_x"][0], top)
-    cmd.bands = ((0.15, (2.0 * SS, top), (0.0, 0.0), 0.6 * GE.WS),
-                 (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * GE.WS),
-                 (0.30, (-0.5 * SS, 0.5 * SS), (0.7 * SS, 1.1 * SS), 0.0))
+    cmd.bands = (
+        (0.15, (2.0 * SS, top), (0.0, 0.0), 0.6 * GE.WS),
+        (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * GE.WS),
+        (0.30, (-0.5 * SS, 0.5 * SS), (0.7 * SS, 1.1 * SS), 0.0),
+    )
     return cfg
 
 
@@ -265,6 +288,7 @@ def zombie_rung2_capbands_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     5-8 % slow and stopped turning in a sprint. So: the base rewards (kernel 0.5), and from the Bands2 line only the
     command side — lateral-acceleration cap, forward top 2.83 m/s, the three bands — with the symmetric runner."""
     from . import grandma_env as GE
+
     _check_body()
     cfg = GE.grandma_rung2_cap_env_cfg(play=play)
     cfg.rewards.pop("careful_steps", None)
@@ -273,9 +297,11 @@ def zombie_rung2_capbands_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.ranges.lin_vel_x = (cmd.ranges.lin_vel_x[0], top)
     for stage in cfg.curriculum["command_vel"].params["velocity_stages"]:
         stage["lin_vel_x"] = (stage["lin_vel_x"][0], top)
-    cmd.bands = ((0.15, (2.0 * SS, top), (0.0, 0.0), 0.6 * GE.WS),
-                 (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * GE.WS),
-                 (0.30, (-0.5 * SS, 0.5 * SS), (0.7 * SS, 1.1 * SS), 0.0))
+    cmd.bands = (
+        (0.15, (2.0 * SS, top), (0.0, 0.0), 0.6 * GE.WS),
+        (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * GE.WS),
+        (0.30, (-0.5 * SS, 0.5 * SS), (0.7 * SS, 1.1 * SS), 0.0),
+    )
     return cfg
 
 
@@ -289,8 +315,10 @@ def zombie_rung2_polish_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     at the start) and saves every 50 iterations: z2_v11's neighbours scored 1-4/10, so every checkpoint is gated."""
     cfg = zombie_rung2_wobble_env_cfg(play=play)
     cfg.scene.num_envs = 4096
-    cfg.commands["athlete"].bands = ((0.20, (2.0 * SS, ZOMBIE_VX_TOP * SS), (0.0, 0.0), 0.6 * WS),
-                                     (0.20, (-0.5 * SS, 0.5 * SS), (0.1 * SS, 1.1 * SS), 0.0))
+    cfg.commands["athlete"].bands = (
+        (0.20, (2.0 * SS, ZOMBIE_VX_TOP * SS), (0.0, 0.0), 0.6 * WS),
+        (0.20, (-0.5 * SS, 0.5 * SS), (0.1 * SS, 1.1 * SS), 0.0),
+    )
     return cfg
 
 
@@ -306,29 +334,43 @@ def zombie_rung2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.rel_standing_envs = 0.20
     cmd.resampling_time_range = (3.0 * TS, 8.0 * TS)
     s0 = RUNG2_STAGES[0]
-    cmd.ranges = mdp.AthleteCommandCfg.Ranges(lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"],
-                                              ang_vel_z=s0["ang_vel_z"], heading=None)
-    cmd.max_lateral_accel = 4.0                   # accelerations do not scale (Froude): same cap as MATT
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"], ang_vel_z=s0["ang_vel_z"], heading=None
+    )
+    cmd.max_lateral_accel = 4.0  # accelerations do not scale (Froude): same cap as MATT
     cmd.sprint_fraction = 0.3
     cmd.sprint_vx = (2.5 * SS, 4.0 * SS)
     cmd.sprint_wz = 0.6 * WS
     rw = cfg.rewards
-    rw["track_lin"] = RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=2.0,
-                                    params={"command_name": "athlete", "std": 0.3 * SS})
-    rw["track_ang"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=2.0,
-                                    params={"command_name": "athlete", "std": 0.5 * WS})
-    rw["track_ang_coarse"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=1.0,
-                                           params={"command_name": "athlete", "std": 1.0 * WS})
+    rw["track_lin"] = RewardTermCfg(
+        func=vel_mdp.track_linear_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.3 * SS}
+    )
+    rw["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS}
+    )
+    rw["track_ang_coarse"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0 * WS}
+    )
     rw["posture"].weight = 0.25
     # fine-tune after the base run (z2_v2): the curriculum already ran — full widened envelope from the start
     # (MATT's Sym2+ tasks did the same)
     env = RUNG2_TRAIN_ENVELOPE
-    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = env["lin_vel_x"], env["lin_vel_y"], env["ang_vel_z"]
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [dict(env, step=0)]})}
+    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+        env["lin_vel_x"],
+        env["lin_vel_y"],
+        env["ang_vel_z"],
+    )
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(env, step=0)]}
+        )
+    }
     if play:
         cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
-            RUNG2_TRAIN_ENVELOPE["lin_vel_x"], RUNG2_TRAIN_ENVELOPE["lin_vel_y"], RUNG2_TRAIN_ENVELOPE["ang_vel_z"])
+            RUNG2_TRAIN_ENVELOPE["lin_vel_x"],
+            RUNG2_TRAIN_ENVELOPE["lin_vel_y"],
+            RUNG2_TRAIN_ENVELOPE["ang_vel_z"],
+        )
     return cfg
 
 

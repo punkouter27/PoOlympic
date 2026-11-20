@@ -69,10 +69,19 @@ def canon(o, code: dict, seen: tuple = ()):
         if name != "<lambda>":
             return f"<{name}>"
         cells = [c.cell_contents for c in (o.__closure__ or ())]
-        globs = {n: o.__globals__[n] for n in o.__code__.co_names
-                 if n in o.__globals__ and isinstance(o.__globals__[n], PLAIN)}
-        key = json.dumps({"lambda": _src(o).strip(), "closure": canon([c for c in cells if isinstance(c, PLAIN)], code, seen),
-                          "globals": canon(globs, code, seen)}, sort_keys=True)
+        globs = {
+            n: o.__globals__[n]
+            for n in o.__code__.co_names
+            if n in o.__globals__ and isinstance(o.__globals__[n], PLAIN)
+        }
+        key = json.dumps(
+            {
+                "lambda": _src(o).strip(),
+                "closure": canon([c for c in cells if isinstance(c, PLAIN)], code, seen),
+                "globals": canon(globs, code, seen),
+            },
+            sort_keys=True,
+        )
         if key not in _SPECS:
             # an entity's spec_fn: hashed by the MJCF it produces, so the lambda may move or be rewritten
             _SPECS[key] = key
@@ -85,8 +94,10 @@ def canon(o, code: dict, seen: tuple = ()):
                     pass
         return _SPECS[key]
     if dataclasses.is_dataclass(o):
-        return {"__class__": type(o).__name__,
-                **{f.name: canon(getattr(o, f.name), code, seen) for f in dataclasses.fields(o)}}
+        return {
+            "__class__": type(o).__name__,
+            **{f.name: canon(getattr(o, f.name), code, seen) for f in dataclasses.fields(o)},
+        }
     if hasattr(o, "tolist"):
         return canon(o.tolist(), code, seen)
     if hasattr(o, "__dict__"):
@@ -95,8 +106,9 @@ def canon(o, code: dict, seen: tuple = ()):
 
 
 def dump_body() -> dict:
-    import poolympic.tasks as T
     from mjlab.tasks.registry import _REGISTRY
+
+    import poolympic.tasks as T
 
     superseded = getattr(T, "SUPERSEDED", frozenset())
     out = {}
@@ -104,9 +116,14 @@ def dump_body() -> dict:
         t = _REGISTRY[tid]
         code: dict = {}
         tree = canon({"env": t.env_cfg, "play": t.play_env_cfg, "rl": t.rl_cfg, "runner": t.runner_cls}, code)
-        out[tid] = {"cfg": _sha(json.dumps(tree, sort_keys=True)), "code": _sha(json.dumps(code, sort_keys=True)),
-                    "num_envs": t.env_cfg.scene.num_envs, "max_iterations": t.rl_cfg.max_iterations,
-                    "save_interval": t.rl_cfg.save_interval, "superseded": tid in superseded}
+        out[tid] = {
+            "cfg": _sha(json.dumps(tree, sort_keys=True)),
+            "code": _sha(json.dumps(code, sort_keys=True)),
+            "num_envs": t.env_cfg.scene.num_envs,
+            "max_iterations": t.rl_cfg.max_iterations,
+            "save_interval": t.rl_cfg.save_interval,
+            "superseded": tid in superseded,
+        }
     return out
 
 
@@ -130,7 +147,9 @@ def main() -> None:
                     n += 1
                     print(f"REMOVED  {body:8s} {tid}")
                 elif tb[tid] != tc[tid]:
-                    keys = [k for k in ("cfg", "code") if isinstance(tb[tid], dict) and tb[tid].get(k) != tc[tid].get(k)]
+                    keys = [
+                        k for k in ("cfg", "code") if isinstance(tb[tid], dict) and tb[tid].get(k) != tc[tid].get(k)
+                    ]
                     if keys or not isinstance(tb[tid], dict):
                         n += "cfg" in keys or not isinstance(tb[tid], dict)
                         print(f"CHANGED  {body:8s} {tid}  ({', '.join(keys) or 'value'})")
@@ -146,11 +165,23 @@ def main() -> None:
         return
 
     from poolympic import bodies
-    res = {"_assets": {"all": {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()[:16]
-                               for p in sorted((ROOT / "assets").rglob("*.xml"))}}}
+
+    res = {
+        "_assets": {
+            "all": {
+                p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+                for p in sorted((ROOT / "assets").rglob("*.xml"))
+            }
+        }
+    }
     for name in sorted(bodies.BODIES):
-        r = subprocess.run([sys.executable, __file__, "--one-body"], env={**os.environ, "POOLYMPIC_BODY": name},
-                           capture_output=True, text=True, cwd=ROOT)
+        r = subprocess.run(
+            [sys.executable, __file__, "--one-body"],
+            env={**os.environ, "POOLYMPIC_BODY": name},
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
         if r.returncode:
             sys.exit(f"{name}: {r.stderr[-2000:]}")
         res[name] = json.loads(r.stdout.strip().splitlines()[-1])

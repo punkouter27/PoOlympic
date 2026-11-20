@@ -29,12 +29,12 @@ from .iron_pedestal import Traits, _Lane, make_lanes
 
 SCENE = C.ROOT / "assets" / "scene_flamingo8_mattbio.xml"
 LAYOUT = C.ROOT / "assets" / "flamingo8_mattbio_layout.json"
-LIFT_S = 2.0                          # s after GO to get the foot off the ground; touches before do not count
-ROUND_S = 2.0                         # a gust every round, the first one ROUND_S after LIFT_S
-GUST_START, GUST_STEP = 0.04, 0.012   # m/s pelvis Δv — tuned on CPU heats, see rl_optimization_log.md
-HOP_TOL = 0.30                        # m: the stance foot this far from its spot = HOPPED
+LIFT_S = 2.0  # s after GO to get the foot off the ground; touches before do not count
+ROUND_S = 2.0  # a gust every round, the first one ROUND_S after LIFT_S
+GUST_START, GUST_STEP = 0.04, 0.012  # m/s pelvis Δv — tuned on CPU heats, see rl_optimization_log.md
+HOP_TOL = 0.30  # m: the stance foot this far from its spot = HOPPED
 MAX_S = 120.0
-START_S = 1.0                         # settle before GO (Unity countdown hand-off)
+START_S = 1.0  # settle before GO (Unity countdown hand-off)
 
 
 def gust(r: int) -> float:
@@ -45,9 +45,9 @@ def gust(r: int) -> float:
 class FlamingoLane:
     lane: int
     traits: Traits
-    out_at_s: float | None = None                          # time on one leg (s after GO); None = still up at MAX_S
-    status: str = ""                                       # TOUCHDOWN / HOPPED / FELL / UP
-    gusts: int = 0                                         # gusts taken while still up
+    out_at_s: float | None = None  # time on one leg (s after GO); None = still up at MAX_S
+    status: str = ""  # TOUCHDOWN / HOPPED / FELL / UP
+    gusts: int = 0  # gusts taken while still up
     max_hop_m: float = 0.0
     place: int = 0
 
@@ -56,7 +56,7 @@ class FlamingoLane:
 class FlamingoResult:
     seed: int
     duration_s: float
-    foot: str                                              # the lifted foot, "l" or "r"
+    foot: str  # the lifted foot, "l" or "r"
     lanes: list[FlamingoLane] = field(default_factory=list)
 
 
@@ -86,8 +86,9 @@ class _FlamingoJudge:
 
 
 @AL.logged("event_flamingo")
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None,
-             max_s: float = MAX_S) -> FlamingoResult:
+def run_heat(
+    onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None, max_s: float = MAX_S
+) -> FlamingoResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -112,14 +113,14 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
         if tick == go + lift:
             for j in judges:
                 j.mark(d)
-        if tick >= next_round:                   # gust round: same magnitude, own direction
+        if tick >= next_round:  # gust round: same magnitude, own direction
             dv = gust(rnd)
             for i, ln in enumerate(lanes):
                 if res[i].status:
                     continue
                 a = rng.uniform(0, 2 * math.pi)
                 da = m.jnt_dofadr[m.joint(ln.prefix + "root").id]
-                d.qvel[da: da + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                d.qvel[da : da + 2] += dv * np.array([math.cos(a), math.sin(a)])
                 res[i].gusts += 1
             rnd += 1
             next_round += rnd_ticks
@@ -154,13 +155,18 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
 
 
 def to_json(res: FlamingoResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s, "foot": res.foot,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "foot": res.foot,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }
 
 
 if __name__ == "__main__":
     import argparse
     import time
+
     ap = argparse.ArgumentParser(description="Flamingo Classic heats on CPU MuJoCo")
     ap.add_argument("onnx", type=Path)
     ap.add_argument("--seeds", type=int, default=3)
@@ -172,8 +178,12 @@ if __name__ == "__main__":
         t0 = time.time()
         res = run_heat(a.onnx, s)
         runs.append(to_json(res))
-        line = " | ".join(f"L{l.lane + 1} {'-' if l.out_at_s is None else f'{l.out_at_s:.1f}'} {l.status}"
-                          for l in sorted(res.lanes, key=lambda l: l.place))
-        print(f"seed {s} foot {res.foot} ({res.duration_s:.1f} s sim, {time.time() - t0:.0f} s wall): {line}", flush=True)
+        line = " | ".join(
+            f"L{l.lane + 1} {'-' if l.out_at_s is None else f'{l.out_at_s:.1f}'} {l.status}"
+            for l in sorted(res.lanes, key=lambda l: l.place)
+        )
+        print(
+            f"seed {s} foot {res.foot} ({res.duration_s:.1f} s sim, {time.time() - t0:.0f} s wall): {line}", flush=True
+        )
     if a.out:
         a.out.write_text(json.dumps(runs, indent=1))

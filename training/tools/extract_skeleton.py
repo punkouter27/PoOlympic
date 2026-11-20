@@ -53,12 +53,14 @@ def main(glb_path: Path) -> int:
         p = glb.parent.get(n)
         r = world[i, :3, :3]
         r = r / np.linalg.norm(r, axis=0, keepdims=True)  # strip ~1e-7 scale noise
-        joints.append({
-            "name": names[i],
-            "parent": glb.name(p) if p in jset else None,
-            "pos": to_mj(world[i, :3, 3]).round(6).tolist(),
-            "rot": rot_to_mj(r).round(6).tolist(),
-        })
+        joints.append(
+            {
+                "name": names[i],
+                "parent": glb.name(p) if p in jset else None,
+                "pos": to_mj(world[i, :3, 3]).round(6).tolist(),
+                "rot": rot_to_mj(r).round(6).tolist(),
+            }
+        )
 
     # Skinned vertices at bind pose, in world (MuJoCo) frame.
     verts, dom, wts, jidx, mesh_ids = [], [], [], [], []
@@ -75,9 +77,13 @@ def main(glb_path: Path) -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         BODY.skin_npz,
-        verts=verts, dominant=np.concatenate(dom), weights=np.concatenate(wts),
-        joints=np.concatenate(jidx), mesh=np.concatenate(mesh_ids),
-        mesh_names=np.array([m.name for m in skin.meshes]), joint_names=np.array(names),
+        verts=verts,
+        dominant=np.concatenate(dom),
+        weights=np.concatenate(wts),
+        joints=np.concatenate(jidx),
+        mesh=np.concatenate(mesh_ids),
+        mesh_names=np.array([m.name for m in skin.meshes]),
+        joint_names=np.array(names),
     )
 
     # Checks
@@ -106,11 +112,17 @@ def main(glb_path: Path) -> int:
     }
     BODY.skeleton_json.write_text(json.dumps(report, indent=1))
 
-    print(f"joints={len(joints)}  bind-consistency={bind_dev:.2e}  L/R mirror err={mirror_err*1000:.3f} mm")
-    print(f"height body={height_body:.3f} m  with hair={height_all:.3f} m  min z={verts[:, 2].min():+.4f} m  verts={len(verts)}")
-    mirror_tol = 1e-3 if BODY.name == "matt" else 0.01   # the zombie sculpt is ~5 mm asymmetric (geometry is mirrored)
-    ok = (len(joints) == BODY.n_joints and mirror_err < mirror_tol and bind_dev < 1e-4
-          and BODY.height_range[0] < height_all < BODY.height_range[1])
+    print(f"joints={len(joints)}  bind-consistency={bind_dev:.2e}  L/R mirror err={mirror_err * 1000:.3f} mm")
+    print(
+        f"height body={height_body:.3f} m  with hair={height_all:.3f} m  min z={verts[:, 2].min():+.4f} m  verts={len(verts)}"
+    )
+    mirror_tol = 1e-3 if BODY.name == "matt" else 0.01  # the zombie sculpt is ~5 mm asymmetric (geometry is mirrored)
+    ok = (
+        len(joints) == BODY.n_joints
+        and mirror_err < mirror_tol
+        and bind_dev < 1e-4
+        and BODY.height_range[0] < height_all < BODY.height_range[1]
+    )
     print("A4 CHECKS", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

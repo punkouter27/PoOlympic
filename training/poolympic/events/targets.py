@@ -30,7 +30,7 @@ from .. import action_log as AL
 from .. import contract as C
 from .. import skills as K
 from .iron_pedestal import Traits, make_lanes
-from .squat import STEP_TOL, _SquatJudge
+from .squat import _SquatJudge
 
 KINDS = ("archer", "reach")
 ROUNDS = 12
@@ -43,13 +43,13 @@ ARCHER_YAW = math.radians(45)
 ARCHER_PITCH = (math.radians(-15), math.radians(35))
 ARCHER_MIN_MOVE = math.radians(30)
 MOVE_FRAC = 0.6
-ARCHER_TOL = 0.25                  # rad: zero points this far off on average
+ARCHER_TOL = 0.25  # rad: zero points this far off on average
 
-REACH_FRAC = (0.50, 0.78)          # of the reach radius: round 0 .. the last round
+REACH_FRAC = (0.50, 0.78)  # of the reach radius: round 0 .. the last round
 REACH_AZ = K.REACH_AZ
 REACH_EL = (K.REACH_EL[0], math.radians(45))
 SAMPLE_FRAC = 0.4
-REACH_TOL = 0.15                   # m
+REACH_TOL = 0.15  # m
 
 
 def round_s(r: int) -> float:
@@ -86,8 +86,15 @@ def archer_target(aims, r: int, frac: float) -> tuple[float, float]:
 def reach_dirs(rng: np.random.Generator) -> list[tuple[int, float, float, float]]:
     """Per round: (arm −1 left / +1 right, azimuth, elevation, fraction of the reach radius)."""
     first = -1 if rng.uniform() < 0.5 else 1
-    return [(first if r % 2 == 0 else -first, float(rng.uniform(*REACH_AZ)), float(rng.uniform(*REACH_EL)),
-             REACH_FRAC[0] + (REACH_FRAC[1] - REACH_FRAC[0]) * r / (ROUNDS - 1)) for r in range(ROUNDS)]
+    return [
+        (
+            first if r % 2 == 0 else -first,
+            float(rng.uniform(*REACH_AZ)),
+            float(rng.uniform(*REACH_EL)),
+            REACH_FRAC[0] + (REACH_FRAC[1] - REACH_FRAC[0]) * r / (ROUNDS - 1),
+        )
+        for r in range(ROUNDS)
+    ]
 
 
 def reach_target(shoulder: np.ndarray, arm: int, az: float, el: float, dist: float) -> np.ndarray:
@@ -100,10 +107,10 @@ class TargetLane:
     lane: int
     traits: Traits
     points: float = 0.0
-    rounds: list[float] = field(default_factory=list)   # points per completed round
-    errs: list[float] = field(default_factory=list)     # error per round (rad / m)
+    rounds: list[float] = field(default_factory=list)  # points per completed round
+    errs: list[float] = field(default_factory=list)  # error per round (rad / m)
     out_at_s: float | None = None
-    status: str = ""                                     # DONE / FELL / STEPPED
+    status: str = ""  # DONE / FELL / STEPPED
     place: int = 0
 
 
@@ -116,8 +123,9 @@ class TargetResult:
 
 
 @AL.logged("event_targets")
-def run_heat(onnx, seed: int, kind: str = "archer", traits: list[Traits] | None = None, scene=None,
-             layout_path=None) -> TargetResult:
+def run_heat(
+    onnx, seed: int, kind: str = "archer", traits: list[Traits] | None = None, scene=None, layout_path=None
+) -> TargetResult:
     assert kind in KINDS
     sc, lay = scene_paths(kind)
     m = mujoco.MjModel.from_xml_path(str(scene or sc))
@@ -135,7 +143,7 @@ def run_heat(onnx, seed: int, kind: str = "archer", traits: list[Traits] | None 
     aims = archer_aims(rng) if kind == "archer" else None
     dirs = reach_dirs(rng) if kind == "reach" else None
     reach = K.body_ranges()["hand_reach"]
-    shoulders: list[dict] = [{} for _ in lanes]          # per lane: arm -> shoulder in the heading frame at GO
+    shoulders: list[dict] = [{} for _ in lanes]  # per lane: arm -> shoulder in the heading frame at GO
     starts = np.concatenate([[0.0], np.cumsum([round_s(r) for r in range(ROUNDS)])])
     dt = m.opt.timestep * C.DECIMATION
     end = START_S + total_s()
@@ -204,7 +212,7 @@ def run_heat(onnx, seed: int, kind: str = "archer", traits: list[Traits] | None 
 def _score(kind: str, res: list[TargetLane], buf: list[list[float]]):
     tol = ARCHER_TOL if kind == "archer" else REACH_TOL
     for r, b in zip(res, buf):
-        if r.status or not b:          # out during this round: no points for it
+        if r.status or not b:  # out during this round: no points for it
             continue
         err = float(np.mean(b))
         r.errs.append(round(err, 4))
@@ -212,13 +220,18 @@ def _score(kind: str, res: list[TargetLane], buf: list[list[float]]):
 
 
 def to_json(res: TargetResult) -> dict:
-    return {"kind": res.kind, "seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "kind": res.kind,
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }
 
 
 if __name__ == "__main__":
     import argparse
     import time
+
     ap = argparse.ArgumentParser(description="Torso Archer / Javelin Reach heats on CPU MuJoCo")
     ap.add_argument("kind", choices=KINDS)
     ap.add_argument("onnx", type=Path)
@@ -231,8 +244,10 @@ if __name__ == "__main__":
         t0 = time.time()
         res = run_heat(a.onnx, s, a.kind)
         runs.append(to_json(res))
-        line = " | ".join(f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
-                          for l in sorted(res.lanes, key=lambda l: l.place))
+        line = " | ".join(
+            f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
+            for l in sorted(res.lanes, key=lambda l: l.place)
+        )
         print(f"seed {s} ({res.duration_s:.1f} s sim, {time.time() - t0:.0f} s wall): {line}", flush=True)
     if a.out:
         a.out.write_text(json.dumps(runs, indent=1))

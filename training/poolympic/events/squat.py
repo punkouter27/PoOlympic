@@ -30,15 +30,15 @@ from .iron_pedestal import FALL_TILT_DEG, Traits, _Lane, make_lanes
 SCENE = C.ROOT / "assets" / "scene_squat8_mattbio.xml"
 LAYOUT = C.ROOT / "assets" / "squat8_mattbio_layout.json"
 REPS = 12
-DEPTH_START, DEPTH_STEP, DEPTH_MAX = 0.25, 0.02, 0.45    # m below standing (Rung S range: 0 .. 0.45)
-DOWN_START, UP_START, TEMPO_STEP = 2.5, 2.0, 0.1         # s; each rep 0.1 s faster down and up
+DEPTH_START, DEPTH_STEP, DEPTH_MAX = 0.25, 0.02, 0.45  # m below standing (Rung S range: 0 .. 0.45)
+DOWN_START, UP_START, TEMPO_STEP = 2.5, 2.0, 0.1  # s; each rep 0.1 s faster down and up
 DOWN_MIN, UP_MIN = 1.2, 1.0
 SAMPLE_FRAC = 0.4
 REP_POINTS = 10.0
-DEPTH_TOL = 0.10       # m: zero points this far off the called depth
-STEP_TOL = 0.20        # m: a foot this far from its start spot = STEPPED
-BALANCE_BONUS = 10.0   # points for finishing every rep without falling / stepping (= one perfect rep)
-START_S = 1.0          # settle before the first rep (Unity countdown hand-off)
+DEPTH_TOL = 0.10  # m: zero points this far off the called depth
+STEP_TOL = 0.20  # m: a foot this far from its start spot = STEPPED
+BALANCE_BONUS = 10.0  # points for finishing every rep without falling / stepping (= one perfect rep)
+START_S = 1.0  # settle before the first rep (Unity countdown hand-off)
 
 
 def depth(r: int) -> float:
@@ -73,10 +73,10 @@ class SquatLane:
     lane: int
     traits: Traits
     points: float = 0.0
-    reps: list[float] = field(default_factory=list)     # points per completed rep
-    errs_m: list[float] = field(default_factory=list)   # |drop − depth| per rep
+    reps: list[float] = field(default_factory=list)  # points per completed rep
+    errs_m: list[float] = field(default_factory=list)  # |drop − depth| per rep
     out_at_s: float | None = None
-    status: str = ""                                     # DONE / FELL / STEPPED
+    status: str = ""  # DONE / FELL / STEPPED
     place: int = 0
 
 
@@ -92,7 +92,7 @@ class _SquatJudge:
 
     def __init__(self, m, d, ln: _Lane):
         self.ln = ln
-        self.z0 = float(d.qpos[ln.ath.root_qposadr + 2])            # reset pose = the body's default standing height
+        self.z0 = float(d.qpos[ln.ath.root_qposadr + 2])  # reset pose = the body's default standing height
         self.feet = [m.body(ln.prefix + n).id for n in ("foot_l", "foot_r")]
         self.start = None
 
@@ -193,21 +193,25 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
 def _score_rep(seg, res: list[SquatLane], buf: list[list[float]]):
     _, _, cmd, rep = seg
     for r, b in zip(res, buf):
-        if r.status or not b:          # out during this rep: no points for it
+        if r.status or not b:  # out during this rep: no points for it
             continue
-        err = abs(float(np.mean(b)) + cmd)       # cmd = −depth
+        err = abs(float(np.mean(b)) + cmd)  # cmd = −depth
         r.errs_m.append(round(err, 4))
         r.reps.append(REP_POINTS * min(1.0, max(0.0, 1.0 - err / DEPTH_TOL)))
 
 
 def to_json(res: SquatResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }
 
 
 if __name__ == "__main__":
     import argparse
     import time
+
     ap = argparse.ArgumentParser(description="Deep Squat Endurance heats on CPU MuJoCo")
     ap.add_argument("onnx", type=Path)
     ap.add_argument("--seeds", type=int, default=3)
@@ -219,8 +223,10 @@ if __name__ == "__main__":
         t0 = time.time()
         res = run_heat(a.onnx, s)
         runs.append(to_json(res))
-        line = " | ".join(f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
-                          for l in sorted(res.lanes, key=lambda l: l.place))
+        line = " | ".join(
+            f"L{l.lane + 1} {l.points:5.1f} {l.status}{'' if l.out_at_s is None else f'@{l.out_at_s:.1f}'}"
+            for l in sorted(res.lanes, key=lambda l: l.place)
+        )
         print(f"seed {s} ({res.duration_s:.1f} s sim, {time.time() - t0:.0f} s wall): {line}", flush=True)
     if a.out:
         a.out.write_text(json.dumps(runs, indent=1))

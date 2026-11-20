@@ -32,7 +32,7 @@ BR = ROOT.parent / "parity" / "brains"
 A = ROOT / "assets"
 OUT_DIR = ROOT.parent / "parity" / "odds"
 MODEL = ROOT.parent / "Assets" / "PoOlympic" / "Models" / "odds_model.json"
-FEATURES = ["zombie", "strength", "latency", "noise", "grandma", "kim"]   # Unity Odds.Rating reads them in this order
+FEATURES = ["zombie", "strength", "latency", "noise", "grandma", "kim"]  # Unity Odds.Rating reads them in this order
 RIDGE = 0.5
 
 
@@ -43,7 +43,11 @@ def deployed(role: str) -> dict[str, Path]:
 
 
 R2 = deployed("rung2")
-LINEUPS = {"mzmzmzmz": 5000, "mzgmzgmg": 7000, "mzgkmzgk": 9000}     # KIM in lanes 4 / 8 since 2026-10-11; scene tag -> first seed (GRANDMA crawls in 8 / 23 since 2026-10-02)
+LINEUPS = {
+    "mzmzmzmz": 5000,
+    "mzgmzgmg": 7000,
+    "mzgkmzgk": 9000,
+}  # KIM in lanes 4 / 8 since 2026-10-11; scene tag -> first seed (GRANDMA crawls in 8 / 23 since 2026-10-02)
 
 # event -> (name, runner kind, scene tag)
 EVENTS = {
@@ -75,38 +79,76 @@ def lineup_of(seed: int) -> str:
 
 def run_one(event: int, seed: int) -> dict:
     from poolympic.events import all_fours, arena_brawl, crab, gauntlet, iron_pedestal, slalom, track, turntable
+
     _, kind, tag = EVENTS[event]
     scene, layout = A / f"scene_{tag}_{lineup_of(seed)}.xml", A / f"{tag}_{lineup_of(seed)}_layout.json"
     if kind == "pedestal":
         brains = deployed("pedestal")
         res = iron_pedestal.run_heat(brains["matt"], seed, scene=scene, layout_path=layout, brains=brains)
     elif kind in ("all_fours", "trench"):
-        res = all_fours.run_race(deployed("crawl"), seed, scene=scene,
-                                 layout_path=layout, distance=all_fours.TRENCH_DISTANCE if kind == "trench" else None)
+        res = all_fours.run_race(
+            deployed("crawl"),
+            seed,
+            scene=scene,
+            layout_path=layout,
+            distance=all_fours.TRENCH_DISTANCE if kind == "trench" else None,
+        )
     elif kind.startswith("track:"):
         mode = kind.split(":")[1]
         brains = {**R2, **deployed("flight")} if mode == "steeple" else R2
-        res = track.run_race(brains["matt"], mode, seed, scene=scene, layout_path=layout, brains=brains, recover=deployed("getup"))
+        res = track.run_race(
+            brains["matt"], mode, seed, scene=scene, layout_path=layout, brains=brains, recover=deployed("getup")
+        )
     elif kind.startswith("arena:"):
         mode = kind.split(":")[1]
-        res = arena_brawl.run_arena(R2["matt"], mode, seed, scene=scene, layout_path=layout, brains=R2, recover=deployed("getup"))
+        res = arena_brawl.run_arena(
+            R2["matt"], mode, seed, scene=scene, layout_path=layout, brains=R2, recover=deployed("getup")
+        )
     else:
         mod = {"gauntlet": gauntlet, "crab": crab, "slalom": slalom, "turntable": turntable}[kind]
-        res = mod.run_heat(R2["matt"], seed, scene=scene, layout_path=layout, brains=R2, **({"tactics": True, "recover": deployed("getup")} if kind == "slalom" else {}))
+        res = mod.run_heat(
+            R2["matt"],
+            seed,
+            scene=scene,
+            layout_path=layout,
+            brains=R2,
+            **({"tactics": True, "recover": deployed("getup")} if kind == "slalom" else {}),
+        )
     bodies = [l.get("body", "matt") for l in json.loads(layout.read_text())["lanes"]]
-    return {"event": event, "seed": seed, "lanes": [
-        {"lane": l.lane, "body": bodies[l.lane], "strength": l.traits.strength, "latency": l.traits.latency_substeps,
-         "noise": l.traits.obs_noise, "place": l.place} for l in res.lanes]}
+    return {
+        "event": event,
+        "seed": seed,
+        "lanes": [
+            {
+                "lane": l.lane,
+                "body": bodies[l.lane],
+                "strength": l.traits.strength,
+                "latency": l.traits.latency_substeps,
+                "noise": l.traits.obs_noise,
+                "place": l.place,
+            }
+            for l in res.lanes
+        ],
+    }
 
 
 def features(lane: dict) -> np.ndarray:
-    return np.array([1.0 if lane["body"] == "zombie" else 0.0, lane["strength"] - 1.0, float(lane["latency"]), lane["noise"],
-                     1.0 if lane["body"] == "grandma" else 0.0, 1.0 if lane["body"] == "kim" else 0.0])
+    return np.array(
+        [
+            1.0 if lane["body"] == "zombie" else 0.0,
+            lane["strength"] - 1.0,
+            float(lane["latency"]),
+            lane["noise"],
+            1.0 if lane["body"] == "grandma" else 0.0,
+            1.0 if lane["body"] == "kim" else 0.0,
+        ]
+    )
 
 
 def fit(heats: list[dict]) -> tuple[np.ndarray, dict]:
     """Plackett-Luce MLE on full finishing orders + L2 ridge (convex), L-BFGS with the exact gradient."""
     from scipy.optimize import minimize
+
     orders = []
     for h in heats:
         ls = sorted(h["lanes"], key=lambda l: (l["place"], l["lane"]))
@@ -116,7 +158,7 @@ def fit(heats: list[dict]) -> tuple[np.ndarray, dict]:
         f, g = 0.5 * RIDGE * w @ w, RIDGE * w
         for X in orders:
             r = X @ w
-            for k in range(len(X) - 1):          # stage k: the k-th finisher beats everyone behind it
+            for k in range(len(X) - 1):  # stage k: the k-th finisher beats everyone behind it
                 rk = r[k:]
                 m = rk.max()
                 e = np.exp(rk - m)
@@ -152,8 +194,13 @@ def main() -> int:
         done = set()
         if raw.exists():
             done = {(h["event"], h["seed"]) for h in map(json.loads, raw.read_text().splitlines())}
-        jobs = [(e, s0 + i) for e in events for tag, s0 in LINEUPS.items() for i in range(a.heats)
-                if (e, s0 + i) not in done and (A / f"scene_{EVENTS[e][2]}_{tag}.xml").exists()]
+        jobs = [
+            (e, s0 + i)
+            for e in events
+            for tag, s0 in LINEUPS.items()
+            for i in range(a.heats)
+            if (e, s0 + i) not in done and (A / f"scene_{EVENTS[e][2]}_{tag}.xml").exists()
+        ]
         print(f"{len(jobs)} heats to run on {a.workers} workers", flush=True)
         with ProcessPoolExecutor(a.workers) as pool, raw.open("a") as f:
             futs = {pool.submit(run_one, e, s): (e, s) for e, s in jobs}
@@ -163,14 +210,20 @@ def main() -> int:
                 if i % 10 == 0:
                     print(f"  {i}/{len(jobs)}", flush=True)
     heats = [json.loads(x) for x in raw.read_text().splitlines()]
-    model = {"note": "PoOlympic betting odds (training/tools/fit_odds.py): rating = w . [zombie, strength-1, latency, "
-                     "noise, grandma, kim]; P(win) = softmax(rating); Plackett-Luce fit on CPU heats, mixed MATT / zombie / GRANDMA / KIM lineups",
-             "features": FEATURES, "margin": 0.10, "events": []}
+    model = {
+        "note": "PoOlympic betting odds (training/tools/fit_odds.py): rating = w . [zombie, strength-1, latency, "
+        "noise, grandma, kim]; P(win) = softmax(rating); Plackett-Luce fit on CPU heats, mixed MATT / zombie / GRANDMA / KIM lineups",
+        "features": FEATURES,
+        "margin": 0.10,
+        "events": [],
+    }
     for e in sorted({h["event"] for h in heats if h["event"] in EVENTS}):
         w, diag = fit([h for h in heats if h["event"] == e])
         model["events"].append({"number": e, "name": EVENTS[e][0], "weights": [round(float(x), 4) for x in w], **diag})
-        print(f"E{e:02d} {EVENTS[e][0]:26s} w={np.round(w, 2)}  favourite wins {diag['favourite_wins']:.0%} "
-              f"(uniform 12.5%), winner LL {diag['winner_loglik']:.2f} vs {diag['uniform_loglik']:.2f}")
+        print(
+            f"E{e:02d} {EVENTS[e][0]:26s} w={np.round(w, 2)}  favourite wins {diag['favourite_wins']:.0%} "
+            f"(uniform 12.5%), winner LL {diag['winner_loglik']:.2f} vs {diag['uniform_loglik']:.2f}"
+        )
     MODEL.write_text(json.dumps(model, indent=1) + "\n")
     print(f"wrote {MODEL}")
     return 0

@@ -58,9 +58,15 @@ class Rollout:
     frames: list[dict] = field(default_factory=list)
 
 
-def rollout(onnx_path: Path, seconds: float = 5.0, disturbances: list[Disturbance] | None = None,
-            command=(0.0, 0.0, 0.0), scene_xml: Path | None = None, body: str | None = None,
-            skill: np.ndarray | None = None) -> dict:
+def rollout(
+    onnx_path: Path,
+    seconds: float = 5.0,
+    disturbances: list[Disturbance] | None = None,
+    command=(0.0, 0.0, 0.0),
+    scene_xml: Path | None = None,
+    body: str | None = None,
+    skill: np.ndarray | None = None,
+) -> dict:
     """body: athlete body (bodies.BODIES key) to roll out solo — its scene, gait clock and fingerprint; default = the
     process body ($POOLYMPIC_BODY). skill: contract v4 stance-skill block (C.SKILL_DIM, constant for the rollout) for a
     v4 brain — appended to every obs, its march cadence drives the gait clock; None = v3 (84 obs)."""
@@ -86,7 +92,9 @@ def rollout(onnx_path: Path, seconds: float = 5.0, disturbances: list[Disturbanc
     for tick in range(n_ticks):
         qpos, qvel = d.qpos.copy(), d.qvel.copy()
         cad = C.skill_cadence(skill)
-        phase = C.advance_phase(phase, command, cad) if gait is None else C.advance_phase_clock(phase, command, gait, cad)
+        phase = (
+            C.advance_phase(phase, command, cad) if gait is None else C.advance_phase_clock(phase, command, gait, cad)
+        )
         obs = C.build_obs(ath, qpos, qvel, command, phase, last_action, skill)
         ctrl, action_raw = sess.run(None, {"obs": obs[None]})
         ctrl64 = ctrl[0].astype(np.float64)
@@ -95,12 +103,19 @@ def rollout(onnx_path: Path, seconds: float = 5.0, disturbances: list[Disturbanc
             dist.apply(m, d)
         for _ in range(C.DECIMATION):
             mujoco.mj_step(m, d)
-        frames.append({
-            "tick": tick, "t": tick * m.opt.timestep * C.DECIMATION, "phase": phase,
-            "qpos": qpos.tolist(), "qvel": qvel.tolist(),
-            "obs": obs.astype(np.float64).tolist(), "action_raw": action_raw[0].astype(np.float64).tolist(),
-            "ctrl": ctrl64.tolist(), "actuator_force": d.actuator_force[ath.actuator_ids].tolist(),
-        })
+        frames.append(
+            {
+                "tick": tick,
+                "t": tick * m.opt.timestep * C.DECIMATION,
+                "phase": phase,
+                "qpos": qpos.tolist(),
+                "qvel": qvel.tolist(),
+                "obs": obs.astype(np.float64).tolist(),
+                "action_raw": action_raw[0].astype(np.float64).tolist(),
+                "ctrl": ctrl64.tolist(),
+                "actuator_force": d.actuator_force[ath.actuator_ids].tolist(),
+            }
+        )
         last_action = action_raw[0].astype(np.float64)
 
     fp_sha = b.fingerprint_json.with_suffix(".sha256").read_text().strip()
@@ -108,16 +123,37 @@ def rollout(onnx_path: Path, seconds: float = 5.0, disturbances: list[Disturbanc
     return {
         "meta": {
             **({} if b.name == "matt" else {"body": b.name}),
-            "schema": 1, "mujoco_version": mujoco.__version__, "timestep": m.opt.timestep, "decimation": C.DECIMATION,
-            "fingerprint_sha256": fp_sha, "onnx": Path(onnx_path).name, "onnx_sha256": onnx_sha,
-            "scene": scene_xml.name, "keyframe": "default", "command": command.tolist(), "seconds": seconds,
-            **({} if skill is None else {"contract_version": C.SKILL_VERSION, "skill": np.asarray(skill, float).tolist()}),
-            "n_frames": len(frames), "actuators": list(ath.actuator_names),
-            "nq": int(m.nq), "nv": int(m.nv),
-            "joints": [{"name": m.joint(j).name, "type": int(m.jnt_type[j]), "qposadr": int(m.jnt_qposadr[j]),
-                        "dofadr": int(m.jnt_dofadr[j])} for j in range(m.njnt)],
+            "schema": 1,
+            "mujoco_version": mujoco.__version__,
+            "timestep": m.opt.timestep,
+            "decimation": C.DECIMATION,
+            "fingerprint_sha256": fp_sha,
+            "onnx": Path(onnx_path).name,
+            "onnx_sha256": onnx_sha,
+            "scene": scene_xml.name,
+            "keyframe": "default",
+            "command": command.tolist(),
+            "seconds": seconds,
+            **(
+                {}
+                if skill is None
+                else {"contract_version": C.SKILL_VERSION, "skill": np.asarray(skill, float).tolist()}
+            ),
+            "n_frames": len(frames),
+            "actuators": list(ath.actuator_names),
+            "nq": int(m.nq),
+            "nv": int(m.nv),
+            "joints": [
+                {
+                    "name": m.joint(j).name,
+                    "type": int(m.jnt_type[j]),
+                    "qposadr": int(m.jnt_qposadr[j]),
+                    "dofadr": int(m.jnt_dofadr[j]),
+                }
+                for j in range(m.njnt)
+            ],
             "note": "qpos/qvel are the full scene state read at the START of each tick (before ctrl/disturbance/steps). "
-                    "actuator_force is after the tick's last mj_step.",
+            "actuator_force is after the tick's last mj_step.",
         },
         "disturbances": [dist.__dict__ for dist in disturbances],
         "frames": frames,

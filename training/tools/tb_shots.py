@@ -3,6 +3,7 @@ training review pages (AGENTS.md: 3 charts, 3 explanation levels). Playwright is
 
     uv run --with playwright python tools/tb_shots.py <out_dir> <run_filter regex> <tag>[=file_name] ...
 """
+
 import re
 import sys
 from pathlib import Path

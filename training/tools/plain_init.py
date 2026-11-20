@@ -19,8 +19,12 @@ def main() -> int:
     ap.add_argument("dst", type=Path)
     ap.add_argument("--min-std", type=float, default=None)
     ap.add_argument("--max-std", type=float, default=None, help="cap the action std (sharper start for a fine-tune)")
-    ap.add_argument("--lr", type=float, default=None,
-                    help="set the optimiser's learning rate (rsl_rl restores lr from the checkpoint, not from the task cfg)")
+    ap.add_argument(
+        "--lr",
+        type=float,
+        default=None,
+        help="set the optimiser's learning rate (rsl_rl restores lr from the checkpoint, not from the task cfg)",
+    )
     a = ap.parse_args()
     sd = torch.load(a.src, map_location="cpu", weights_only=False)
     if a.min_std is not None:

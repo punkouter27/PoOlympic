@@ -50,7 +50,7 @@ def main(src: str, name: str, clip_obs: float | None = None) -> int:
     assert obs_dim in (C.OBS_DIM, C.OBS_DIM_V4, C.OBS_DIM_V5), f"checkpoint has {obs_dim} inputs"
     version = {C.OBS_DIM_V4: C.SKILL_VERSION, C.OBS_DIM_V5: C.FATIGUE_VERSION}.get(obs_dim)
     mlp = make_mlp(obs_dim)
-    mlp.load_state_dict({k[len("mlp."):]: v for k, v in sd.items() if k.startswith("mlp.")})
+    mlp.load_state_dict({k[len("mlp.") :]: v for k, v in sd.items() if k.startswith("mlp.")})
     ath = C.Athlete.bind(mujoco.MjModel.from_xml_path(str(C.SCENE_XML)))
     pol = ExportedPolicy(mlp, mean, std + EPS, ath.default_pos, ath.range_lo, ath.range_hi, clip_obs=clip_obs).eval()
 
@@ -58,10 +58,10 @@ def main(src: str, name: str, clip_obs: float | None = None) -> int:
 
     _, sha = write_python_fingerprint()
     contract = C.export_contract(fingerprint_sha256=sha)
-    if version == C.FATIGUE_VERSION:                     # in this brain's metadata only: contract.json is not changed
+    if version == C.FATIGUE_VERSION:  # in this brain's metadata only: contract.json is not changed
         contract = {**contract, "fatigue_block": C.fatigue_block()}
     meta = standard_metadata(contract, name, version)
-    try:                                                 # relative to the repo root (a clone elsewhere still resolves it)
+    try:  # relative to the repo root (a clone elsewhere still resolves it)
         meta["poolympic.checkpoint"] = ckpt.resolve().relative_to(ROOT.parent).as_posix()
     except ValueError:
         meta["poolympic.checkpoint"] = str(ckpt)
@@ -86,8 +86,10 @@ def main(src: str, name: str, clip_obs: float | None = None) -> int:
         ctrl, act = sess.run(None, {"obs": o[None]})
         worst_a = max(worst_a, float(np.abs(act[0] - x).max()))
         worst_c = max(worst_c, float(np.abs(ctrl[0] - C.action_to_ctrl(ath, act[0].astype(np.float64))).max()))
-    print(f"{ckpt.name} -> {out.name} (contract v{version or contract['contract_version']}, {obs_dim} obs): "
-          f"action vs rsl math {worst_a:.2e}, ctrl vs contract {worst_c:.2e}")
+    print(
+        f"{ckpt.name} -> {out.name} (contract v{version or contract['contract_version']}, {obs_dim} obs): "
+        f"action vs rsl math {worst_a:.2e}, ctrl vs contract {worst_c:.2e}"
+    )
     return 0 if worst_a < 1e-4 and worst_c < 1e-5 else 1
 
 

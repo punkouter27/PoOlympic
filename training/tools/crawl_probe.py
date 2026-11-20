@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from poolympic import contract as C  # noqa: E402
 
 LAM = C.BODY.length_scale
-BAND = (0.25 * LAM, 0.8 * LAM)       # pelvis height band of a crawl (m)
+BAND = (0.25 * LAM, 0.8 * LAM)  # pelvis height band of a crawl (m)
 DISTANCE, SETUP_S, MAX_S = 30.0, 3.0, 60.0
 
 
@@ -55,8 +55,8 @@ def episode(onnx: str, seed: int, vx: float) -> dict:
     r = ath.root_qposadr
     q = np.zeros(4)
     mujoco.mju_euler2Quat(q, np.array([rng.uniform(-0.3, 0.3), math.pi / 2 + rng.uniform(-0.2, 0.2), 0.0]), "XYZ")
-    d.qpos[r:r + 3] = [0.0, 0.0, 0.22 * LAM]
-    d.qpos[r + 3:r + 7] = q
+    d.qpos[r : r + 3] = [0.0, 0.0, 0.22 * LAM]
+    d.qpos[r + 3 : r + 7] = q
     mujoco.mj_forward(m, d)
     torso = m.body("torso").id
     hands = [m.body(n).id for n in ("forearm_l", "forearm_r")]
@@ -70,7 +70,7 @@ def episode(onnx: str, seed: int, vx: float) -> dict:
         racing = t >= SETUP_S
         if racing and x0 is None:
             x0 = d.qpos[r]
-        cmd = (np.array([vx, 0.0, crawl_steer(d.qpos[r + 3:r + 7], d.qpos[r + 1])]) if racing else np.zeros(3))
+        cmd = np.array([vx, 0.0, crawl_steer(d.qpos[r + 3 : r + 7], d.qpos[r + 1])]) if racing else np.zeros(3)
         phase = C.advance_phase(phase, cmd)
         obs = C.build_obs(ath, d.qpos, d.qvel, cmd, phase, last)
         ctrl, act = sess.run(None, {"obs": obs[None]})
@@ -86,8 +86,11 @@ def episode(onnx: str, seed: int, vx: float) -> dict:
         n += 1
         fours += on4
         stand += int(z > BAND[1] and tilt < 40.0)
-        touch = {int(c.geom1) if int(c.geom2) == ground else int(c.geom2) for c in d.contact[:d.ncon]
-                 if ground in (int(c.geom1), int(c.geom2))}
+        touch = {
+            int(c.geom1) if int(c.geom2) == ground else int(c.geom2)
+            for c in d.contact[: d.ncon]
+            if ground in (int(c.geom1), int(c.geom2))
+        }
         hand += sum(1 for h in hands if any(m.geom_bodyid[g] == h for g in touch)) / 2
         if was_up and z < BAND[0]:
             tumbles += 1
@@ -97,9 +100,17 @@ def episode(onnx: str, seed: int, vx: float) -> dict:
         if d.qpos[r] - x0 >= DISTANCE:
             finish = round(t - SETUP_S, 2)
             break
-    return {"seed": seed, "finish_s": finish, "progress_m": float(d.qpos[r] - (x0 or 0.0)),
-            "all_fours_frac": fours / max(n, 1), "hands_frac": hand / max(n, 1), "standing_frac": stand / max(n, 1),
-            "tumbles": tumbles, "recoveries": recov, "lane_offset_m": float(abs(d.qpos[r + 1]))}
+    return {
+        "seed": seed,
+        "finish_s": finish,
+        "progress_m": float(d.qpos[r] - (x0 or 0.0)),
+        "all_fours_frac": fours / max(n, 1),
+        "hands_frac": hand / max(n, 1),
+        "standing_frac": stand / max(n, 1),
+        "tumbles": tumbles,
+        "recoveries": recov,
+        "lane_offset_m": float(abs(d.qpos[r + 1])),
+    }
 
 
 def main() -> int:
@@ -113,11 +124,13 @@ def main() -> int:
     rows = [episode(a.onnx, 4000 + s, vx) for s in range(a.seeds)]
     fin = [x["finish_s"] for x in rows if x["finish_s"] is not None]
     mean = lambda k: np.mean([x[k] for x in rows])
-    print(f"{Path(a.onnx).name} vx {vx:.2f}: finished {len(fin)}/{len(rows)}"
-          + (f" in {min(fin):.1f}-{max(fin):.1f} s" if fin else f" (progress {mean('progress_m'):.1f} m)")
-          + f" | all fours {100 * mean('all_fours_frac'):.0f} % | hands {100 * mean('hands_frac'):.0f} %"
-          f" | standing {100 * mean('standing_frac'):.0f} % | tumbles {sum(x['tumbles'] for x in rows)}"
-          f" recovered {sum(x['recoveries'] for x in rows)} | lane {mean('lane_offset_m'):.2f} m")
+    print(
+        f"{Path(a.onnx).name} vx {vx:.2f}: finished {len(fin)}/{len(rows)}"
+        + (f" in {min(fin):.1f}-{max(fin):.1f} s" if fin else f" (progress {mean('progress_m'):.1f} m)")
+        + f" | all fours {100 * mean('all_fours_frac'):.0f} % | hands {100 * mean('hands_frac'):.0f} %"
+        f" | standing {100 * mean('standing_frac'):.0f} % | tumbles {sum(x['tumbles'] for x in rows)}"
+        f" recovered {sum(x['recoveries'] for x in rows)} | lane {mean('lane_offset_m'):.2f} m"
+    )
     if a.out:
         Path(a.out).write_text(json.dumps({"onnx": Path(a.onnx).name, "vx": vx, "rows": rows}, indent=1))
     return 0

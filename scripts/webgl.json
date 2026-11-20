@@ -1,0 +1,29 @@
+{
+  "buildMethod": "PoOlympic.Editor.WebGLBuild.Build",
+  "staticWebApp": "poolympic",
+  "resourceGroup": "PoOlympic",
+  "subscription": "14d963a2-badc-4a1f-9900-553bf01f8de2",
+  "diagChecks": [
+    {
+      "group": "api",
+      "label": "Weather (Open-Meteo)",
+      "purpose": "Real wind and rain for the host city (Runtime/Weather.cs, Settings > Weather)",
+      "url": "https://api.open-meteo.com/v1/forecast?latitude=48.8566&longitude=2.3522&current=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms",
+      "expect": "json",
+      "jsonKey": "current"
+    },
+    {
+      "group": "service",
+      "label": "3D renderer (WebGL2)",
+      "purpose": "The Unity player needs WebGL2 in this browser",
+      "kind": "webgl2"
+    },
+    {
+      "group": "service",
+      "label": "Game page (Static Web App)",
+      "purpose": "The page that hosts the player",
+      "url": "/index.html",
+      "expect": "loader.js"
+    }
+  ]
+}

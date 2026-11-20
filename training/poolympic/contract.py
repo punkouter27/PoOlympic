@@ -18,7 +18,7 @@ import numpy as np
 from . import biomech, bodies
 
 ROOT = Path(__file__).resolve().parents[1]
-BODY = bodies.current()                  # $POOLYMPIC_BODY (default matt) — one body per Python process (Phase Z)
+BODY = bodies.current()  # $POOLYMPIC_BODY (default matt) — one body per Python process (Phase Z)
 SCENE_XML = BODY.scene_xml
 CONTRACT_JSON = BODY.contract_json
 
@@ -58,8 +58,14 @@ OBS_LAYOUT = [  # (name, size) — order is the contract
 OBS_DIM = sum(s for _, s in OBS_LAYOUT)
 # Per-term uniform observation-noise amplitudes used in training (matt_env actor terms). An athlete's "sensor noise"
 # trait scales these (0 = clean, 1 = training level).
-OBS_NOISE = {"base_lin_vel_heading": 0.1, "base_ang_vel_local": 0.2, "projected_gravity": 0.05, "base_height": 0.02,
-             "joint_pos_rel": 0.01, "joint_vel_scaled": 0.05}
+OBS_NOISE = {
+    "base_lin_vel_heading": 0.1,
+    "base_ang_vel_local": 0.2,
+    "projected_gravity": 0.05,
+    "base_height": 0.02,
+    "joint_pos_rel": 0.01,
+    "joint_vel_scaled": 0.05,
+}
 # Athlete traits (DESIGN §1: per-lane stat differences -> odds). Same ranges as the training domain randomisation.
 TRAIT_RANGES = {"strength": (0.85, 1.15), "latency_substeps": (0, 4), "obs_noise": (0.0, 1.0)}
 NUM_ACTIONS = 23
@@ -70,11 +76,11 @@ NUM_ACTIONS = 23
 # layout). A zero block = plain v3 behaviour (stand / locomote on the (vx, vy, wz) command).
 SKILL_VERSION = 4
 SKILL_LAYOUT = [  # (name, size) — order is the contract
-    ("pelvis_height", 1),   # target pelvis height relative to the default standing height (m, <= 0)      event 3
-    ("lift_foot", 2),       # one-hot (left, right): stand on the other leg                                event 6
-    ("march", 2),           # (cadence Hz, knee lift m); cadence > 0 drives the gait clock at zero velocity  event 7
-    ("torso_aim", 2),       # chest (yaw, pitch) relative to the pelvis heading (rad; pitch > 0 = forward)  event 2
-    ("hand_target", 4),     # (x, y, z) in the heading frame relative to the pelvis (m), arm (-1 L, +1 R, 0 none)  event 4
+    ("pelvis_height", 1),  # target pelvis height relative to the default standing height (m, <= 0)      event 3
+    ("lift_foot", 2),  # one-hot (left, right): stand on the other leg                                event 6
+    ("march", 2),  # (cadence Hz, knee lift m); cadence > 0 drives the gait clock at zero velocity  event 7
+    ("torso_aim", 2),  # chest (yaw, pitch) relative to the pelvis heading (rad; pitch > 0 = forward)  event 2
+    ("hand_target", 4),  # (x, y, z) in the heading frame relative to the pelvis (m), arm (-1 L, +1 R, 0 none)  event 4
 ]
 SKILL_DIM = sum(s for _, s in SKILL_LAYOUT)
 OBS_DIM_V4 = OBS_DIM + SKILL_DIM
@@ -85,7 +91,7 @@ SKILL_RANGES = {
     "knee_lift": (0.10, 0.35),
     "torso_yaw": (-math.radians(60), math.radians(60)),
     "torso_pitch": (-math.radians(20), math.radians(40)),
-    "hand_reach": 0.75,     # m from the shoulder of the selected arm (target = forearm tip; wrists are welded)
+    "hand_reach": 0.75,  # m from the shoulder of the selected arm (target = forearm tip; wrists are welded)
 }
 
 
@@ -96,44 +102,71 @@ SKILL_RANGES = {
 # physics-side force limits of poolympic/biomech.py (torque-speed + fatigue). contract.json is NOT changed by this
 # block; export_brain adds fatigue_block() to a v5 brain's own metadata only.
 FATIGUE_VERSION = 5
-FATIGUE_LAYOUT = [("fatigue", len(biomech.JOINT_GROUPS))]   # level per joint group (abdomen .. ankle), 0 fresh .. 1 exhausted
+FATIGUE_LAYOUT = [
+    ("fatigue", len(biomech.JOINT_GROUPS))
+]  # level per joint group (abdomen .. ankle), 0 fresh .. 1 exhausted
 FATIGUE_DIM = sum(s for _, s in FATIGUE_LAYOUT)
 OBS_DIM_V5 = OBS_DIM + FATIGUE_DIM
 
 
 def fatigue_block() -> dict:
     """The v5 block for a brain's metadata: layout + every constant a runtime needs to reproduce it."""
-    return {"version": FATIGUE_VERSION, "offset": OBS_DIM, "size": FATIGUE_DIM, "obs_dim": OBS_DIM_V5,
-            "groups": list(biomech.JOINT_GROUPS), "hill_w_max": biomech.HILL_W_MAX,
-            "tau_load_s": biomech.FATIGUE_TAU_LOAD, "tau_rest_s": biomech.FATIGUE_TAU_REST,
-            "floor": biomech.FATIGUE_FLOOR,
-            "tick": "read_state, bio_limits (fatigue update + force range), advance_phase, build_obs, ..."}
+    return {
+        "version": FATIGUE_VERSION,
+        "offset": OBS_DIM,
+        "size": FATIGUE_DIM,
+        "obs_dim": OBS_DIM_V5,
+        "groups": list(biomech.JOINT_GROUPS),
+        "hill_w_max": biomech.HILL_W_MAX,
+        "tau_load_s": biomech.FATIGUE_TAU_LOAD,
+        "tau_rest_s": biomech.FATIGUE_TAU_REST,
+        "floor": biomech.FATIGUE_FLOOR,
+        "tick": "read_state, bio_limits (fatigue update + force range), advance_phase, build_obs, ...",
+    }
 
 
 @dataclass(frozen=True)
 class SkillCommand:
     """One stance-skill request; to_array() is the SKILL_DIM obs block. Zero = no skill (v3 behaviour)."""
+
     pelvis_height: float = 0.0
-    lift_foot: str = ""                  # "", "l" or "r"
+    lift_foot: str = ""  # "", "l" or "r"
     march_hz: float = 0.0
     knee_lift: float = 0.0
     torso_yaw: float = 0.0
     torso_pitch: float = 0.0
     hand: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    arm: int = 0                         # -1 left, +1 right, 0 none
+    arm: int = 0  # -1 left, +1 right, 0 none
 
     def to_array(self) -> np.ndarray:
-        return np.array([self.pelvis_height,
-                         1.0 if self.lift_foot == "l" else 0.0, 1.0 if self.lift_foot == "r" else 0.0,
-                         self.march_hz, self.knee_lift,
-                         self.torso_yaw, self.torso_pitch,
-                         *self.hand, float(self.arm)], dtype=np.float64)
+        return np.array(
+            [
+                self.pelvis_height,
+                1.0 if self.lift_foot == "l" else 0.0,
+                1.0 if self.lift_foot == "r" else 0.0,
+                self.march_hz,
+                self.knee_lift,
+                self.torso_yaw,
+                self.torso_pitch,
+                *self.hand,
+                float(self.arm),
+            ],
+            dtype=np.float64,
+        )
 
     @staticmethod
     def from_array(a) -> "SkillCommand":
         a = np.asarray(a, float)
-        return SkillCommand(float(a[0]), "l" if a[1] > 0.5 else "r" if a[2] > 0.5 else "", float(a[3]), float(a[4]),
-                            float(a[5]), float(a[6]), (float(a[7]), float(a[8]), float(a[9])), int(round(a[10])))
+        return SkillCommand(
+            float(a[0]),
+            "l" if a[1] > 0.5 else "r" if a[2] > 0.5 else "",
+            float(a[3]),
+            float(a[4]),
+            float(a[5]),
+            float(a[6]),
+            (float(a[7]), float(a[8]), float(a[9])),
+            int(round(a[10])),
+        )
 
 
 def skill_cadence(skill: np.ndarray | None) -> float:
@@ -163,7 +196,7 @@ class Athlete:
             if prefix and not name.startswith(prefix):
                 continue
             j = m.actuator_trnid[i, 0]
-            names.append(name[len(prefix):])
+            names.append(name[len(prefix) :])
             aids.append(i)
             qadr.append(m.jnt_qposadr[j])
             dadr.append(m.jnt_dofadr[j])
@@ -179,8 +212,17 @@ class Athlete:
             ref = mujoco.MjModel.from_xml_path(str(SCENE_XML))
             kq = ref.key_qpos[ref.key("default").id]
             default = np.array([kq[ref.jnt_qposadr[ref.actuator_trnid[ref.actuator(n).id, 0]]] for n in names])
-        return Athlete(tuple(names), np.array(aids), np.array(qadr), np.array(dadr), int(m.jnt_qposadr[root]),
-                       int(m.jnt_dofadr[root]), np.array(default), np.array(lo), np.array(hi))
+        return Athlete(
+            tuple(names),
+            np.array(aids),
+            np.array(qadr),
+            np.array(dadr),
+            int(m.jnt_qposadr[root]),
+            int(m.jnt_dofadr[root]),
+            np.array(default),
+            np.array(lo),
+            np.array(hi),
+        )
 
 
 def quat_to_mat(q: np.ndarray) -> np.ndarray:
@@ -213,7 +255,9 @@ def advance_phase(phase: float, command: np.ndarray, cadence: float = 0.0) -> fl
     return (phase + gait_hz(command) * DECIMATION * 0.005) % 1.0
 
 
-def advance_phase_clock(phase: float, command: np.ndarray, gait: tuple[float, float, float], cadence: float = 0.0) -> float:
+def advance_phase_clock(
+    phase: float, command: np.ndarray, gait: tuple[float, float, float], cadence: float = 0.0
+) -> float:
     """advance_phase with another body's clock (base Hz, Hz per m/s, yaw weight) — same arithmetic, so the process
     body's own constants reproduce advance_phase bit for bit."""
     if cadence > 0.0:
@@ -234,8 +278,16 @@ def gait_hz(command: np.ndarray) -> float:
     return GAIT_HZ_BASE + GAIT_HZ_PER_MPS * speed
 
 
-def build_obs(ath: Athlete, qpos: np.ndarray, qvel: np.ndarray, command: np.ndarray, phase: float,
-              last_action: np.ndarray, skill: np.ndarray | None = None, fatigue: np.ndarray | None = None) -> np.ndarray:
+def build_obs(
+    ath: Athlete,
+    qpos: np.ndarray,
+    qvel: np.ndarray,
+    command: np.ndarray,
+    phase: float,
+    last_action: np.ndarray,
+    skill: np.ndarray | None = None,
+    fatigue: np.ndarray | None = None,
+) -> np.ndarray:
     """84-dim (v3) observation, computed in float64 then cast to float32 (the ONNX input dtype). skill: the v4 block
     (SKILL_DIM values, SkillCommand.to_array) appended after the v3 terms -> OBS_DIM_V4. fatigue: the v5 block
     (FATIGUE_DIM levels, biomech.BioLimits.tick) appended after the v3 terms -> OBS_DIM_V5."""
@@ -249,17 +301,19 @@ def build_obs(ath: Athlete, qpos: np.ndarray, qvel: np.ndarray, command: np.ndar
     c, s = math.cos(yaw), math.sin(yaw)
     lin_heading = np.array([c * lin_world[0] + s * lin_world[1], -s * lin_world[0] + c * lin_world[1], lin_world[2]])
     grav = R.T @ np.array([0.0, 0.0, -1.0])
-    obs = np.concatenate([
-        lin_heading,
-        ang_local,
-        grav,
-        [qpos[r + 2]],
-        command,
-        [math.sin(2 * math.pi * phase), math.cos(2 * math.pi * phase)],
-        qpos[ath.joint_qposadr] - ath.default_pos,
-        qvel[ath.joint_dofadr] * JOINT_VEL_SCALE,
-        last_action,
-    ])
+    obs = np.concatenate(
+        [
+            lin_heading,
+            ang_local,
+            grav,
+            [qpos[r + 2]],
+            command,
+            [math.sin(2 * math.pi * phase), math.cos(2 * math.pi * phase)],
+            qpos[ath.joint_qposadr] - ath.default_pos,
+            qvel[ath.joint_dofadr] * JOINT_VEL_SCALE,
+            last_action,
+        ]
+    )
     assert obs.shape == (OBS_DIM,)
     if skill is not None:
         skill = np.asarray(skill, dtype=np.float64)
@@ -286,12 +340,19 @@ def skill_block() -> dict:
         o += size
     r = SKILL_RANGES
     return {
-        "version": SKILL_VERSION, "offset": OBS_DIM, "size": SKILL_DIM, "obs_dim": OBS_DIM_V4, "layout": layout,
-        "ranges": {"pelvis_height": [r["pelvis_height"][0] * lam, 0.0],
-                   "march_hz": [r["march_hz"][0] / math.sqrt(lam), r["march_hz"][1] / math.sqrt(lam)],
-                   "knee_lift": [r["knee_lift"][0] * lam, r["knee_lift"][1] * lam],
-                   "torso_yaw": list(r["torso_yaw"]), "torso_pitch": list(r["torso_pitch"]),
-                   "hand_reach": r["hand_reach"] * lam},
+        "version": SKILL_VERSION,
+        "offset": OBS_DIM,
+        "size": SKILL_DIM,
+        "obs_dim": OBS_DIM_V4,
+        "layout": layout,
+        "ranges": {
+            "pelvis_height": [r["pelvis_height"][0] * lam, 0.0],
+            "march_hz": [r["march_hz"][0] / math.sqrt(lam), r["march_hz"][1] / math.sqrt(lam)],
+            "knee_lift": [r["knee_lift"][0] * lam, r["knee_lift"][1] * lam],
+            "torso_yaw": list(r["torso_yaw"]),
+            "torso_pitch": list(r["torso_pitch"]),
+            "hand_reach": r["hand_reach"] * lam,
+        },
         "phase_clock": "march cadence > 0: phase += cadence * decimation * timestep (mod 1), whatever the command",
     }
 
@@ -318,12 +379,21 @@ def export_contract(fingerprint_sha256: str | None = None) -> dict:
         "gait_hz_per_mps": GAIT_HZ_PER_MPS,
         "gait_hz_yaw_weight": GAIT_HZ_YAW_WEIGHT,
         "phase_cmd_threshold": PHASE_CMD_THRESHOLD,
-        "obs_noise": [{"term": k, "offset": offsets[k]["offset"], "size": offsets[k]["size"], "amplitude": v}
-                      for k, v in OBS_NOISE.items()],
-        "trait_ranges": {"strength": list(TRAIT_RANGES["strength"]), "latency_substeps": list(TRAIT_RANGES["latency_substeps"]),
-                         "obs_noise": list(TRAIT_RANGES["obs_noise"])},
-        "steering": {"heading_gain": HEADING_GAIN, "lane_gain": LANE_GAIN, "wz_limit": STEER_WZ_LIMIT,
-                     "law": "wz = clip(heading_gain * wrap(atan(-lane_gain * lane_offset_y * dir) - yaw), +-wz_limit); dir = -1 if vx_cmd < 0 else 1"},
+        "obs_noise": [
+            {"term": k, "offset": offsets[k]["offset"], "size": offsets[k]["size"], "amplitude": v}
+            for k, v in OBS_NOISE.items()
+        ],
+        "trait_ranges": {
+            "strength": list(TRAIT_RANGES["strength"]),
+            "latency_substeps": list(TRAIT_RANGES["latency_substeps"]),
+            "obs_noise": list(TRAIT_RANGES["obs_noise"]),
+        },
+        "steering": {
+            "heading_gain": HEADING_GAIN,
+            "lane_gain": LANE_GAIN,
+            "wz_limit": STEER_WZ_LIMIT,
+            "law": "wz = clip(heading_gain * wrap(atan(-lane_gain * lane_offset_y * dir) - yaw), +-wz_limit); dir = -1 if vx_cmd < 0 else 1",
+        },
         "obs_dim": OBS_DIM,
         "num_actions": NUM_ACTIONS,
         "obs_layout": offsets,
@@ -335,19 +405,36 @@ def export_contract(fingerprint_sha256: str | None = None) -> dict:
         "default_qpos_scene": [float(x) for x in m.key("default").qpos],
         # default state keyed by joint name (Unity resolves addresses itself; never rely on qpos ordering)
         "default_joint_qpos": [
-            {"joint": m.joint(j).name,
-             "qpos": [float(x) for x in m.key("default").qpos[m.jnt_qposadr[j]:m.jnt_qposadr[j] + (7 if m.jnt_type[j] == 0 else 4 if m.jnt_type[j] == 1 else 1)]]}
+            {
+                "joint": m.joint(j).name,
+                "qpos": [
+                    float(x)
+                    for x in m.key("default").qpos[
+                        m.jnt_qposadr[j] : m.jnt_qposadr[j]
+                        + (7 if m.jnt_type[j] == 0 else 4 if m.jnt_type[j] == 1 else 1)
+                    ]
+                ],
+            }
             for j in range(m.njnt)
         ],
-        "tick_order": ["read_state", "advance_phase", "build_obs", "infer", "write_ctrl", "apply_disturbance",
-                       f"mj_step x{DECIMATION}"],
-        "frames": {"root_lin_vel": "world (free joint qvel[0:3]) rotated by -yaw into heading frame",
-                   "root_ang_vel": "pelvis local (free joint qvel[3:6])",
-                   "projected_gravity": "R_pelvis^T @ (0,0,-1)"},
+        "tick_order": [
+            "read_state",
+            "advance_phase",
+            "build_obs",
+            "infer",
+            "write_ctrl",
+            "apply_disturbance",
+            f"mj_step x{DECIMATION}",
+        ],
+        "frames": {
+            "root_lin_vel": "world (free joint qvel[0:3]) rotated by -yaw into heading frame",
+            "root_ang_vel": "pelvis local (free joint qvel[3:6])",
+            "projected_gravity": "R_pelvis^T @ (0,0,-1)",
+        },
         "fingerprint_sha256": fingerprint_sha256,
         # contract v4 (additive: v3 brains ignore it). A brain whose sidecar says contract_version 4 reads OBS_DIM_V4 obs.
         "skill_block": skill_block(),
     }
-    CONTRACT_JSON.parent.mkdir(exist_ok=True)
-    CONTRACT_JSON.write_text(json.dumps(contract, indent=1))
+    BODY.contract_json_out.parent.mkdir(exist_ok=True)
+    BODY.contract_json_out.write_text(json.dumps(contract, indent=1))
     return contract

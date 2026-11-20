@@ -30,11 +30,18 @@ def main() -> int:
     ap.add_argument("--seeds", type=int, default=10)
     ap.add_argument("--first-seed", type=int, default=1000)
     ap.add_argument("--out", type=Path, default=None)
-    ap.add_argument("--log-actions", nargs="?", const="1", default=None, metavar="RUN",
-                    help="per-tick action log -> parity/actions/<RUN, default the brain's name>/ (poolympic/action_log.py)")
+    ap.add_argument(
+        "--log-actions",
+        nargs="?",
+        const="1",
+        default=None,
+        metavar="RUN",
+        help="per-tick action log -> parity/actions/<RUN, default the brain's name>/ (poolympic/action_log.py)",
+    )
     a = ap.parse_args()
     if a.log_actions:
         import os
+
         os.environ[E.AL.ENV] = a.log_actions
     if str(a.rung).upper() == "S":
         return stance(a)
@@ -46,59 +53,81 @@ def main() -> int:
             r = E.rung2_episode(a.onnx, s, sim=sim)
             results.append(r)
             fails = [k for k, v in E.rung2_checks(r).items() if not v]
-            seg = " ".join(f"{x['kind'][:2]}:{x['lin_rms'] or float('nan'):.2f}/{x['yaw_rms'] or float('nan'):.2f}"
-                           for x in r.segments)
-            print(f"seed {s}: fell={r.fell} | lin/yaw {seg} | turn {r.turntable_s} s drift {r.turntable_drift_m:.2f} m"
-                  f" | brake {r.brake_m} m | back {r.backward_m:.1f} m | fails {fails}")
+            seg = " ".join(
+                f"{x['kind'][:2]}:{x['lin_rms'] or float('nan'):.2f}/{x['yaw_rms'] or float('nan'):.2f}"
+                for x in r.segments
+            )
+            print(
+                f"seed {s}: fell={r.fell} | lin/yaw {seg} | turn {r.turntable_s} s drift {r.turntable_drift_m:.2f} m"
+                f" | brake {r.brake_m} m | back {r.backward_m:.1f} m | fails {fails}"
+            )
         verdict = E.rung2_verdict(results)
         report = {"onnx": str(a.onnx), **verdict, "episodes": [dataclasses.asdict(r) for r in results]}
         out = a.out or ROOT.parent / "parity" / f"eval_rung2_{a.onnx.stem}.json"
         out.write_text(json.dumps(report, indent=1, default=_jsonable))
-        print(f"G1 rung 2: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> "
-              f"{'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})")
+        print(
+            f"G1 rung 2: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> "
+            f"{'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})"
+        )
         return 0 if verdict["PASS"] else 1
     if a.rung == 1:
         results = []
         for s in range(a.first_seed, a.first_seed + a.seeds):
             r = E.rung1_episode(a.onnx, s, sim=sim)
             results.append(r)
-            print(f"seed {s}: v_cmd={r.speed_cmd:.2f} finished={r.finished} fell={r.fell} ({r.fall_reason} @ {r.fall_time}) "
-                  f"dist={r.distance_m:.1f} m vel_rms_err={r.vel_rms_err:.3f} lateral={r.lateral_drift_m:.2f} m jv_over={r.joint_vel_over_fraction:.3f}")
+            print(
+                f"seed {s}: v_cmd={r.speed_cmd:.2f} finished={r.finished} fell={r.fell} ({r.fall_reason} @ {r.fall_time}) "
+                f"dist={r.distance_m:.1f} m vel_rms_err={r.vel_rms_err:.3f} lateral={r.lateral_drift_m:.2f} m jv_over={r.joint_vel_over_fraction:.3f}"
+            )
         verdict = E.rung1_verdict(results)
         report = {"onnx": str(a.onnx), **verdict, "episodes": [dataclasses.asdict(r) for r in results]}
         out = a.out or ROOT.parent / "parity" / f"eval_rung1_{a.onnx.stem}.json"
         out.write_text(json.dumps(report, indent=1, default=_jsonable))
-        print(f"G1 rung 1: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> {'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})")
+        print(
+            f"G1 rung 1: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> {'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})"
+        )
         return 0 if verdict["PASS"] else 1
     results = []
     for s in range(a.first_seed, a.first_seed + a.seeds):
         r = E.rung0_episode(a.onnx, s, sim=sim)
         results.append(r)
-        print(f"seed {s}: fell={r.fell} ({r.fall_reason} @ {r.fall_time}) hits {r.recovered_hits}/{r.hits} "
-              f"worst_recovery={r.worst_recovery_s} peak_tilt={r.max_tilt_after_hit_deg:.1f}deg foot_exc={r.max_foot_excursion_m:.3f} m jv_over={r.joint_vel_over_fraction:.3f}")
+        print(
+            f"seed {s}: fell={r.fell} ({r.fall_reason} @ {r.fall_time}) hits {r.recovered_hits}/{r.hits} "
+            f"worst_recovery={r.worst_recovery_s} peak_tilt={r.max_tilt_after_hit_deg:.1f}deg foot_exc={r.max_foot_excursion_m:.3f} m jv_over={r.joint_vel_over_fraction:.3f}"
+        )
     verdict = E.rung0_verdict(results)
     report = {"onnx": str(a.onnx), **verdict, "episodes": [dataclasses.asdict(r) for r in results]}
     out = a.out or ROOT.parent / "parity" / f"eval_rung{a.rung}_{a.onnx.stem}.json"
     out.write_text(json.dumps(report, indent=1, default=_jsonable))
-    print(f"G1 rung {a.rung}: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> {'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})")
+    print(
+        f"G1 rung {a.rung}: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass -> {'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})"
+    )
     return 0 if verdict["PASS"] else 1
 
 
 def stance(a) -> int:
     from poolympic import evaluate_stance as ES
+
     sim = ES.SkillSim(a.onnx)
     results = []
     for s in range(a.first_seed, a.first_seed + a.seeds):
         r = ES.stance_episode(a.onnx, s, sim=sim)
         results.append(r)
-        print(f"seed {s}: " + " | ".join(f"{n} {'ok' if v['pass'] else 'FAIL'} "
-                                         + ",".join(f"{k}={x}" for k, x in v.items() if k != "pass") for n, v in r.drills.items()))
+        print(
+            f"seed {s}: "
+            + " | ".join(
+                f"{n} {'ok' if v['pass'] else 'FAIL'} " + ",".join(f"{k}={x}" for k, x in v.items() if k != "pass")
+                for n, v in r.drills.items()
+            )
+        )
     verdict = ES.stance_verdict(results)
     report = {"onnx": str(a.onnx), **verdict, "episodes": [ES.to_json(r) for r in results]}
     out = a.out or ROOT.parent / "parity" / f"eval_rungS_{a.onnx.stem}.json"
     out.write_text(json.dumps(report, indent=1, default=_jsonable))
-    print(f"G1 rung S: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass, per drill {verdict['per_drill']} -> "
-          f"{'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})")
+    print(
+        f"G1 rung S: {verdict['passed_seeds']}/{verdict['seeds']} seeds pass, per drill {verdict['per_drill']} -> "
+        f"{'PASS' if verdict['PASS'] else 'FAIL'}  ({out.name})"
+    )
     return 0 if verdict["PASS"] else 1
 
 

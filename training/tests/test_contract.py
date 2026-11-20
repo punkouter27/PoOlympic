@@ -84,10 +84,19 @@ def test_action_mapping_clips_to_range(ath):
 
 # ---------------------------------------------------------------- contract v4 (stance-skill block)
 
+
 def test_skill_block_layout():
     assert C.SKILL_DIM == 11 and C.OBS_DIM_V4 == 95
-    s = C.SkillCommand(pelvis_height=-0.3, lift_foot="r", march_hz=1.5, knee_lift=0.2, torso_yaw=0.4, torso_pitch=-0.1,
-                       hand=(0.5, -0.2, 0.3), arm=1)
+    s = C.SkillCommand(
+        pelvis_height=-0.3,
+        lift_foot="r",
+        march_hz=1.5,
+        knee_lift=0.2,
+        torso_yaw=0.4,
+        torso_pitch=-0.1,
+        hand=(0.5, -0.2, 0.3),
+        arm=1,
+    )
     a = s.to_array()
     assert a.tolist() == [-0.3, 0, 1, 1.5, 0.2, 0.4, -0.1, 0.5, -0.2, 0.3, 1]
     assert C.SkillCommand.from_array(a) == s
@@ -107,7 +116,7 @@ def test_obs_v4_appends_skill_block(ath, model):
 
 def test_march_cadence_drives_clock():
     assert C.advance_phase(0.0, np.zeros(3), cadence=1.5) == pytest.approx(1.5 * C.DECIMATION * 0.005)
-    assert C.advance_phase(0.3, np.zeros(3), cadence=0.0) == 0.0          # v3: frozen at zero command
+    assert C.advance_phase(0.3, np.zeros(3), cadence=0.0) == 0.0  # v3: frozen at zero command
     assert C.advance_phase(0.1, np.array([1.0, 0, 0]), cadence=0.0) == C.advance_phase(0.1, np.array([1.0, 0, 0]))
     g = (C.GAIT_HZ_BASE, C.GAIT_HZ_PER_MPS, C.GAIT_HZ_YAW_WEIGHT)
     assert C.advance_phase_clock(0.2, np.zeros(3), g, 1.2) == C.advance_phase(0.2, np.zeros(3), 1.2)
@@ -115,6 +124,7 @@ def test_march_cadence_drives_clock():
 
 def test_contract_json_skill_block():
     import json
+
     c = json.loads(C.CONTRACT_JSON.read_text())
     sb = c["skill_block"]
     assert c["obs_dim"] == 84 and sb["offset"] == 84 and sb["obs_dim"] == 95 and sb["version"] == C.SKILL_VERSION

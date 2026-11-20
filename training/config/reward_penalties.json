@@ -1,0 +1,8 @@
+{
+  "_comment": "Smoothness / effort penalty weights of every PoOlympics task (read by poolympic/penalties.py into tasks/matt_env.py, the base of every body's tasks; mirrored by the Unity asset Assets/PoOlympic/Resources/RewardPenalties.asset, checked by RewardPenaltiesTests). Each weight is multiplied by the env step dt like every mjlab reward term. These are the values the shipped brains were trained with: changing one changes the task cfgs (tools/dump_task_cfgs.py --diff) and needs new task IDs and retraining; nothing shipped is retrained by editing this file. joint_vel_l2 is 0 for every shipped task, so it adds no term.",
+  "torque_l2": -1e-05,
+  "body_ang_vel_l2": -0.05,
+  "action_rate_l2": -0.05,
+  "foot_slip": -0.1,
+  "joint_vel_l2": 0.0
+}

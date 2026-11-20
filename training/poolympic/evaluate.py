@@ -19,7 +19,6 @@ import onnxruntime as ort
 from . import action_log as AL
 from . import biomech
 from . import contract as C
-
 from .bodies import FALL_PELVIS_Z, FALL_TILT_DEG, JOINT_VEL_LIMIT, MATT_ROOT_Z  # noqa: E402 (MATT's rules; rescaled below)
 
 RECOVER_TILT_DEG = 10.0
@@ -29,7 +28,7 @@ JOINT_VEL_MAX_FRACTION = 0.05
 # literal values above. The zombie stands hunched, so its recovery is judged relative to its own settled lean.
 B = C.BODY
 LAM, SS, TS = B.length_scale, B.speed_scale, B.time_scale
-WS = 1.0 / TS            # angular rates
+WS = 1.0 / TS  # angular rates
 RELATIVE_TILT = B.family != "matt"
 if B.family != "matt":
     _root_z = float(mujoco.MjModel.from_xml_path(str(C.SCENE_XML)).key("default").qpos[2])
@@ -61,7 +60,7 @@ class Sim:
         self.d = mujoco.MjData(self.m)
         self.ath = C.Athlete.bind(self.m)
         self.sess = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
-        self.obs_dim = self.sess.get_inputs()[0].shape[1]     # 84 (v3) or 95 (v4: zero skill block = plain locomotion)
+        self.obs_dim = self.sess.get_inputs()[0].shape[1]  # 84 (v3) or 95 (v4: zero skill block = plain locomotion)
         m = self.m
         self.ground = m.geom("ground").id
         self.torso = m.body("torso").id
@@ -69,7 +68,7 @@ class Sim:
         self.foot_geoms = [m.geom(n).id for n in ("foot_l_geom0", "toe_l_geom0", "foot_r_geom0", "toe_r_geom0")]
         self.foot_geom_set = set(self.foot_geoms)
         self.athlete_geoms = {g for g in range(m.ngeom) if m.geom_bodyid[g] != 0 and g not in self.cube_geoms}
-        self.v5 = self.obs_dim == C.OBS_DIM_V5                # contract v5 proposal: fatigue block + physics-side limits
+        self.v5 = self.obs_dim == C.OBS_DIM_V5  # contract v5 proposal: fatigue block + physics-side limits
         self.bio = biomech.BioLimits(m, self.ath) if self.v5 or os.environ.get("POOLYMPIC_BIO") else None
         self.reset()
 
@@ -86,8 +85,9 @@ class Sim:
         d = self.d
         fatigue = self.bio.tick(self.m, d) if self.bio is not None else None
         self.phase = C.advance_phase(self.phase, command)
-        obs = C.build_obs(self.ath, d.qpos, d.qvel, command, self.phase, self.last_action,
-                          fatigue=fatigue if self.v5 else None)
+        obs = C.build_obs(
+            self.ath, d.qpos, d.qvel, command, self.phase, self.last_action, fatigue=fatigue if self.v5 else None
+        )
         if isinstance(self.obs_dim, int) and self.obs_dim > len(obs):
             obs = np.concatenate([obs, np.zeros(self.obs_dim - len(obs), dtype=obs.dtype)])
         ctrl, action = self.sess.run(None, {"obs": obs[None]})
@@ -120,7 +120,9 @@ class Sim:
     def cube_touching_athlete(self) -> bool:
         for c in self.d.contact[: self.d.ncon]:
             g1, g2 = int(c.geom1), int(c.geom2)
-            if (g1 in self.cube_geoms and g2 in self.athlete_geoms) or (g2 in self.cube_geoms and g1 in self.athlete_geoms):
+            if (g1 in self.cube_geoms and g2 in self.athlete_geoms) or (
+                g2 in self.cube_geoms and g1 in self.athlete_geoms
+            ):
                 return True
         return False
 
@@ -144,8 +146,14 @@ class Sim:
 
 
 @AL.logged("rung0", passed=lambda r: rung0_verdict([r])["PASS"])
-def rung0_episode(onnx_path: Path, seed: int, seconds: float = 20.0, shove_dv: float = 0.5 * SS,
-                  cube_drop_m: float = 1.5 * LAM, sim: Sim | None = None) -> EpisodeResult:
+def rung0_episode(
+    onnx_path: Path,
+    seed: int,
+    seconds: float = 20.0,
+    shove_dv: float = 0.5 * SS,
+    cube_drop_m: float = 1.5 * LAM,
+    sim: Sim | None = None,
+) -> EpisodeResult:
     """Rung 0: stand under random 0.5 m/s shoves + 2 kg cube drops (independent 3–5 s schedules); other bodies:
     shove x √λ, drop height / shoulder offset / jitter x λ."""
     rng = np.random.default_rng(seed)
@@ -155,10 +163,12 @@ def rung0_episode(onnx_path: Path, seed: int, seconds: float = 20.0, shove_dv: f
     n_ticks = int(round(seconds / dt))
     shove_ticks, t = [], rng.uniform(3, 5)
     while t < seconds - 1.5:
-        shove_ticks.append(int(t / dt)); t += rng.uniform(3, 5)
+        shove_ticks.append(int(t / dt))
+        t += rng.uniform(3, 5)
     cube_ticks, t = [], rng.uniform(3, 5)
     while t < seconds - 2.0:
-        cube_ticks.append(int(t / dt)); t += rng.uniform(3, 5)
+        cube_ticks.append(int(t / dt))
+        t += rng.uniform(3, 5)
     shove_set, cube_set = set(shove_ticks), set(cube_ticks)
 
     foot0 = sim.foot_corners_xy().mean(axis=0)
@@ -204,17 +214,29 @@ def rung0_episode(onnx_path: Path, seed: int, seconds: float = 20.0, shove_dv: f
             break
 
     tl = np.array(tilt_log)
-    if RELATIVE_TILT and len(tl) > 100:           # deviation from the athlete's own settled lean (ticks 50-100, 1-2 s)
+    if RELATIVE_TILT and len(tl) > 100:  # deviation from the athlete's own settled lean (ticks 50-100, 1-2 s)
         tl = np.abs(tl - float(np.median(tl[50:100])))
     hs = sorted(hit_times)
     rec = [recovery_time(tl, h, dt, hs[i + 1] if i + 1 < len(hs) else None) for i, h in enumerate(hs)]
-    peak = max((float(tl[int(round(h / dt)): int(round((h + RECOVER_WINDOW_S) / dt))].max(initial=0.0)) for h in hit_times), default=0.0)
+    peak = max(
+        (float(tl[int(round(h / dt)) : int(round((h + RECOVER_WINDOW_S) / dt))].max(initial=0.0)) for h in hit_times),
+        default=0.0,
+    )
     ok = [r for r in rec if r is not None and r <= RECOVER_WINDOW_S]
-    return EpisodeResult(seed=seed, fell=fell_at is not None, fall_time=fell_at, fall_reason=reason,
-                         hits=len(hit_times), recovered_hits=len(ok),
-                         worst_recovery_s=max((r for r in rec if r is not None), default=None) if all(r is not None for r in rec) else None,
-                         max_foot_excursion_m=max_exc, joint_vel_over_fraction=joint_over / max(1, len(tilt_log)),
-                         max_tilt_after_hit_deg=peak)
+    return EpisodeResult(
+        seed=seed,
+        fell=fell_at is not None,
+        fall_time=fell_at,
+        fall_reason=reason,
+        hits=len(hit_times),
+        recovered_hits=len(ok),
+        worst_recovery_s=max((r for r in rec if r is not None), default=None)
+        if all(r is not None for r in rec)
+        else None,
+        max_foot_excursion_m=max_exc,
+        joint_vel_over_fraction=joint_over / max(1, len(tilt_log)),
+        max_tilt_after_hit_deg=peak,
+    )
 
 
 def recovery_time(tilt: np.ndarray, hit_t: float, dt: float, next_hit_t: float | None = None) -> float | None:
@@ -234,11 +256,21 @@ def recovery_time(tilt: np.ndarray, hit_t: float, dt: float, next_hit_t: float |
 def rung0_verdict(results: list[EpisodeResult], foot_box_half_m: float = 0.5 * LAM) -> dict:
     per_seed = []
     for r in results:
-        ok = (not r.fell and r.hits > 0 and r.recovered_hits == r.hits and r.max_foot_excursion_m <= foot_box_half_m
-              and r.joint_vel_over_fraction <= JOINT_VEL_MAX_FRACTION)
+        ok = (
+            not r.fell
+            and r.hits > 0
+            and r.recovered_hits == r.hits
+            and r.max_foot_excursion_m <= foot_box_half_m
+            and r.joint_vel_over_fraction <= JOINT_VEL_MAX_FRACTION
+        )
         per_seed.append(ok)
-    return {"rung": 0, "seeds": len(results), "passed_seeds": int(sum(per_seed)), "PASS": all(per_seed),
-            "per_seed_pass": per_seed}
+    return {
+        "rung": 0,
+        "seeds": len(results),
+        "passed_seeds": int(sum(per_seed)),
+        "PASS": all(per_seed),
+        "per_seed_pass": per_seed,
+    }
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -266,8 +298,15 @@ class DashResult:
 
 
 @AL.logged("rung1", passed=lambda r: rung1_verdict([r])["PASS"])
-def rung1_episode(onnx_path: Path, seed: int, speed: float | None = None, distance: float = 30.0,
-                  shove_dv: float = 0.3 * SS, warmup_s: float = 2.0 * TS, sim: Sim | None = None) -> DashResult:
+def rung1_episode(
+    onnx_path: Path,
+    seed: int,
+    speed: float | None = None,
+    distance: float = 30.0,
+    shove_dv: float = 0.3 * SS,
+    warmup_s: float = 2.0 * TS,
+    sim: Sim | None = None,
+) -> DashResult:
     rng = np.random.default_rng(seed)
     speed = float(rng.uniform(0.5 * SS, 3.0 * SS)) if speed is None else speed
     sim = sim or Sim(onnx_path)
@@ -281,14 +320,14 @@ def rung1_episode(onnx_path: Path, seed: int, speed: float | None = None, distan
     k = 0
     for k in range(max_ticks):
         now = k * dt
-        q = sim.d.qpos[sim.ath.root_qposadr + 3: sim.ath.root_qposadr + 7]
+        q = sim.d.qpos[sim.ath.root_qposadr + 3 : sim.ath.root_qposadr + 7]
         cmd = np.array([speed, 0.0, C.steer_yaw_rate(q, sim.pelvis()[1] - start[1])])
 
         def pre(s: Sim, now=now):
             nonlocal next_shove
             if now >= next_shove:
                 a = rng.uniform(0, 2 * math.pi)
-                s.d.qvel[s.ath.root_dofadr: s.ath.root_dofadr + 2] += shove_dv * np.array([math.cos(a), math.sin(a)])
+                s.d.qvel[s.ath.root_dofadr : s.ath.root_dofadr + 2] += shove_dv * np.array([math.cos(a), math.sin(a)])
                 next_shove = now + rng.uniform(3, 5)
 
         sim.control_tick(cmd, pre)
@@ -296,7 +335,7 @@ def rung1_episode(onnx_path: Path, seed: int, speed: float | None = None, distan
         lat = max(lat, abs(p[1] - start[1]))
         if now >= warmup_s:
             qv = sim.d.qvel
-            yaw = heading_yaw(sim.d.qpos[sim.ath.root_qposadr + 3: sim.ath.root_qposadr + 7])
+            yaw = heading_yaw(sim.d.qpos[sim.ath.root_qposadr + 3 : sim.ath.root_qposadr + 7])
             vx_h = math.cos(yaw) * qv[sim.ath.root_dofadr] + math.sin(yaw) * qv[sim.ath.root_dofadr + 1]
             vel_err.append(vx_h - speed)
         joint_over += int(np.abs(sim.d.qvel[sim.ath.joint_dofadr]).max() > JOINT_VEL_LIMIT)
@@ -307,17 +346,33 @@ def rung1_episode(onnx_path: Path, seed: int, speed: float | None = None, distan
         if p[0] - start[0] >= distance:
             break
     d = float(sim.pelvis()[0] - start[0])
-    return DashResult(seed=seed, speed_cmd=speed, fell=fell_at is not None, fall_time=fell_at, fall_reason=reason,
-                      distance_m=d, finished=d >= distance and fell_at is None, time_s=(k + 1) * dt,
-                      vel_rms_err=float(np.sqrt(np.mean(np.square(vel_err)))) if vel_err else float("nan"),
-                      lateral_drift_m=lat, joint_vel_over_fraction=joint_over / max(1, k + 1))
+    return DashResult(
+        seed=seed,
+        speed_cmd=speed,
+        fell=fell_at is not None,
+        fall_time=fell_at,
+        fall_reason=reason,
+        distance_m=d,
+        finished=d >= distance and fell_at is None,
+        time_s=(k + 1) * dt,
+        vel_rms_err=float(np.sqrt(np.mean(np.square(vel_err)))) if vel_err else float("nan"),
+        lateral_drift_m=lat,
+        joint_vel_over_fraction=joint_over / max(1, k + 1),
+    )
 
 
 def rung1_verdict(results: list[DashResult]) -> dict:
-    per = [bool(r.finished and not r.fell and r.vel_rms_err < 0.15 * SS and r.lateral_drift_m < 0.5 * LAM
-           and r.joint_vel_over_fraction <= JOINT_VEL_MAX_FRACTION) for r in results]
+    per = [
+        bool(
+            r.finished
+            and not r.fell
+            and r.vel_rms_err < 0.15 * SS
+            and r.lateral_drift_m < 0.5 * LAM
+            and r.joint_vel_over_fraction <= JOINT_VEL_MAX_FRACTION
+        )
+        for r in results
+    ]
     return {"rung": 1, "seeds": len(results), "passed_seeds": int(sum(per)), "PASS": all(per), "per_seed_pass": per}
-
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -335,13 +390,15 @@ RUNG2_YAW_TOL = 0.3 * WS
 # DESIGN §1 lists wz in [-2, 2] AND "360 deg < 3 s", which 2 rad/s cannot meet (3.14 s at best). Event 12 is scored
 # on rotational speed, so the drill commands the maximum trained yaw rate (Rung 2 curriculum: +-2.5). Bars unchanged.
 TURNTABLE_WZ = 2.5 * WS
-RUNG2_VX_MAX = B.top_speed # m/s — MATT's top speed with the elite-athlete torque caps (user decision 2026-09-28; spec said 4.0)
+RUNG2_VX_MAX = (
+    B.top_speed
+)  # m/s — MATT's top speed with the elite-athlete torque caps (user decision 2026-09-28; spec said 4.0)
 #       (other bodies: Froude-scaled, or the body's own cap — GRANDMA 2.8 m/s, user decision 2026-10-01)
-YAW_PER_STRIDE = B.yaw_per_stride   # zombie (2026-09-29), GRANDMA (2026-10-01): yaw error averaged over one stride
+YAW_PER_STRIDE = B.yaw_per_stride  # zombie (2026-09-29), GRANDMA (2026-10-01): yaw error averaged over one stride
 TURNTABLE_MAX_S = 3.0 * TS
 TURNTABLE_MAX_DRIFT = 0.3 * LAM
-BRAKE_MAX_M = 2.0 * LAM          # stopping distance ∝ v² / a: × λ (accelerations do not scale)
-BACKWARD_M = 20.0                # event distance (rule), not scaled
+BRAKE_MAX_M = 2.0 * LAM  # stopping distance ∝ v² / a: × λ (accelerations do not scale)
+BACKWARD_M = 20.0  # event distance (rule), not scaled
 BACKWARD_V = 1.5 * SS
 BRAKE_V = min(3.0 * SS, RUNG2_VX_MAX)
 
@@ -359,12 +416,12 @@ class Rung2Result:
 
 
 def _root_quat(sim: Sim) -> np.ndarray:
-    return sim.d.qpos[sim.ath.root_qposadr + 3: sim.ath.root_qposadr + 7]
+    return sim.d.qpos[sim.ath.root_qposadr + 3 : sim.ath.root_qposadr + 7]
 
 
 def _vel_heading(sim: Sim) -> tuple[float, float, float]:
     """(vx, vy) in the heading frame and body-frame yaw rate — the quantities the training rewards track."""
-    v = sim.d.qvel[sim.ath.root_dofadr: sim.ath.root_dofadr + 6]
+    v = sim.d.qvel[sim.ath.root_dofadr : sim.ath.root_dofadr + 6]
     yaw = C.yaw_of(_root_quat(sim))
     c, s = math.cos(yaw), math.sin(yaw)
     return c * v[0] + s * v[1], -s * v[0] + c * v[1], float(v[5])
@@ -388,18 +445,20 @@ def _shover(rng: np.random.Generator, dv: float):
         now = s.tick * C.DECIMATION * s.m.opt.timestep
         if dv > 0 and now >= state["next"]:
             a = rng.uniform(0, 2 * math.pi)
-            s.d.qvel[s.ath.root_dofadr: s.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
+            s.d.qvel[s.ath.root_dofadr : s.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
             state["next"] = now + rng.uniform(3, 5)
+
     return pre
 
 
 STEADY_ACCEL = 1.5  # m/s^2 — tracking is measured once the athlete can have reached the new speed: settle = max(1.5,
-                    # 0.5 + |dv| / STEADY_ACCEL) s (user decision 2026-09-28; acceleration is scored by the dash events)
+# 0.5 + |dv| / STEADY_ACCEL) s (user decision 2026-09-28; acceleration is scored by the dash events)
 
 
 @AL.logged("rung2", passed=lambda r: rung2_verdict([r])["PASS"])
-def rung2_episode(onnx_path: Path, seed: int, sim: Sim | None = None, shove_dv: float = 0.3 * SS,
-                  steady_state: bool = True) -> Rung2Result:
+def rung2_episode(
+    onnx_path: Path, seed: int, sim: Sim | None = None, shove_dv: float = 0.3 * SS, steady_state: bool = True
+) -> Rung2Result:
     """G1 drill. steady_state=True (official since 2026-09-28): the settle time grows with the speed change,
     max(1.5, 0.5 + |dv|/1.5 s), so tracking is scored on the commanded speed, not on acceleration time.
     steady_state=False reproduces the earlier fixed 1.5 s window."""
@@ -449,13 +508,21 @@ def rung2_episode(onnx_path: Path, seed: int, sim: Sim | None = None, shove_dv: 
         # the same for the speed error (report-only, 2026-10-12): the velocity error VECTOR averaged over one stride,
         # then its RMS — what is left of lin_rms once the within-stride surge and sway of the pelvis is taken out
         box = np.ones(period) / period
-        lin_avg = (np.hypot(np.convolve(ex, box, mode="valid"), np.convolve(ey, box, mode="valid"))
-                   if len(ex) >= period else np.array(lin))
-        segments.append({"kind": kind, "cmd": cmd.round(3).tolist(),
-                         "lin_rms": float(np.sqrt(np.mean(np.square(lin)))) if lin else None,
-                         "lin_rms_stride": float(np.sqrt(np.mean(np.square(lin_avg)))) if len(lin_avg) else None,
-                         "yaw_rms": float(np.sqrt(np.mean(np.square(yaw)))) if yaw else None,
-                         "yaw_rms_stride": float(np.sqrt(np.mean(np.square(yaw_avg)))) if len(yaw_avg) else None})
+        lin_avg = (
+            np.hypot(np.convolve(ex, box, mode="valid"), np.convolve(ey, box, mode="valid"))
+            if len(ex) >= period
+            else np.array(lin)
+        )
+        segments.append(
+            {
+                "kind": kind,
+                "cmd": cmd.round(3).tolist(),
+                "lin_rms": float(np.sqrt(np.mean(np.square(lin)))) if lin else None,
+                "lin_rms_stride": float(np.sqrt(np.mean(np.square(lin_avg)))) if len(lin_avg) else None,
+                "yaw_rms": float(np.sqrt(np.mean(np.square(yaw)))) if yaw else None,
+                "yaw_rms_stride": float(np.sqrt(np.mean(np.square(yaw_avg)))) if len(yaw_avg) else None,
+            }
+        )
         if fell:
             break
 
@@ -508,8 +575,16 @@ def rung2_episode(onnx_path: Path, seed: int, sim: Sim | None = None, shove_dv: 
             if back >= BACKWARD_M:
                 break
 
-    return Rung2Result(seed=seed, fell=fell, segments=segments, turntable_s=turntable_s, turntable_drift_m=drift,
-                       brake_m=brake, backward_m=back, joint_vel_over_fraction=jv / max(1, ticks))
+    return Rung2Result(
+        seed=seed,
+        fell=fell,
+        segments=segments,
+        turntable_s=turntable_s,
+        turntable_drift_m=drift,
+        brake_m=brake,
+        backward_m=back,
+        joint_vel_over_fraction=jv / max(1, ticks),
+    )
 
 
 YAW_KEY = "yaw_rms_stride" if YAW_PER_STRIDE else "yaw_rms"
@@ -518,12 +593,13 @@ YAW_KEY = "yaw_rms_stride" if YAW_PER_STRIDE else "yaw_rms"
 def rung2_checks(r: Rung2Result) -> dict[str, bool]:
     return {
         "no_fall": r.fell is None,
-        "tracking_lin": bool(r.segments) and all(s["lin_rms"] is not None and s["lin_rms"] < RUNG2_LIN_TOL
-                                                 for s in r.segments),
-        "tracking_yaw": bool(r.segments) and all(s[YAW_KEY] is not None and s[YAW_KEY] < RUNG2_YAW_TOL
-                                                 for s in r.segments),
-        "turntable": bool(r.turntable_s is not None and r.turntable_s < TURNTABLE_MAX_S
-                          and r.turntable_drift_m < TURNTABLE_MAX_DRIFT),
+        "tracking_lin": bool(r.segments)
+        and all(s["lin_rms"] is not None and s["lin_rms"] < RUNG2_LIN_TOL for s in r.segments),
+        "tracking_yaw": bool(r.segments)
+        and all(s[YAW_KEY] is not None and s[YAW_KEY] < RUNG2_YAW_TOL for s in r.segments),
+        "turntable": bool(
+            r.turntable_s is not None and r.turntable_s < TURNTABLE_MAX_S and r.turntable_drift_m < TURNTABLE_MAX_DRIFT
+        ),
         "brake": r.brake_m is not None and r.brake_m < BRAKE_MAX_M,
         "backward": r.backward_m >= BACKWARD_M,
         "joint_vel": r.joint_vel_over_fraction <= JOINT_VEL_MAX_FRACTION,
@@ -533,5 +609,11 @@ def rung2_checks(r: Rung2Result) -> dict[str, bool]:
 def rung2_verdict(results: list[Rung2Result]) -> dict:
     checks = [rung2_checks(r) for r in results]
     per = [all(c.values()) for c in checks]
-    return {"rung": 2, "seeds": len(results), "passed_seeds": int(sum(per)), "PASS": all(per), "per_seed_pass": per,
-            "per_seed_checks": checks}
+    return {
+        "rung": 2,
+        "seeds": len(results),
+        "passed_seeds": int(sum(per)),
+        "PASS": all(per),
+        "per_seed_pass": per,
+        "per_seed_checks": checks,
+    }

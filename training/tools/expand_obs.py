@@ -31,12 +31,13 @@ sys.path.insert(0, str(ROOT))
 from poolympic import contract as C  # noqa: E402
 from poolympic import skills as K  # noqa: E402
 
-MODE_PROBS = (0.20, 0.16, 0.16, 0.16, 0.16, 0.16)   # = skill_mdp.AthleteSkillCommandCfg.mode_probs
+MODE_PROBS = (0.20, 0.16, 0.16, 0.16, 0.16, 0.16)  # = skill_mdp.AthleteSkillCommandCfg.mode_probs
 
 
 def skill_samples(n: int, rng: np.random.Generator) -> np.ndarray:
     """n skill blocks drawn like AthleteSkillCommand._resample_command (MATT ranges from contract.skill_block)."""
     import mujoco
+
     r = C.skill_block()["ranges"]
     m = mujoco.MjModel.from_xml_path(str(C.SCENE_XML))
     d = mujoco.MjData(m)
@@ -76,7 +77,9 @@ def main() -> int:
     ap.add_argument("--count", type=float, default=1e6)
     ap.add_argument("--min-std", type=float, default=0.25)
     ap.add_argument("--actor-zeros", type=int, default=None, help="append N zero-weight actor inputs (no skill block)")
-    ap.add_argument("--critic-zeros", type=int, default=None, help="append M zero-weight critic inputs (no skill block)")
+    ap.add_argument(
+        "--critic-zeros", type=int, default=None, help="append M zero-weight critic inputs (no skill block)"
+    )
     a = ap.parse_args()
     sd = torch.load(a.src, map_location="cpu", weights_only=False)
     src = {g: {k: v.clone() for k, v in sd[g].items()} for g in ("actor_state_dict", "critic_state_dict")}
@@ -116,8 +119,10 @@ def main() -> int:
     assert worst < 1e-4, worst
     if not generic:
         names = [n for n, _ in C.SKILL_LAYOUT for _ in range(dict(C.SKILL_LAYOUT)[n])]
-        print("skill stats (mean / std):", [(n, round(float(mm), 3), round(math.sqrt(float(v)), 3))
-                                            for n, mm, v in zip(names, mean[0], var[0])])
+        print(
+            "skill stats (mean / std):",
+            [(n, round(float(mm), 3), round(math.sqrt(float(v)), 3)) for n, mm, v in zip(names, mean[0], var[0])],
+        )
     a.dst.mkdir(parents=True, exist_ok=True)
     out = a.dst / "model_0.pt"
     torch.save(sd, out)

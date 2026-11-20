@@ -10,6 +10,8 @@ from poolympic import contract as C
 sys.path.insert(0, str(C.ROOT / "tools"))
 import check_crowd_contacts as cc  # noqa: E402
 
+pytestmark = pytest.mark.slow  # every scene x every athlete pair on CPU MuJoCo (~10 min): local tier
+
 
 @pytest.mark.parametrize("tag", cc.scene_tags())
 def test_every_part_collides_with_every_other_athlete(tag):

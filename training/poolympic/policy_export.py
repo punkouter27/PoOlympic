@@ -34,7 +34,9 @@ def make_mlp(obs_dim: int = C.OBS_DIM, act_dim: int = C.NUM_ACTIONS) -> nn.Seque
 
 
 class ExportedPolicy(nn.Module):
-    def __init__(self, mlp: nn.Module, obs_mean, obs_std, default_pos, range_lo, range_hi, clip_obs: float | None = CLIP_OBS):
+    def __init__(
+        self, mlp: nn.Module, obs_mean, obs_std, default_pos, range_lo, range_hi, clip_obs: float | None = CLIP_OBS
+    ):
         super().__init__()
         self.mlp = mlp
         self.clip_obs = clip_obs
@@ -50,16 +52,26 @@ class ExportedPolicy(nn.Module):
         if self.clip_obs is not None:
             x = torch.clamp(x, -self.clip_obs, self.clip_obs)
         action_raw = self.mlp(x)
-        ctrl = torch.minimum(torch.maximum(self.default_pos + C.ACTION_SCALE * action_raw, self.range_lo), self.range_hi)
+        ctrl = torch.minimum(
+            torch.maximum(self.default_pos + C.ACTION_SCALE * action_raw, self.range_lo), self.range_hi
+        )
         return ctrl, action_raw
 
 
 def export(policy: ExportedPolicy, path: Path, metadata: dict[str, str]) -> Path:
     policy = policy.eval().cpu()
-    dummy = torch.zeros(1, policy.obs_mean.shape[1])      # 84 (v3) or 95 (v4) inputs
+    dummy = torch.zeros(1, policy.obs_mean.shape[1])  # 84 (v3) or 95 (v4) inputs
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.onnx.export(policy, (dummy,), str(path), input_names=["obs"], output_names=["ctrl", "action_raw"],
-                      opset_version=OPSET, dynamic_axes=None, dynamo=False)
+    torch.onnx.export(
+        policy,
+        (dummy,),
+        str(path),
+        input_names=["obs"],
+        output_names=["ctrl", "action_raw"],
+        opset_version=OPSET,
+        dynamic_axes=None,
+        dynamo=False,
+    )
     model = onnx.load(str(path))
     for k, v in metadata.items():
         entry = model.metadata_props.add()

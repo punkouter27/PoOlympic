@@ -16,15 +16,43 @@ SKEL = json.loads((ASSETS / "derived" / "skeleton_matt.json").read_text())
 BONE_POS = {j["name"]: np.array(j["pos"]) for j in SKEL["joints"]}
 
 BODY_BONE = {
-    "pelvis": "Hips", "torso": "Spine", "chest": "Spine2", "head": "Neck",
-    **{f"{b}_{s}": f"{S}{bone}" for s, S in (("l", "Left"), ("r", "Right"))
-       for b, bone in (("upper_arm", "Arm"), ("forearm", "ForeArm"), ("thigh", "UpLeg"), ("shin", "Leg"),
-                       ("foot", "Foot"), ("toe", "ToeBase"))},
+    "pelvis": "Hips",
+    "torso": "Spine",
+    "chest": "Spine2",
+    "head": "Neck",
+    **{
+        f"{b}_{s}": f"{S}{bone}"
+        for s, S in (("l", "Left"), ("r", "Right"))
+        for b, bone in (
+            ("upper_arm", "Arm"),
+            ("forearm", "ForeArm"),
+            ("thigh", "UpLeg"),
+            ("shin", "Leg"),
+            ("foot", "Foot"),
+            ("toe", "ToeBase"),
+        )
+    },
 }
-MASS_TABLE = {"pelvis": 8.94, "torso": 13.06, "chest": 12.77, "head": 5.55, "upper_arm": 2.17, "forearm": 1.79,
-              "thigh": 11.33, "shin": 3.46, "foot": 0.85, "toe": 0.25}
-GAINS = {"hip": (300, 30, 280), "knee": (300, 30, 280), "ankle": (200, 20, 220), "abdomen": (300, 30, 200),
-         "shoulder": (60, 6, 80), "elbow": (50, 5, 70)}
+MASS_TABLE = {
+    "pelvis": 8.94,
+    "torso": 13.06,
+    "chest": 12.77,
+    "head": 5.55,
+    "upper_arm": 2.17,
+    "forearm": 1.79,
+    "thigh": 11.33,
+    "shin": 3.46,
+    "foot": 0.85,
+    "toe": 0.25,
+}
+GAINS = {
+    "hip": (300, 30, 280),
+    "knee": (300, 30, 280),
+    "ankle": (200, 20, 220),
+    "abdomen": (300, 30, 200),
+    "shoulder": (60, 6, 80),
+    "elbow": (50, 5, 70),
+}
 
 
 @pytest.fixture(scope="module")
@@ -121,23 +149,43 @@ def test_joint_sign_semantics(robot, side, sy):
     fwd_toe = np.array([0.1, 0, 0])
     p = lambda *a, **k: _site_after(robot, *a, **k)  # noqa: E731
     # hip flexion swings the knee forward; knee flexion moves the ankle back
-    assert p(f"hip_flex_{side}", 30, f"thigh_{side}", down)[0] > p(f"hip_flex_{side}", 0, f"thigh_{side}", down)[0] + 0.1
+    assert (
+        p(f"hip_flex_{side}", 30, f"thigh_{side}", down)[0] > p(f"hip_flex_{side}", 0, f"thigh_{side}", down)[0] + 0.1
+    )
     assert p(f"knee_{side}", 30, f"shin_{side}", down)[0] < p(f"knee_{side}", 0, f"shin_{side}", down)[0] - 0.1
     # hip abduction moves the foot away from the midline
-    assert sy * p(f"hip_abd_{side}", 20, f"thigh_{side}", down)[1] > sy * p(f"hip_abd_{side}", 0, f"thigh_{side}", down)[1] + 0.05
+    assert (
+        sy * p(f"hip_abd_{side}", 20, f"thigh_{side}", down)[1]
+        > sy * p(f"hip_abd_{side}", 0, f"thigh_{side}", down)[1] + 0.05
+    )
     # ankle dorsiflexion lifts the toes
-    assert p(f"ankle_dorsi_{side}", 20, f"foot_{side}", fwd_toe)[2] > p(f"ankle_dorsi_{side}", 0, f"foot_{side}", fwd_toe)[2] + 0.02
+    assert (
+        p(f"ankle_dorsi_{side}", 20, f"foot_{side}", fwd_toe)[2]
+        > p(f"ankle_dorsi_{side}", 0, f"foot_{side}", fwd_toe)[2] + 0.02
+    )
     # ankle inversion turns the sole to face the midline (lateral edge goes down)
     lateral_edge = np.array([0, sy * 0.05, 0])
-    assert p(f"ankle_inv_{side}", 20, f"foot_{side}", lateral_edge)[2] < p(f"ankle_inv_{side}", 0, f"foot_{side}", lateral_edge)[2] - 0.01
+    assert (
+        p(f"ankle_inv_{side}", 20, f"foot_{side}", lateral_edge)[2]
+        < p(f"ankle_inv_{side}", 0, f"foot_{side}", lateral_edge)[2] - 0.01
+    )
     # shoulder elevation raises the hand from the T-pose; negative brings it to the side
     hand = np.array([0, sy * 0.3, 0])
-    assert p(f"shoulder_elev_{side}", 30, f"forearm_{side}", hand)[2] > q0[2] + 0.1 + p(f"shoulder_elev_{side}", 0, f"forearm_{side}", hand)[2] - q0[2]
+    assert (
+        p(f"shoulder_elev_{side}", 30, f"forearm_{side}", hand)[2]
+        > q0[2] + 0.1 + p(f"shoulder_elev_{side}", 0, f"forearm_{side}", hand)[2] - q0[2]
+    )
     # with arms hanging (elev -80), shoulder flexion swings the hand forward; elbow flexion too
     hang = q0.copy()
     hang[robot.jnt_qposadr[robot.joint(f"shoulder_elev_{side}").id]] = math.radians(-80)
-    assert p(f"shoulder_flex_{side}", 40, f"forearm_{side}", hand, base=hang)[0] > p(f"shoulder_flex_{side}", 0, f"forearm_{side}", hand, base=hang)[0] + 0.1
-    assert p(f"elbow_{side}", 60, f"forearm_{side}", hand, base=hang)[0] > p(f"elbow_{side}", 0, f"forearm_{side}", hand, base=hang)[0] + 0.1
+    assert (
+        p(f"shoulder_flex_{side}", 40, f"forearm_{side}", hand, base=hang)[0]
+        > p(f"shoulder_flex_{side}", 0, f"forearm_{side}", hand, base=hang)[0] + 0.1
+    )
+    assert (
+        p(f"elbow_{side}", 60, f"forearm_{side}", hand, base=hang)[0]
+        > p(f"elbow_{side}", 0, f"forearm_{side}", hand, base=hang)[0] + 0.1
+    )
 
 
 def _hold_default(scene, seconds):
@@ -160,7 +208,7 @@ def _hold_default(scene, seconds):
 def test_passive_pd_hold_settles(scene):
     d, max_pen, h = _hold_default(scene, 1.0)
     assert max_pen < 0.005, f"penetration {max_pen * 1000:.2f} mm"
-    last = h[int(0.8 / scene.opt.timestep):]
+    last = h[int(0.8 / scene.opt.timestep) :]
     assert np.ptp(last) < 0.005, "root height still moving after 0.8 s"
     assert h[-1] > 0.85
 
@@ -193,7 +241,7 @@ def meet():
 
 def _lane_of(m, g) -> int | None:
     name = m.body(m.body_rootid[m.geom_bodyid[g]]).name
-    return int(name[1:name.index("_")]) if name.startswith("L") else None
+    return int(name[1 : name.index("_")]) if name.startswith("L") else None
 
 
 def test_meet_lanes_never_collide(meet):
@@ -227,8 +275,11 @@ def test_meet_lane_is_the_training_athlete(meet, scene):
             np.testing.assert_array_equal(meet.body_inertia[j], scene.body_inertia[i])
             if name != "pelvis":
                 np.testing.assert_array_equal(meet.body_pos[j], scene.body_pos[i])
-        np.testing.assert_allclose(meet.body_pos[meet.body(lane.prefix + "pelvis").id],
-                                   scene.body_pos[scene.body("pelvis").id] + lane.origin, atol=1e-6)
+        np.testing.assert_allclose(
+            meet.body_pos[meet.body(lane.prefix + "pelvis").id],
+            scene.body_pos[scene.body("pelvis").id] + lane.origin,
+            atol=1e-6,
+        )
         for a in range(scene.nu):
             b = meet.actuator(lane.prefix + scene.actuator(a).name).id
             np.testing.assert_array_equal(meet.actuator_gainprm[b], scene.actuator_gainprm[a])
@@ -236,4 +287,4 @@ def test_meet_lane_is_the_training_athlete(meet, scene):
         k0 = meet.key("default").qpos
         ks = scene.key("default").qpos
         ra = meet.jnt_qposadr[meet.joint(lane.prefix + "root").id]
-        np.testing.assert_allclose(k0[ra:ra + 32] - np.r_[lane.origin, np.zeros(29)], ks[:32], atol=1e-6)
+        np.testing.assert_allclose(k0[ra : ra + 32] - np.r_[lane.origin, np.zeros(29)], ks[:32], atol=1e-6)

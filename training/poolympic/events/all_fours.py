@@ -25,8 +25,8 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from .. import bodies
 from .. import action_log as AL
+from .. import bodies
 from .. import contract as C
 from .iron_pedestal import Traits, body_command, make_lanes  # noqa: F401 (body_command re-exported)
 
@@ -39,8 +39,8 @@ STAND_DQ_S = 1.0
 TRENCH_SCENE = C.ROOT / "assets" / "scene_trench8.xml"
 TRENCH_LAYOUT = C.ROOT / "assets" / "trench8_layout.json"
 TRENCH_DISTANCE = 16.0
-BAND = (0.25, 0.8)          # crawl pelvis band (m) × λ
-START_Z = 0.22              # prone start pelvis height (m) × λ
+BAND = (0.25, 0.8)  # crawl pelvis band (m) × λ
+START_Z = 0.22  # prone start pelvis height (m) × λ
 
 
 @dataclass
@@ -49,7 +49,7 @@ class CrawlLane:
     body: str
     traits: Traits
     finish_s: float | None = None
-    status: str = ""        # FINISHED / DQ / DNF
+    status: str = ""  # FINISHED / DQ / DNF
     tumbles: int = 0
     distance_m: float = 0.0  # progress along the lane (capped at the race distance)
     place: int = 0
@@ -83,14 +83,20 @@ def prone_start(m, d, ln) -> None:
     r, dv = ln.ath.root_qposadr, ln.ath.root_dofadr
     q = np.zeros(4)
     mujoco.mju_euler2Quat(q, np.array([0.0, math.pi / 2, 0.0]), "XYZ")
-    d.qpos[r:r + 3] = [ln.origin[0], ln.origin[1], START_Z * lam]
-    d.qpos[r + 3:r + 7] = q
-    d.qvel[dv:dv + 6] = 0.0
+    d.qpos[r : r + 3] = [ln.origin[0], ln.origin[1], START_Z * lam]
+    d.qpos[r + 3 : r + 7] = q
+    d.qvel[dv : dv + 6] = 0.0
 
 
 @AL.logged("event_all_fours")
-def run_race(brains: dict[str, Path], seed: int, traits: list[Traits] | None = None, scene: Path = SCENE,
-             layout_path: Path = LAYOUT, distance: float | None = None) -> CrawlResult:
+def run_race(
+    brains: dict[str, Path],
+    seed: int,
+    traits: list[Traits] | None = None,
+    scene: Path = SCENE,
+    layout_path: Path = LAYOUT,
+    distance: float | None = None,
+) -> CrawlResult:
     """distance: race length (default DISTANCE = 30 m; Event 23 The Trench Crawl: TRENCH_DISTANCE on TRENCH_SCENE)."""
     distance = DISTANCE if distance is None else distance
     m = mujoco.MjModel.from_xml_path(str(scene))
@@ -116,8 +122,8 @@ def run_race(brains: dict[str, Path], seed: int, traits: list[Traits] | None = N
             if t < SETUP_S or res[i].status:
                 cmd = np.zeros(3)
             else:
-                cmd = np.array([VX, 0.0, crawl_steer(d.qpos[r + 3:r + 7], d.qpos[r + 1] - ln.origin[1])])
-            ln.control(ln.sess, d, cmd)            # _Lane.control scales to the body (BodyCommand)
+                cmd = np.array([VX, 0.0, crawl_steer(d.qpos[r + 3 : r + 7], d.qpos[r + 1] - ln.origin[1])])
+            ln.control(ln.sess, d, cmd)  # _Lane.control scales to the body (BodyCommand)
         for s in range(C.DECIMATION):
             for ln in lanes:
                 ln.write_ctrl(d, s)
@@ -148,12 +154,20 @@ def run_race(brains: dict[str, Path], seed: int, traits: list[Traits] | None = N
     for i, r in enumerate(res):
         r.status = r.status or "DNF"
         r.distance_m = round(min(distance, float(d.qpos[lanes[i].ath.root_qposadr] - lanes[i].origin[0])), 2)
-    order = sorted(res, key=lambda r: (0, r.finish_s) if r.status == "FINISHED" else (1, -r.distance_m) if r.status == "DNF" else (2, 0))
+    order = sorted(
+        res,
+        key=lambda r: (
+            (0, r.finish_s) if r.status == "FINISHED" else (1, -r.distance_m) if r.status == "DNF" else (2, 0)
+        ),
+    )
     for p, r in enumerate(order, 1):
         r.place = p
     return CrawlResult(seed, tick * dt, res)
 
 
 def to_json(res: CrawlResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

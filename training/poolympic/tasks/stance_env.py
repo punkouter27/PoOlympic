@@ -32,6 +32,7 @@ LS = 1.0 if C.BODY.family == "matt" else C.BODY.length_scale
 def _base_env_cfg(play: bool) -> ManagerBasedRlEnvCfg:
     if C.BODY.name == "kim":
         from .kim_env import kim_rung2_bands2_env_cfg
+
         return kim_rung2_bands2_env_cfg(play=play)
     return matt_rung2_sym5_env_cfg(play=play)
 
@@ -40,6 +41,7 @@ def _fall_z() -> float:
     if C.BODY.family == "matt":
         return 0.55
     from .grandma_env import FALL_Z
+
     return FALL_Z
 
 
@@ -48,8 +50,9 @@ def matt_stance_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # command: the Rung 2 velocity command + the skill block (same fields, skill-aware class)
     old = cfg.commands["athlete"]
-    cfg.commands["athlete"] = S.AthleteSkillCommandCfg(**{f.name: getattr(old, f.name) for f in dataclasses.fields(old)
-                                                          if f.init})
+    cfg.commands["athlete"] = S.AthleteSkillCommandCfg(
+        **{f.name: getattr(old, f.name) for f in dataclasses.fields(old) if f.init}
+    )
 
     # observation: the 11-value skill block after the 84 v3 terms (contract v4 order)
     for group in ("actor", "critic"):
@@ -58,13 +61,19 @@ def matt_stance_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r = cfg.rewards
     # skill-aware versions of the Rung 0/1/2 terms
     r["height"] = RewardTermCfg(func=S.skill_pelvis_height, weight=r["height"].weight, params={"std": 0.15 * LS})
-    r["posture"] = RewardTermCfg(func=S.posture_locomotion, weight=r["posture"].weight, params=dict(r["posture"].params))
-    r["upright"] = RewardTermCfg(func=S.upright_unless_aiming, weight=r["upright"].weight, params=dict(r["upright"].params))
+    r["posture"] = RewardTermCfg(
+        func=S.posture_locomotion, weight=r["posture"].weight, params=dict(r["posture"].params)
+    )
+    r["upright"] = RewardTermCfg(
+        func=S.upright_unless_aiming, weight=r["upright"].weight, params=dict(r["upright"].params)
+    )
     r["phase_contact"] = RewardTermCfg(func=S.phase_contact_v4, weight=r["phase_contact"].weight)
     # the five skills
     w = SKILL_REWARD_WEIGHT
     r["skill_squat"] = RewardTermCfg(func=S.skill_squat, weight=w, params={"std": 0.05 * LS})
-    r["skill_flamingo"] = RewardTermCfg(func=S.skill_flamingo, weight=w, params={"clearance": 0.10 * LS, "slip_speed": 0.05})
+    r["skill_flamingo"] = RewardTermCfg(
+        func=S.skill_flamingo, weight=w, params={"clearance": 0.10 * LS, "slip_speed": 0.05}
+    )
     r["skill_march"] = RewardTermCfg(func=S.skill_march, weight=w, params={"std": 0.06 * LS})
     # coarse terms (rs_v3), same fix as reach: rs_v2 squatted ~0.29 m short of the target (std 0.05 pays e^-33) and
     # barely lifted a knee for the march (std 0.06 vs 0.15-0.30 m lifts) -> both flat for 300 iterations
@@ -163,7 +172,7 @@ def matt_stance_squat2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     rs_v6: 0.43 m), and the foot-speed penalty of rsq_v1 does not see a centimetre per second. Adds a stance-width
     reward in squat mode (standing width 0.18 m, std 0.06 m, full skill weight)."""
     cfg = matt_stance_squat_env_cfg(play=play)
-    cfg.rewards["skill_squat_stance"] = RewardTermCfg(func=S.skill_squat_stance, weight=SKILL_REWARD_WEIGHT,
-                                                      params={"target": 0.18 * LS, "std": 0.06 * LS})
+    cfg.rewards["skill_squat_stance"] = RewardTermCfg(
+        func=S.skill_squat_stance, weight=SKILL_REWARD_WEIGHT, params={"target": 0.18 * LS, "std": 0.06 * LS}
+    )
     return cfg
-

@@ -8,12 +8,12 @@
 #   - API level 28: bionic declares aligned_alloc from API 28 (player min SDK = 28, AndroidBuild.cs)
 #   - -D_POSIX_C_SOURCE: MuJoCo only picks localtime_r when it is defined (bionic has it)
 # Output: Assets/Plugins/MuJoCo/Android/arm64-v8a/libmujoco.so (stripped, ~5 MB; needs only libc/libm/libdl)
-# Usage (Git Bash on Windows): tools/build_mujoco_android.sh [work dir, default ../mujoco-android]
+# Usage (Git Bash on Windows): scripts/build_mujoco_android.sh [work dir, default ../mujoco-android]
 set -euo pipefail
 VERSION=3.11.0
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${1:-$REPO/../mujoco-android}"
-UNITY="C:/Program Files/Unity/Hub/Editor/6000.6.0f1/Editor/Data/PlaybackEngines/AndroidPlayer"
+UNITY="C:/Program Files/Unity/Hub/Editor/6000.6.9f1/Editor/Data/PlaybackEngines/AndroidPlayer"
 NDK="$UNITY/NDK"
 BIN="$NDK/toolchains/llvm/prebuilt/windows-x86_64/bin"
 mkdir -p "$WORK" && cd "$WORK"

@@ -32,7 +32,7 @@ from . import bodies
 
 ENV = "POOLYMPIC_LOG_ACTIONS"
 DIR = bodies.PARITY / "actions"
-current: "ActionLog | None" = None       # the open log of the running episode (one episode at a time per process)
+current: "ActionLog | None" = None  # the open log of the running episode (one episode at a time per process)
 
 
 def _r(a) -> list:
@@ -55,24 +55,43 @@ class ActionLog:
         self.f.write(json.dumps(rec, separators=(",", ":"), default=_plain) + "\n")
 
     def lane(self, k: int, body: str) -> None:
-        self._write({"header": True, "lane": k, "body": body,
-                     "jv_limit": bodies.JOINT_VEL_LIMIT / bodies.BODIES[body].time_scale})
+        self._write(
+            {
+                "header": True,
+                "lane": k,
+                "body": body,
+                "jv_limit": bodies.JOINT_VEL_LIMIT / bodies.BODIES[body].time_scale,
+            }
+        )
 
     def tick(self, m, d, ath, torso: int, command, action, ctrl, lane: int | None = None) -> None:
         if not self.header_done:
             self.header_done = True
-            self.dt = float(m.opt.timestep) * 4          # contract.DECIMATION (no import: contract loads a scene)
-            self._write({"header": True, **self.meta, "dt": self.dt, "actuators": list(ath.actuator_names),
-                         "force_cap": _r(np.abs(m.actuator_forcerange[ath.actuator_ids]).max(axis=1)),
-                         "jv_limit": bodies.JOINT_VEL_LIMIT / bodies.current().time_scale})
+            self.dt = float(m.opt.timestep) * 4  # contract.DECIMATION (no import: contract loads a scene)
+            self._write(
+                {
+                    "header": True,
+                    **self.meta,
+                    "dt": self.dt,
+                    "actuators": list(ath.actuator_names),
+                    "force_cap": _r(np.abs(m.actuator_forcerange[ath.actuator_ids]).max(axis=1)),
+                    "jv_limit": bodies.JOINT_VEL_LIMIT / bodies.current().time_scale,
+                }
+            )
         r, v = ath.root_qposadr, ath.root_dofadr
-        rec = {"t": int(round(d.time / self.dt))}        # ticks since the scene's last reset
+        rec = {"t": int(round(d.time / self.dt))}  # ticks since the scene's last reset
         if lane is not None:
             rec["lane"] = lane
-        rec.update(cmd=_r(command), pos=_r(d.qpos[r:r + 3]),
-                   tilt=round(math.degrees(math.acos(max(-1.0, min(1.0, float(d.xmat[torso][8]))))), 2),
-                   vel=_r(d.qvel[v:v + 3]), qd=_r(d.qvel[ath.joint_dofadr]), act=_r(action), ctrl=_r(ctrl),
-                   frc=_r(d.actuator_force[ath.actuator_ids]))
+        rec.update(
+            cmd=_r(command),
+            pos=_r(d.qpos[r : r + 3]),
+            tilt=round(math.degrees(math.acos(max(-1.0, min(1.0, float(d.xmat[torso][8]))))), 2),
+            vel=_r(d.qvel[v : v + 3]),
+            qd=_r(d.qvel[ath.joint_dofadr]),
+            act=_r(action),
+            ctrl=_r(ctrl),
+            frc=_r(d.actuator_force[ath.actuator_ids]),
+        )
         self._write(rec)
         self.ticks += 1
 
@@ -81,10 +100,19 @@ class ActionLog:
         fell = bool(getattr(result, "fell", False))
         fall_s = getattr(result, "fall_time", None)
         if fell and fall_s is None and not hasattr(result, "drills"):
-            fall_s = self.ticks * self.dt                # the episode stops at the fall (rung 2: no fall time kept)
-        self._write({"summary": True, **self.meta, "outcome": "fell" if fell else "ok", "passed": passed,
-                     "fall_s": fall_s, "fall_tick": None if fall_s is None else int(round(fall_s / self.dt)),
-                     "ticks": self.ticks, "result": res})
+            fall_s = self.ticks * self.dt  # the episode stops at the fall (rung 2: no fall time kept)
+        self._write(
+            {
+                "summary": True,
+                **self.meta,
+                "outcome": "fell" if fell else "ok",
+                "passed": passed,
+                "fall_s": fall_s,
+                "fall_tick": None if fall_s is None else int(round(fall_s / self.dt)),
+                "ticks": self.ticks,
+                "result": res,
+            }
+        )
         self.f.close()
 
 
@@ -92,6 +120,7 @@ def logged(gate: str | None = None, passed=None):
     """Decorator for an episode / heat function with a `seed` argument: while $POOLYMPIC_LOG_ACTIONS is set, the ticks
     of the call go to one log file and its return value becomes the summary line. gate: file name stem (default: the
     function's module, plus the `mode` argument when there is one); passed: result -> bool (the gate's own verdict)."""
+
     def deco(fn):
         sig = inspect.signature(fn)
 
@@ -99,7 +128,7 @@ def logged(gate: str | None = None, passed=None):
         def run(*a, **k):
             global current
             name = os.environ.get(ENV, "")
-            if not name or current is not None:          # off, or already inside a logged episode
+            if not name or current is not None:  # off, or already inside a logged episode
                 return fn(*a, **k)
             args = sig.bind(*a, **k).arguments
             if name.lower() in ("1", "true", "yes"):
@@ -116,5 +145,7 @@ def logged(gate: str | None = None, passed=None):
             finally:
                 log, current = current, None
                 log.close(result, None if passed is None or result is None else bool(passed(result)))
+
         return run
+
     return deco

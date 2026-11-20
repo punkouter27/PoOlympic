@@ -29,11 +29,11 @@ from ..bodies import FALL_PELVIS_Z, FALL_TILT_DEG  # noqa: F401 (FALL_TILT_DEG r
 SCENE = C.ROOT / "assets" / "scene_pedestal8.xml"
 LAYOUT = C.ROOT / "assets" / "pedestal8_layout.json"
 ROUND_S = 3.0
-GUST_START = 0.3      # m/s — tuned for ~35 s heats (first out ~20 s), see rl_optimization_log.md
-GUST_STEP = 0.05      # m/s per round
+GUST_START = 0.3  # m/s — tuned for ~35 s heats (first out ~20 s), see rl_optimization_log.md
+GUST_STEP = 0.05  # m/s per round
 CUBE_EVERY = 3
 CUBE_DROP_M = 1.5
-COUNTDOWN_S = 1.0     # settle before the first gust
+COUNTDOWN_S = 1.0  # settle before the first gust
 MAX_S = 120.0
 FALL_Z, STEPPED_OFF_Z = FALL_PELVIS_Z, -0.06
 
@@ -47,8 +47,11 @@ class Traits:
     @staticmethod
     def sample(rng: np.random.Generator) -> "Traits":
         r = C.TRAIT_RANGES
-        return Traits(float(rng.uniform(*r["strength"])), int(rng.integers(r["latency_substeps"][0], r["latency_substeps"][1] + 1)),
-                      float(rng.uniform(*r["obs_noise"])))
+        return Traits(
+            float(rng.uniform(*r["strength"])),
+            int(rng.integers(r["latency_substeps"][0], r["latency_substeps"][1] + 1)),
+            float(rng.uniform(*r["obs_noise"])),
+        )
 
 
 @dataclass
@@ -74,26 +77,38 @@ class HeatResult:
 
 
 class _Lane:
-    def __init__(self, m, d, k: int, prefix: str, origin: np.ndarray, traits: Traits, rng: np.random.Generator,
-                 fall_z: float = FALL_Z, gait: tuple[float, float, float] | None = None, body: str = "matt"):
+    def __init__(
+        self,
+        m,
+        d,
+        k: int,
+        prefix: str,
+        origin: np.ndarray,
+        traits: Traits,
+        rng: np.random.Generator,
+        fall_z: float = FALL_Z,
+        gait: tuple[float, float, float] | None = None,
+        body: str = "matt",
+    ):
         self.k, self.prefix, self.origin, self.traits, self.rng = k, prefix, origin, traits, rng
         self.m = m
-        self.fall_z = fall_z          # per body: the same fraction of its standing pelvis height as MATT's 0.55 m
+        self.fall_z = fall_z  # per body: the same fraction of its standing pelvis height as MATT's 0.55 m
         self.body = body
         # gait clock (base Hz, Hz per m/s, yaw weight) of this lane's body; default = the process body's contract
         self.gait = gait or (C.GAIT_HZ_BASE, C.GAIT_HZ_PER_MPS, C.GAIT_HZ_YAW_WEIGHT)
-        self.sess = None              # this lane's brain (make_lanes)
+        self.sess = None  # this lane's brain (make_lanes)
         self.ath = C.Athlete.bind(m, prefix)
         self.torso = m.body(prefix + "torso").id
         self.pelvis = m.body(prefix + "pelvis").id
         self.feet = [m.geom(prefix + n).id for n in ("foot_l_geom0", "toe_l_geom0", "foot_r_geom0", "toe_r_geom0")]
         names = {m.geom(g).name for g in range(m.ngeom)}
         # own pedestal / shaker platform, or the one every lane shares (crowd events: beam `pedestal`, floor `shaker`)
-        self.support = {m.geom("ground").id} | {m.geom(n).id for n in (prefix + "pedestal", prefix + "shaker", "pedestal", "shaker")
-                                               if n in names}
+        self.support = {m.geom("ground").id} | {
+            m.geom(n).id for n in (prefix + "pedestal", prefix + "shaker", "pedestal", "shaker") if n in names
+        }
         self.phase = 0.0
-        self.skill: np.ndarray | None = None   # contract v4 skill block (Rung S brains, event 3); None = v3 obs
-        self.bio: biomech.BioLimits | None = None   # contract v5 brains (make_lanes): fatigue block + force limits
+        self.skill: np.ndarray | None = None  # contract v4 skill block (Rung S brains, event 3); None = v3 obs
+        self.bio: biomech.BioLimits | None = None  # contract v5 brains (make_lanes): fatigue block + force limits
         self.last = np.zeros(C.NUM_ACTIONS)
         self.ctrl_now = self.ath.default_pos.copy()
         self.ctrl_prev = self.ath.default_pos.copy()
@@ -104,7 +119,7 @@ class _Lane:
         layout = json.loads(C.CONTRACT_JSON.read_text())["obs_layout"]
         for term, amp in C.OBS_NOISE.items():
             o = layout[term]
-            self.noise[o["offset"]: o["offset"] + o["size"]] = amp * traits.obs_noise
+            self.noise[o["offset"] : o["offset"] + o["size"]] = amp * traits.obs_noise
 
     def reset(self, m, d, defaults):
         for jq in defaults:
@@ -114,19 +129,27 @@ class _Lane:
             q = np.asarray(jq["qpos"], float).copy()
             if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE:
                 q[0:3] += self.origin
-            d.qpos[m.jnt_qposadr[j]: m.jnt_qposadr[j] + len(q)] = q
+            d.qpos[m.jnt_qposadr[j] : m.jnt_qposadr[j] + len(q)] = q
             nv = 6 if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE else 1
-            d.qvel[m.jnt_dofadr[j]: m.jnt_dofadr[j] + nv] = 0
+            d.qvel[m.jnt_dofadr[j] : m.jnt_dofadr[j] + nv] = 0
 
     def control(self, sess, d, cmd=None):
         """cmd in MATT units: scaled to this lane's body like Unity PolicyRunner.BodyCommand (identity for MATT)."""
         cmd = np.zeros(3) if cmd is None else body_command(np.asarray(cmd, float), self.body)
         self.phase = self.advance_phase(cmd)
-        obs = C.build_obs(self.ath, d.qpos, d.qvel, cmd, self.phase, self.last, self.skill,
-                          None if self.bio is None else self.bio.tick(self.m, d))
-        if self.traits.obs_noise > 0:     # the skill block is a command: no noise (as in training)
+        obs = C.build_obs(
+            self.ath,
+            d.qpos,
+            d.qvel,
+            cmd,
+            self.phase,
+            self.last,
+            self.skill,
+            None if self.bio is None else self.bio.tick(self.m, d),
+        )
+        if self.traits.obs_noise > 0:  # the skill block is a command: no noise (as in training)
             obs = obs.copy()
-            obs[:C.OBS_DIM] = (obs[:C.OBS_DIM] + self.rng.uniform(-1, 1, C.OBS_DIM) * self.noise).astype(np.float32)
+            obs[: C.OBS_DIM] = (obs[: C.OBS_DIM] + self.rng.uniform(-1, 1, C.OBS_DIM) * self.noise).astype(np.float32)
         ctrl, act = sess.run(None, {"obs": obs[None]})
         if AL.current is not None:
             AL.current.tick(self.m, d, self.ath, self.torso, cmd, act[0], ctrl[0], lane=self.k)
@@ -174,13 +197,14 @@ def body_command(cmd: np.ndarray, body: str) -> np.ndarray:
     k = np.float32(0.8 / ct["gait_hz_base"])
     c = np.asarray(cmd, np.float32)
     vx = c[0] * k
-    if "vx_max" in ct:                 # the body's own top speed (GRANDMA 2.8 m/s)
+    if "vx_max" in ct:  # the body's own top speed (GRANDMA 2.8 m/s)
         vx = min(vx, np.float32(ct["vx_max"]))
     return np.array([vx, c[1] * k, c[2] / k], dtype=np.float64)
 
 
 def body_contract(body: str) -> dict:
     from .. import bodies
+
     return json.loads(bodies.BODIES[body].contract_json.read_text())
 
 
@@ -191,12 +215,23 @@ def make_lanes(m, d, layout: dict, seed: int, traits: list[Traits], onnx, brains
     for i, l in enumerate(layout["lanes"]):
         body = l.get("body", "matt")
         ct = body_contract(body)
-        ln = _Lane(m, d, l["lane"], l["prefix"], np.asarray(l["origin"], float), traits[i],
-                   np.random.default_rng([seed, 1000 + i]), fall_z=body_fall_z(body),
-                   gait=(ct["gait_hz_base"], ct["gait_hz_per_mps"], ct["gait_hz_yaw_weight"]), body=body)
+        ln = _Lane(
+            m,
+            d,
+            l["lane"],
+            l["prefix"],
+            np.asarray(l["origin"], float),
+            traits[i],
+            np.random.default_rng([seed, 1000 + i]),
+            fall_z=body_fall_z(body),
+            gait=(ct["gait_hz_base"], ct["gait_hz_per_mps"], ct["gait_hz_yaw_weight"]),
+            body=body,
+        )
         ln.reset(m, d, ct["default_joint_qpos"])
         if body not in sessions:
-            sessions[body] = ort.InferenceSession(str((brains or {}).get(body, onnx)), providers=["CPUExecutionProvider"])
+            sessions[body] = ort.InferenceSession(
+                str((brains or {}).get(body, onnx)), providers=["CPUExecutionProvider"]
+            )
         ln.sess = sessions[body]
         if ln.sess.get_inputs()[0].shape[1] == C.OBS_DIM_V5:
             ln.bio = biomech.BioLimits(m, ln.ath)
@@ -209,6 +244,7 @@ def make_lanes(m, d, layout: dict, seed: int, traits: list[Traits], onnx, brains
 def body_fall_z(body: str) -> float:
     """MATT's 0.55 m pelvis fall line at the same fraction of the body's standing pelvis height."""
     from .. import bodies
+
     if body == "matt":
         return FALL_Z
     z = float(mujoco.MjModel.from_xml_path(str(bodies.BODIES[body].scene_xml)).key("default").qpos[2])
@@ -217,8 +253,15 @@ def body_fall_z(body: str) -> float:
 
 
 @AL.logged("event_pedestal")
-def run_heat(onnx: Path, seed: int, traits: list[Traits] | None = None, max_s: float = MAX_S,
-             scene: Path = SCENE, layout_path: Path = LAYOUT, brains: dict[str, Path] | None = None) -> HeatResult:
+def run_heat(
+    onnx: Path,
+    seed: int,
+    traits: list[Traits] | None = None,
+    max_s: float = MAX_S,
+    scene: Path = SCENE,
+    layout_path: Path = LAYOUT,
+    brains: dict[str, Path] | None = None,
+) -> HeatResult:
     """brains: body -> ONNX for multi-body heats (layout lanes carry "body", tools/compose_mixed.py); default: `onnx`
     for every lane."""
     m = mujoco.MjModel.from_xml_path(str(scene))
@@ -238,21 +281,29 @@ def run_heat(onnx: Path, seed: int, traits: list[Traits] | None = None, max_s: f
         for ln in lanes:
             if ln.out_at is None:
                 ln.control(ln.sess, d)
-        if t >= next_round:                      # gust round: same magnitude, own direction, cube every other round
+        if t >= next_round:  # gust round: same magnitude, own direction, cube every other round
             dv = GUST_START + GUST_STEP * rnd
             for ln in lanes:
                 if ln.out_at is not None:
                     continue
                 a = rng.uniform(0, 2 * math.pi)
                 da = m.jnt_dofadr[m.joint(ln.prefix + "root").id]
-                d.qvel[da: da + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                d.qvel[da : da + 2] += dv * np.array([math.cos(a), math.sin(a)])
                 ln.gusts += 1
                 if rnd % CUBE_EVERY == CUBE_EVERY - 1:
                     j = m.joint(f"cube{next_cube % n_cubes}_free").id
                     next_cube += 1
                     p = d.xpos[ln.pelvis]
-                    d.qpos[m.jnt_qposadr[j]: m.jnt_qposadr[j] + 7] = [p[0], p[1] + 0.2, p[2] + 0.6 + CUBE_DROP_M, 1, 0, 0, 0]
-                    d.qvel[m.jnt_dofadr[j]: m.jnt_dofadr[j] + 6] = 0
+                    d.qpos[m.jnt_qposadr[j] : m.jnt_qposadr[j] + 7] = [
+                        p[0],
+                        p[1] + 0.2,
+                        p[2] + 0.6 + CUBE_DROP_M,
+                        1,
+                        0,
+                        0,
+                        0,
+                    ]
+                    d.qvel[m.jnt_dofadr[j] : m.jnt_dofadr[j] + 6] = 0
             rnd += 1
             next_round += ROUND_S
         for s in range(C.DECIMATION):
@@ -278,5 +329,9 @@ def run_heat(onnx: Path, seed: int, traits: list[Traits] | None = None, max_s: f
 
 
 def to_json(res: HeatResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s, "winner": res.winner,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "winner": res.winner,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

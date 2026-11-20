@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run C# in the open Unity Editor (Pipeline eval); prints the JSON result. usage: tools/unity_eval.sh 'return 1+1;' [timeout_ms]
+# Run C# in the open Unity Editor (Pipeline eval); prints the JSON result. usage: scripts/unity_eval.sh 'return 1+1;' [timeout_ms]
 unity command eval --no-banner --caller plugin --skill unity-cli --timeout ${2:-120000} --code "$1" --format json 2>&1 | python -c "
 import sys,json
 raw=sys.stdin.read()

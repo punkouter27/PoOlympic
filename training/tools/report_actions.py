@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from poolympic import action_log as AL  # noqa: E402
 from poolympic.biomech import JOINT_GROUPS, group_of  # noqa: E402
 
-FALL_BINS = (2.0, 5.0, 10.0, 20.0)       # s: histogram edges of the fall time
+FALL_BINS = (2.0, 5.0, 10.0, 20.0)  # s: histogram edges of the fall time
 BAD = ("FELL", "DQ", "STEPPED OFF")
 
 
@@ -48,7 +48,7 @@ def read(path: Path):
 
 def outcomes(summary: dict | None, lane) -> tuple[bool, float | None]:
     """(success, fall time in s or None) of one episode / one lane of a heat."""
-    if summary is None:                                   # the process died before the summary line
+    if summary is None:  # the process died before the summary line
         return False, None
     if lane is None:
         ok = summary["passed"] if summary["passed"] is not None else summary["outcome"] == "ok"
@@ -96,27 +96,49 @@ def aggregate(run_dir: Path) -> dict:
                 over[names[j]] += int(hot[:, j].sum())
     n = max(n_ticks, 1)
     hist = np.histogram(falls, bins=(0.0, *FALL_BINS, np.inf))[0].tolist()
-    return {"run": run_dir.name, "episodes": eps, "success_rate": ok / eps if eps else float("nan"), "falls": len(falls),
-            "fall_hist": hist, "ticks": n_ticks,
-            "torque_nm": dict(zip(JOINT_GROUPS, (tq / n).round(2).tolist())),
-            "torque_of_cap": dict(zip(JOINT_GROUPS, (tq_rel / n).round(3).tolist())),
-            "action_rate": rate_sum / max(rate_n, 1), "ticks_over_speed": over_any / n,
-            "joints_over_speed": {k: v / n for k, v in sorted(over.items(), key=lambda kv: -kv[1])}}
+    return {
+        "run": run_dir.name,
+        "episodes": eps,
+        "success_rate": ok / eps if eps else float("nan"),
+        "falls": len(falls),
+        "fall_hist": hist,
+        "ticks": n_ticks,
+        "torque_nm": dict(zip(JOINT_GROUPS, (tq / n).round(2).tolist())),
+        "torque_of_cap": dict(zip(JOINT_GROUPS, (tq_rel / n).round(3).tolist())),
+        "action_rate": rate_sum / max(rate_n, 1),
+        "ticks_over_speed": over_any / n,
+        "joints_over_speed": {k: v / n for k, v in sorted(over.items(), key=lambda kv: -kv[1])},
+    }
 
 
 def markdown(rows: list[dict]) -> str:
     edges = ["0-2", "2-5", "5-10", "10-20", "20+"]
-    out = ["# Action-log report", "",
-           "| run | episodes | success | falls | fall time (s) " + " / ".join(edges) + " | action rate | ticks over joint-speed bar |",
-           "|---|---|---|---|---|---|---|"]
+    out = [
+        "# Action-log report",
+        "",
+        "| run | episodes | success | falls | fall time (s) "
+        + " / ".join(edges)
+        + " | action rate | ticks over joint-speed bar |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for r in rows:
-        out.append(f"| {r['run']} | {r['episodes']} | {r['success_rate']:.0%} | {r['falls']} | "
-                   f"{' / '.join(str(x) for x in r['fall_hist'])} | {r['action_rate']:.3f} | {r['ticks_over_speed']:.2%} |")
-    out += ["", "Mean |torque| per joint group, N·m (share of the actuator cap):", "",
-            "| run | " + " | ".join(JOINT_GROUPS) + " |", "|---|" + "---|" * len(JOINT_GROUPS)]
+        out.append(
+            f"| {r['run']} | {r['episodes']} | {r['success_rate']:.0%} | {r['falls']} | "
+            f"{' / '.join(str(x) for x in r['fall_hist'])} | {r['action_rate']:.3f} | {r['ticks_over_speed']:.2%} |"
+        )
+    out += [
+        "",
+        "Mean |torque| per joint group, N·m (share of the actuator cap):",
+        "",
+        "| run | " + " | ".join(JOINT_GROUPS) + " |",
+        "|---|" + "---|" * len(JOINT_GROUPS),
+    ]
     for r in rows:
-        out.append(f"| {r['run']} | " + " | ".join(f"{r['torque_nm'][g]:.1f} ({r['torque_of_cap'][g]:.0%})"
-                                                 for g in JOINT_GROUPS) + " |")
+        out.append(
+            f"| {r['run']} | "
+            + " | ".join(f"{r['torque_nm'][g]:.1f} ({r['torque_of_cap'][g]:.0%})" for g in JOINT_GROUPS)
+            + " |"
+        )
     out += ["", "Joints over the speed bar (share of ticks, worst five per run):", ""]
     for r in rows:
         top = list(r["joints_over_speed"].items())[:5]
@@ -139,13 +161,33 @@ def main() -> int:
     if a.csv:
         with a.csv.open("w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["run", "episodes", "success_rate", "falls", *(f"falls_{e}s" for e in ("0-2", "2-5", "5-10", "10-20", "20+")),
-                        "action_rate", "ticks_over_speed", *(f"torque_nm_{g}" for g in JOINT_GROUPS),
-                        *(f"torque_of_cap_{g}" for g in JOINT_GROUPS)])
+            w.writerow(
+                [
+                    "run",
+                    "episodes",
+                    "success_rate",
+                    "falls",
+                    *(f"falls_{e}s" for e in ("0-2", "2-5", "5-10", "10-20", "20+")),
+                    "action_rate",
+                    "ticks_over_speed",
+                    *(f"torque_nm_{g}" for g in JOINT_GROUPS),
+                    *(f"torque_of_cap_{g}" for g in JOINT_GROUPS),
+                ]
+            )
             for r in rows:
-                w.writerow([r["run"], r["episodes"], round(r["success_rate"], 4), r["falls"], *r["fall_hist"],
-                            round(r["action_rate"], 4), round(r["ticks_over_speed"], 5),
-                            *(r["torque_nm"][g] for g in JOINT_GROUPS), *(r["torque_of_cap"][g] for g in JOINT_GROUPS)])
+                w.writerow(
+                    [
+                        r["run"],
+                        r["episodes"],
+                        round(r["success_rate"], 4),
+                        r["falls"],
+                        *r["fall_hist"],
+                        round(r["action_rate"], 4),
+                        round(r["ticks_over_speed"], 5),
+                        *(r["torque_nm"][g] for g in JOINT_GROUPS),
+                        *(r["torque_of_cap"][g] for g in JOINT_GROUPS),
+                    ]
+                )
     print(text)
     return 0
 

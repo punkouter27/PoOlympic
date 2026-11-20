@@ -40,7 +40,7 @@ def _fill(sd: dict, w: dict[str, np.ndarray], mean: np.ndarray, std_plus_eps: np
     std = torch.from_numpy(std_plus_eps - EPS).clamp(min=0.0)
     sd["obs_normalizer._mean"] = torch.from_numpy(mean).to(sd["obs_normalizer._mean"].dtype)
     sd["obs_normalizer._std"] = std.to(sd["obs_normalizer._std"].dtype)
-    sd["obs_normalizer._var"] = (std ** 2).to(sd["obs_normalizer._var"].dtype)
+    sd["obs_normalizer._var"] = (std**2).to(sd["obs_normalizer._var"].dtype)
 
 
 def main() -> int:
@@ -49,9 +49,16 @@ def main() -> int:
     ap.add_argument("template", type=Path)
     ap.add_argument("dst", type=Path)
     ap.add_argument("--std", type=float, default=0.15)
-    ap.add_argument("--lr", type=float, default=3e-4, help="optimiser learning rate (the template's adaptive lr is not "
-                    "this brain's; rsl_rl restores lr from the checkpoint). 2026-11-19: a 1-iteration template carried 1e-5")
-    ap.add_argument("--norm-count", type=float, default=1e12, help="observation-normaliser sample count (high = pinned)")
+    ap.add_argument(
+        "--lr",
+        type=float,
+        default=3e-4,
+        help="optimiser learning rate (the template's adaptive lr is not "
+        "this brain's; rsl_rl restores lr from the checkpoint). 2026-11-19: a 1-iteration template carried 1e-5",
+    )
+    ap.add_argument(
+        "--norm-count", type=float, default=1e12, help="observation-normaliser sample count (high = pinned)"
+    )
     a = ap.parse_args()
     actor, critic = _init(a.brain), _init(a.brain.with_suffix("").with_suffix(".critic.onnx"))
     sd = torch.load(a.template, map_location="cpu", weights_only=False)
@@ -61,7 +68,7 @@ def main() -> int:
     for g in ("actor_state_dict", "critic_state_dict"):
         sd[g]["obs_normalizer.count"].fill_(a.norm_count)
     if "optimizer_state_dict" in sd:
-        sd["optimizer_state_dict"]["state"] = {}          # Adam moments belong to the template's weights
+        sd["optimizer_state_dict"]["state"] = {}  # Adam moments belong to the template's weights
         for g in sd["optimizer_state_dict"]["param_groups"]:
             g["lr"] = a.lr
     sd["iter"] = 0
@@ -69,11 +76,14 @@ def main() -> int:
 
     # check: rebuilt actor == the brain's graph up to the action mapping (ctrl = default + 0.25 * action, clipped)
     import onnxruntime as ort
+
     sess = ort.InferenceSession(str(a.brain), providers=["CPUExecutionProvider"])
     A = sd["actor_state_dict"]
     rng = np.random.default_rng(0)
     worst = 0.0
-    for o in (actor["obs_mean"] + rng.normal(0, 1, (200, actor["obs_mean"].shape[1])) * actor["obs_std"]).astype(np.float32):
+    for o in (actor["obs_mean"] + rng.normal(0, 1, (200, actor["obs_mean"].shape[1])) * actor["obs_std"]).astype(
+        np.float32
+    ):
         x = (o - A["obs_normalizer._mean"][0].numpy()) / (A["obs_normalizer._std"][0].numpy() + EPS)
         for i in (0, 2, 4, 6):
             x = x @ A[f"mlp.{i}.weight"].numpy().T + A[f"mlp.{i}.bias"].numpy()
@@ -83,7 +93,9 @@ def main() -> int:
         worst = max(worst, float(np.abs(sess.run(None, {sess.get_inputs()[0].name: o[None]})[0][0] - ctrl).max()))
     a.dst.mkdir(parents=True, exist_ok=True)
     torch.save(sd, a.dst / "model_0.pt")
-    print(f"{a.brain.name} -> {a.dst / 'model_0.pt'} (template {a.template.name}, action std {a.std}): ctrl vs brain {worst:.2e}")
+    print(
+        f"{a.brain.name} -> {a.dst / 'model_0.pt'} (template {a.template.name}, action std {a.std}): ctrl vs brain {worst:.2e}"
+    )
     return 0 if worst < 1e-4 else 1
 
 

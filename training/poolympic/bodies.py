@@ -13,28 +13,29 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]          # training/
+ROOT = Path(__file__).resolve().parents[1]  # training/
 ASSETS = ROOT / "assets"
 DERIVED = ASSETS / "derived"
-PARITY = ROOT.parent / "parity"
+PARITY = ROOT.parent / "parity"  # local, git-ignored working folder (gate reports, candidate brains, references)
+UNITY_MODELS = ROOT.parent / "Assets" / "PoOlympic" / "Models"  # committed: the contracts + deployed brains Unity runs
 
 
 @dataclass(frozen=True)
 class Body:
     name: str
-    glb: Path                         # T-pose skinned source (extract_skeleton.py)
-    n_joints: int                     # skeleton joints expected in the GLB
+    glb: Path  # T-pose skinned source (extract_skeleton.py)
+    n_joints: int  # skeleton joints expected in the GLB
     height_range: tuple[float, float]
-    total_mass: float                 # kg, distributed with the de Leva table
-    length_scale: float               # λ relative to MATT (height ratio)
-    strength: float = 1.0             # × the size-scaled actuator torque (the "weaker" knob)
-    stiffness: float | None = None    # × the size-scaled PD gains (kp, kv); None = `strength` (zombie: weak AND soft)
-    self_collision: bool = False      # True: every body geom collides with every other (parent/child pairs excepted)
-    joint_defaults: dict = field(default_factory=dict)   # default pose overrides (deg) by joint name, both sides
-    rig: str | None = None            # variant of another body: reuse its skeleton/skin and its rules (same size)
-    torque_caps: dict | None = None   # per joint (base name) (Nm against, Nm towards the anatomical + direction)
-    vx_max: float | None = None       # top forward command (m/s, own units); None = MATT's 3.8 m/s Froude-scaled
-    yaw_per_stride: bool = False      # G1 Rung 2 judges yaw tracking averaged over one stride (user rulings)
+    total_mass: float  # kg, distributed with the de Leva table
+    length_scale: float  # λ relative to MATT (height ratio)
+    strength: float = 1.0  # × the size-scaled actuator torque (the "weaker" knob)
+    stiffness: float | None = None  # × the size-scaled PD gains (kp, kv); None = `strength` (zombie: weak AND soft)
+    self_collision: bool = False  # True: every body geom collides with every other (parent/child pairs excepted)
+    joint_defaults: dict = field(default_factory=dict)  # default pose overrides (deg) by joint name, both sides
+    rig: str | None = None  # variant of another body: reuse its skeleton/skin and its rules (same size)
+    torque_caps: dict | None = None  # per joint (base name) (Nm against, Nm towards the anatomical + direction)
+    vx_max: float | None = None  # top forward command (m/s, own units); None = MATT's 3.8 m/s Froude-scaled
+    yaw_per_stride: bool = False  # G1 Rung 2 judges yaw tracking averaged over one stride (user rulings)
 
     @property
     def family(self) -> str:
@@ -43,36 +44,65 @@ class Body:
 
     # ---- paths -------------------------------------------------------------------------------------------------
     @property
-    def robot_xml(self) -> Path: return ASSETS / f"{self.name}.xml"
+    def robot_xml(self) -> Path:
+        return ASSETS / f"{self.name}.xml"
+
     @property
-    def scene_xml(self) -> Path: return ASSETS / f"scene_{self.name}.xml"
+    def scene_xml(self) -> Path:
+        return ASSETS / f"scene_{self.name}.xml"
+
     @property
-    def skeleton_json(self) -> Path: return DERIVED / f"skeleton_{self.family}.json"
+    def skeleton_json(self) -> Path:
+        return DERIVED / f"skeleton_{self.family}.json"
+
     @property
-    def skin_npz(self) -> Path: return DERIVED / f"skin_{self.family}.npz"
+    def skin_npz(self) -> Path:
+        return DERIVED / f"skin_{self.family}.npz"
+
     @property
-    def body_report(self) -> Path: return DERIVED / ("body_report.json" if self.name == "matt" else f"body_report_{self.name}.json")
+    def body_report(self) -> Path:
+        return DERIVED / ("body_report.json" if self.name == "matt" else f"body_report_{self.name}.json")
+
     @property
-    def contract_json(self) -> Path: return PARITY / ("contract.json" if self.name == "matt" else f"contract_{self.name}.json")
+    def contract_json(self) -> Path:
+        """parity/ copy (written by contract.py), else the committed copy Unity reads (fresh clone)."""
+        local = self.contract_json_out
+        return local if local.exists() else UNITY_MODELS / local.name
+
+    @property
+    def contract_json_out(self) -> Path:
+        return PARITY / ("contract.json" if self.name == "matt" else f"contract_{self.name}.json")
+
     @property
     def fingerprint_json(self) -> Path:
         return PARITY / ("fingerprint_python.json" if self.name == "matt" else f"fingerprint_python_{self.name}.json")
 
     # ---- Froude scaling ----------------------------------------------------------------------------------------
     @property
-    def speed_scale(self) -> float: return math.sqrt(self.length_scale)
+    def speed_scale(self) -> float:
+        return math.sqrt(self.length_scale)
+
     @property
-    def time_scale(self) -> float: return math.sqrt(self.length_scale)
+    def time_scale(self) -> float:
+        return math.sqrt(self.length_scale)
+
     @property
-    def mass_scale(self) -> float: return self.total_mass / MATT_MASS
+    def mass_scale(self) -> float:
+        return self.total_mass / MATT_MASS
+
     @property
     def top_speed(self) -> float:
         """Top of the forward command envelope (m/s, own units): G1 Rung 2 sprints and event commands stop here."""
         return 3.8 * self.speed_scale if self.vx_max is None else self.vx_max
+
     @property
-    def torque_scale(self) -> float: return self.mass_scale * self.length_scale * self.strength
+    def torque_scale(self) -> float:
+        return self.mass_scale * self.length_scale * self.strength
+
     @property
-    def inertia_scale(self) -> float: return self.mass_scale * self.length_scale ** 2
+    def inertia_scale(self) -> float:
+        return self.mass_scale * self.length_scale**2
+
     @property
     def gain_scale(self) -> float:
         """PD stiffness scale: mass × length × stiffness (default: the torque scale)."""
@@ -80,47 +110,80 @@ class Body:
 
 
 MATT_MASS = 80.0
-MATT_ROOT_Z = 0.9549291      # standing pelvis height (scene_matt.xml keyframe "default")
+MATT_ROOT_Z = 0.9549291  # standing pelvis height (scene_matt.xml keyframe "default")
 # MATT's fall / joint-speed rules (G1 gates, event judges, training terminations); other bodies Froude-scale them
-FALL_PELVIS_Z = 0.55         # m
-FALL_TILT_DEG = 60.0         # torso tilt from vertical
-JOINT_VEL_LIMIT = 18.0       # rad/s
-MATT_HEIGHT = 1.837          # body mesh height (skeleton_matt.json height_body_mesh_m)
-ZOMBIE_HEIGHT = 1.135        # SourceArt/Zombie/convert_report.json
-GRANDMA_HEIGHT = 1.600       # SourceArt/Grandma/rig_report.json
-KIM_HEIGHT = 1.550           # SourceArt/Kim/convert_report.json
+FALL_PELVIS_Z = 0.55  # m
+FALL_TILT_DEG = 60.0  # torso tilt from vertical
+JOINT_VEL_LIMIT = 18.0  # rad/s
+MATT_HEIGHT = 1.837  # body mesh height (skeleton_matt.json height_body_mesh_m)
+ZOMBIE_HEIGHT = 1.135  # SourceArt/Zombie/convert_report.json
+GRANDMA_HEIGHT = 1.600  # SourceArt/Grandma/rig_report.json
+KIM_HEIGHT = 1.550  # SourceArt/Kim/convert_report.json
 
 BODIES = {
     "matt": Body("matt", ROOT.parent / "SourceArt" / "test_MATT_Avaturn.glb", 52, (1.80, 1.90), MATT_MASS, 1.0),
     "zombie": Body(
-        "zombie", ROOT.parent / "SourceArt" / "Zombie" / "zombie.glb", 22, (1.10, 1.17), 22.0,
-        ZOMBIE_HEIGHT / MATT_HEIGHT, strength=0.7, self_collision=True,
-        yaw_per_stride=True,          # ruling 2026-09-29: the hunched shuffle sways the pelvis ±5° per step
+        "zombie",
+        ROOT.parent / "SourceArt" / "Zombie" / "zombie.glb",
+        22,
+        (1.10, 1.17),
+        22.0,
+        ZOMBIE_HEIGHT / MATT_HEIGHT,
+        strength=0.7,
+        self_collision=True,
+        yaw_per_stride=True,  # ruling 2026-09-29: the hunched shuffle sways the pelvis ±5° per step
         # zombie stance: slight forward lean, crouched legs, wide feet, arms held out forward (elevation ~0 = level,
         # flexion swings the level arm forward), elbows a little bent
-        joint_defaults={"abdomen_flex": 15.0, "hip_flex": 20.0, "hip_abd": 5.0, "knee": 35.0, "ankle_dorsi": 15.0,
-                        "shoulder_elev": -10.0, "shoulder_flex": 75.0, "elbow": 20.0}),
+        joint_defaults={
+            "abdomen_flex": 15.0,
+            "hip_flex": 20.0,
+            "hip_abd": 5.0,
+            "knee": 35.0,
+            "ankle_dorsi": 15.0,
+            "shoulder_elev": -10.0,
+            "shoulder_flex": 75.0,
+            "elbow": 20.0,
+        },
+    ),
     # GRANDMA (user decisions 2026-09-30: Claude rigs the unrigged scan — SourceArt/Grandma/rig_grandma.py —, 1.60 m,
     # "frail but steady"): stocky 1.60 m woman, 65 kg; 60 % of the size-scaled torque (knee extension cap ≈ 119 Nm);
     # full self-collision; slightly stooped soft-kneed stance (flat feet: shin lean = knee − hip = ankle).
     # stiffness 1.0: frail = weaker torque caps, not floppy servos. With kp × 0.6 (g0_v1) the hip stiffness (127 Nm/rad)
     # was below the gravity gradient of her trunk (~150 Nm/rad): the trunk folded forward in 0.8 s, nothing to learn from.
     "grandma": Body(
-        "grandma", ROOT.parent / "SourceArt" / "Grandma" / "grandma.glb", 22, (1.57, 1.63), 65.0,
-        GRANDMA_HEIGHT / MATT_HEIGHT, strength=0.6, stiffness=1.0, self_collision=True,
+        "grandma",
+        ROOT.parent / "SourceArt" / "Grandma" / "grandma.glb",
+        22,
+        (1.57, 1.63),
+        65.0,
+        GRANDMA_HEIGHT / MATT_HEIGHT,
+        strength=0.6,
+        stiffness=1.0,
+        self_collision=True,
         # user decisions 2026-10-01: her envelope tops out at 2.8 m/s (= 3.0 × √λ, her Rung 1 top: every Rung 2 run that
         # commanded up to 3.7 m/s lost its fast running), bars and event commands with it; yaw judged per stride
-        vx_max=2.8, yaw_per_stride=True,
+        vx_max=2.8,
+        yaw_per_stride=True,
         # stance: pelvis level (hip − knee + ankle = 0), shins 7° forward; COM 35 % of the way heel -> toe like MATT (the
         # first stance, hip 14 / ankle 10, put it at 43 %: 6 cm ahead of the ankles)
-        joint_defaults={"abdomen_flex": 10.0, "hip_flex": 17.0, "hip_abd": 3.0, "knee": 24.0, "ankle_dorsi": 7.0}),
+        joint_defaults={"abdomen_flex": 10.0, "hip_flex": 17.0, "hip_abd": 3.0, "knee": 24.0, "ankle_dorsi": 7.0},
+    ),
     # KIM (user 2026-10-10: "give her unique characteristics" -> Claude's pick, "light and quick"): 1.55 m woman, 54 kg,
     # long trunk on short legs (hip joints at 0.44 of her height: a low centre of mass); 90 % of the size-scaled torque
     # (knee extension cap ≈ 144 Nm at 54 kg: the best strength-to-weight after MATT), servos at full size-scaled
     # stiffness, full self-collision. Stance: MATT's upright athletic one.
     "kim": Body(
-        "kim", ROOT.parent / "SourceArt" / "Kim" / "kim.glb", 22, (1.52, 1.58), 54.0,
-        KIM_HEIGHT / MATT_HEIGHT, strength=0.9, stiffness=1.0, self_collision=True, yaw_per_stride=True),
+        "kim",
+        ROOT.parent / "SourceArt" / "Kim" / "kim.glb",
+        22,
+        (1.52, 1.58),
+        54.0,
+        KIM_HEIGHT / MATT_HEIGHT,
+        strength=0.9,
+        stiffness=1.0,
+        self_collision=True,
+        yaw_per_stride=True,
+    ),
 }
 
 
@@ -132,23 +195,32 @@ BODIES = {
 # Physiol 112:267), rounded, capped at MATT's current group caps. Tuple = (cap against the + direction, cap towards it);
 # + = flexion / abduction / dorsiflexion / inversion / elevation / left-lateral / left-twist (build_mjcf sign convention).
 BIO_TORQUE_CAPS = {
-    "abdomen_flex": (220.0, 180.0),   # extension (back) is stronger than flexion (abs)
+    "abdomen_flex": (220.0, 180.0),  # extension (back) is stronger than flexion (abs)
     "abdomen_lat": (150.0, 150.0),
-    "abdomen_twist": (80.0, 80.0),    # trunk rotation is weak compared with flexion
-    "shoulder_elev": (80.0, 70.0),    # adduction / abduction
-    "shoulder_flex": (80.0, 70.0),    # extension / flexion
-    "shoulder_twist": (50.0, 50.0),   # internal / external rotation
-    "elbow": (55.0, 70.0),            # extension / flexion
-    "hip_flex": (280.0, 200.0),       # extension (glutes, hamstrings) / flexion
-    "hip_abd": (150.0, 150.0),        # adduction / abduction
-    "hip_rot": (80.0, 80.0),          # was 280: hip rotators produce ~60-100 Nm
-    "knee": (280.0, 150.0),           # extension (quads) / flexion (hamstrings)
-    "ankle_dorsi": (220.0, 60.0),     # plantarflexion (calf) / dorsiflexion (tibialis, was 220)
-    "ankle_inv": (45.0, 60.0),        # eversion / inversion (was 220 both ways)
+    "abdomen_twist": (80.0, 80.0),  # trunk rotation is weak compared with flexion
+    "shoulder_elev": (80.0, 70.0),  # adduction / abduction
+    "shoulder_flex": (80.0, 70.0),  # extension / flexion
+    "shoulder_twist": (50.0, 50.0),  # internal / external rotation
+    "elbow": (55.0, 70.0),  # extension / flexion
+    "hip_flex": (280.0, 200.0),  # extension (glutes, hamstrings) / flexion
+    "hip_abd": (150.0, 150.0),  # adduction / abduction
+    "hip_rot": (80.0, 80.0),  # was 280: hip rotators produce ~60-100 Nm
+    "knee": (280.0, 150.0),  # extension (quads) / flexion (hamstrings)
+    "ankle_dorsi": (220.0, 60.0),  # plantarflexion (calf) / dorsiflexion (tibialis, was 220)
+    "ankle_inv": (45.0, 60.0),  # eversion / inversion (was 220 both ways)
 }
 
-BODIES["mattbio"] = Body("mattbio", BODIES["matt"].glb, 52, (1.80, 1.90), MATT_MASS, 1.0, self_collision=True, rig="matt",
-                         torque_caps=BIO_TORQUE_CAPS)
+BODIES["mattbio"] = Body(
+    "mattbio",
+    BODIES["matt"].glb,
+    52,
+    (1.80, 1.90),
+    MATT_MASS,
+    1.0,
+    self_collision=True,
+    rig="matt",
+    torque_caps=BIO_TORQUE_CAPS,
+)
 
 
 def current() -> Body:

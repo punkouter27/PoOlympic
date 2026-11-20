@@ -24,14 +24,14 @@ from . import mdp
 # imports this module)
 G = C.BODY if C.BODY.name in ("kim", "zombie") else bodies.BODIES["grandma"]
 LAM, SS, TS = G.length_scale, G.speed_scale, G.time_scale
-WS = 1.0 / TS                     # angular-rate scale
+WS = 1.0 / TS  # angular-rate scale
 
 
-ROOT_Z = M.scene_root_z(G.scene_xml)             # soft-kneed stance, ~0.678 m
-FALL_Z = M.body_fall_z(ROOT_Z)                   # MATT's fall rule at the same fraction of standing pelvis height
+ROOT_Z = M.scene_root_z(G.scene_xml)  # soft-kneed stance, ~0.678 m
+FALL_Z = M.body_fall_z(ROOT_Z)  # MATT's fall rule at the same fraction of standing pelvis height
 # style targets
-STOOP_DEG = 10.0                                  # trunk lean (= the default pose's abdomen_flex)
-STANCE_WIDTH = 0.26                               # m between foot centres (her hip joints are 0.25 m apart)
+STOOP_DEG = 10.0  # trunk lean (= the default pose's abdomen_flex)
+STANCE_WIDTH = 0.26  # m between foot centres (her hip joints are 0.25 m apart)
 
 
 def grandma_entity_cfg() -> EntityCfg:
@@ -50,9 +50,13 @@ def _grandmafy(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
     if G.name == "grandma":
         # personality "frail but steady": a slight stoop instead of upright; a steady hip-width stance
         rw.pop("upright", None)
-        rw["stoop"] = RewardTermCfg(func=mdp.torso_pitch_tracking, weight=1.0, params={"target_deg": STOOP_DEG, "std_deg": 10.0})
-        rw["steady_stance"] = RewardTermCfg(func=mdp.feet_width, weight=0.5, params={"target": STANCE_WIDTH, "std": 0.06})
-    cfg.scene.num_envs = 4096        # g0_v1 was launched without --env.scene.num-envs and trained ONE environment
+        rw["stoop"] = RewardTermCfg(
+            func=mdp.torso_pitch_tracking, weight=1.0, params={"target_deg": STOOP_DEG, "std_deg": 10.0}
+        )
+        rw["steady_stance"] = RewardTermCfg(
+            func=mdp.feet_width, weight=0.5, params={"target": STANCE_WIDTH, "std": 0.06}
+        )
+    cfg.scene.num_envs = 4096  # g0_v1 was launched without --env.scene.num-envs and trained ONE environment
     return cfg
 
 
@@ -63,7 +67,7 @@ def grandma_rung0_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
 
 # ---- locomotion rungs: zombie_env's chain (the recipes that worked there), on GRANDMA's scale ----------------------
-FOOT_MAX_H = 0.09            # m, foot box centre height allowed in swing (stance ≈ 0.03): low, careful steps
+FOOT_MAX_H = 0.09  # m, foot box centre height allowed in swing (stance ≈ 0.03): low, careful steps
 
 
 def grandma_rung1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -75,7 +79,8 @@ def grandma_rung1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.ranges.ang_vel_z = (-0.5 * WS, 0.5 * WS)
     cfg.curriculum["command_vel"].params["velocity_stages"] = [
         {"step": s["step"], "lin_vel_x": (s["lin_vel_x"][0] * SS, s["lin_vel_x"][1] * SS)}
-        for s in cfg.curriculum["command_vel"].params["velocity_stages"]]
+        for s in cfg.curriculum["command_vel"].params["velocity_stages"]
+    ]
     rw = cfg.rewards
     rw["air_time"].params.update({"threshold_min": 0.1 * TS, "threshold_max": 0.6 * TS, "command_threshold": 0.3 * SS})
     rw["posture"].params.update({"walking_threshold": 0.1 * SS, "running_threshold": 1.8 * SS})
@@ -106,19 +111,29 @@ def grandma_rung2_base_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.rel_standing_envs = 0.15
     cmd.resampling_time_range = (3.0 * TS, 8.0 * TS)
     s0 = RUNG2_STAGES[0]
-    cmd.ranges = mdp.AthleteCommandCfg.Ranges(lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"],
-                                              ang_vel_z=s0["ang_vel_z"], heading=None)
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"], ang_vel_z=s0["ang_vel_z"], heading=None
+    )
     rw = cfg.rewards
-    rw["track_ang"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=2.0,
-                                    params={"command_name": "athlete", "std": 0.5 * WS})
-    rw["track_ang_coarse"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=1.0,
-                                           params={"command_name": "athlete", "std": 1.0 * WS})
+    rw["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS}
+    )
+    rw["track_ang_coarse"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0 * WS}
+    )
     rw["posture"].weight = 0.25
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": RUNG2_STAGES})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": RUNG2_STAGES}
+        )
+    }
     if play:
         last = RUNG2_STAGES[-1]
-        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = last["lin_vel_x"], last["lin_vel_y"], last["ang_vel_z"]
+        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+            last["lin_vel_x"],
+            last["lin_vel_y"],
+            last["ang_vel_z"],
+        )
     return cfg
 
 
@@ -136,28 +151,39 @@ def grandma_rung2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd.rel_standing_envs = 0.20
     cmd.resampling_time_range = (3.0 * TS, 8.0 * TS)
     env = RUNG2_TRAIN_ENVELOPE
-    cmd.ranges = mdp.AthleteCommandCfg.Ranges(lin_vel_x=env["lin_vel_x"], lin_vel_y=env["lin_vel_y"],
-                                              ang_vel_z=env["ang_vel_z"], heading=None)
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=env["lin_vel_x"], lin_vel_y=env["lin_vel_y"], ang_vel_z=env["ang_vel_z"], heading=None
+    )
     cmd.max_lateral_accel = 3.0
     cmd.sprint_fraction = 0.0
     cmd.sprint_vx = (2.5 * SS, 4.0 * SS)
     cmd.sprint_wz = 0.6 * WS
     rw = cfg.rewards
-    rw["track_lin"] = RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=3.0,
-                                    params={"command_name": "athlete", "std": 0.5})
+    rw["track_lin"] = RewardTermCfg(
+        func=vel_mdp.track_linear_velocity, weight=3.0, params={"command_name": "athlete", "std": 0.5}
+    )
     rw["track_lin_coarse"].weight = 1.5
-    rw["track_ang"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=2.0,
-                                    params={"command_name": "athlete", "std": 0.5 * WS})
-    rw["track_ang_coarse"] = RewardTermCfg(func=vel_mdp.track_angular_velocity, weight=1.0,
-                                           params={"command_name": "athlete", "std": 1.0 * WS})
-    rw["track_yaw_filt"] = RewardTermCfg(func=mdp.track_yaw_rate_filtered, weight=2.0,
-                                         params={"command_name": "athlete", "std": 0.5 * WS, "tau": 0.5})
-    rw["yaw_filt_l1"] = RewardTermCfg(func=mdp.yaw_rate_filtered_l1, weight=-0.5,
-                                      params={"command_name": "athlete", "tau": 0.5})
-    rw["yaw_wobble"] = RewardTermCfg(func=mdp.yaw_wobble_l2, weight=-1.0, params={"command_name": "athlete", "tau": 0.5})
+    rw["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS}
+    )
+    rw["track_ang_coarse"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0 * WS}
+    )
+    rw["track_yaw_filt"] = RewardTermCfg(
+        func=mdp.track_yaw_rate_filtered, weight=2.0, params={"command_name": "athlete", "std": 0.5 * WS, "tau": 0.5}
+    )
+    rw["yaw_filt_l1"] = RewardTermCfg(
+        func=mdp.yaw_rate_filtered_l1, weight=-0.5, params={"command_name": "athlete", "tau": 0.5}
+    )
+    rw["yaw_wobble"] = RewardTermCfg(
+        func=mdp.yaw_wobble_l2, weight=-1.0, params={"command_name": "athlete", "tau": 0.5}
+    )
     rw["posture"].weight = 0.25
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [dict(env, step=0)]})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(env, step=0)]}
+        )
+    }
     return cfg
 
 
@@ -171,13 +197,20 @@ def grandma_rung2_cap_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cmd = cfg.commands["athlete"]
     cmd.max_lateral_accel = 3.0
     last = RUNG2_STAGES[-1]
-    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = last["lin_vel_x"], last["lin_vel_y"], last["ang_vel_z"]
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [dict(last, step=0)]})}
+    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+        last["lin_vel_x"],
+        last["lin_vel_y"],
+        last["ang_vel_z"],
+    )
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(last, step=0)]}
+        )
+    }
     return cfg
 
 
-GRANDMA_VX_TOP = 3.0 if G.name == "grandma" else 4.0   # KIM: the full envelope (cap28 == cap, bands reach 4.0 x SS)
+GRANDMA_VX_TOP = 3.0 if G.name == "grandma" else 4.0  # KIM: the full envelope (cap28 == cap, bands reach 4.0 x SS)
 #                            GRANDMA: MATT units (× SS = 2.80 m/s): the Rung 1 top speed, which she tracked (2.8 -> 2.66 m/s)
 
 
@@ -192,8 +225,11 @@ def grandma_rung2_cap28_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     env = dict(RUNG2_STAGES[-1])
     env["lin_vel_x"] = (env["lin_vel_x"][0], GRANDMA_VX_TOP * SS)
     cmd.ranges.lin_vel_x = env["lin_vel_x"]
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [dict(env, step=0)]})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(env, step=0)]}
+        )
+    }
     return cfg
 
 
@@ -205,8 +241,9 @@ def grandma_rung2_sharp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     vx 1.9-2.8 m/s, |wz| <= 0.64 rad/s). On the zombie neither helped (z2_v13 / v14), but its recipe was the final
     yaw-heavy one; hers is the base recipe, like MATT's."""
     cfg = grandma_rung2_cap28_env_cfg(play=play)
-    cfg.rewards["track_lin"] = RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=2.0,
-                                             params={"command_name": "athlete", "std": 0.3 * SS})
+    cfg.rewards["track_lin"] = RewardTermCfg(
+        func=vel_mdp.track_linear_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.3 * SS}
+    )
     cmd = cfg.commands["athlete"]
     cmd.sprint_fraction = 0.3
     cmd.sprint_vx = (2.0 * SS, GRANDMA_VX_TOP * SS)
@@ -225,9 +262,11 @@ def grandma_rung2_bands_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = grandma_rung2_sharp_env_cfg(play=play)
     cmd = cfg.commands["athlete"]
     cmd.sprint_fraction = 0.0
-    cmd.bands = ((0.20, (2.0 * SS, GRANDMA_VX_TOP * SS), (0.0, 0.0), 0.6 * WS),
-                 (0.15, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * WS),
-                 (0.20, (-0.5 * SS, 0.5 * SS), (0.4 * SS, 1.1 * SS), 0.0))
+    cmd.bands = (
+        (0.20, (2.0 * SS, GRANDMA_VX_TOP * SS), (0.0, 0.0), 0.6 * WS),
+        (0.15, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * WS),
+        (0.20, (-0.5 * SS, 0.5 * SS), (0.4 * SS, 1.1 * SS), 0.0),
+    )
     return cfg
 
 

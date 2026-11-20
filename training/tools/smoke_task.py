@@ -25,9 +25,10 @@ def main() -> int:
     ap.add_argument("--action-std", type=float, default=0.3)
     a = ap.parse_args()
 
-    import poolympic.tasks  # noqa: F401
     from mjlab.envs import ManagerBasedRlEnv
     from mjlab.tasks.registry import load_env_cfg, load_runner_cls
+
+    import poolympic.tasks  # noqa: F401
 
     cfg = load_env_cfg(a.task, play=a.play)
     cfg.scene.num_envs = a.envs
@@ -51,6 +52,7 @@ def main() -> int:
     print("  weighted reward means:", {k: round(v, 4) for k, v in sums.items() if k != "terminated"})
     if "symmetry" in (load_runner_cls(a.task) or type).__module__:
         from poolympic.tasks.symmetry import mirror_obs
+
         twice = {k: float((mirror_obs(mirror_obs(v)) - v).abs().max()) for k, v in obs.items()}
         print("  mirror(mirror(obs)) - obs:", twice)
         ok &= all(v < 1e-6 for v in twice.values())
@@ -61,8 +63,10 @@ def main() -> int:
                 print(f"  {label}: {st:.3f}")
             else:
                 fr = env.sim.model.actuator_forcerange[:, st.ctrl]
-                print(f"  {label}: mean level per group {[round(float(x), 4) for x in st.level.mean(0)]}, "
-                      f"force range / nominal min {float((fr.abs() / st.base.abs()).min()):.3f} max {float((fr.abs() / st.base.abs()).max()):.3f}")
+                print(
+                    f"  {label}: mean level per group {[round(float(x), 4) for x in st.level.mean(0)]}, "
+                    f"force range / nominal min {float((fr.abs() / st.base.abs()).min()):.3f} max {float((fr.abs() / st.base.abs()).max()):.3f}"
+                )
     env.close()
     return 0 if ok else 1
 

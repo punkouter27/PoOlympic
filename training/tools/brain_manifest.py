@@ -24,27 +24,40 @@ PARITY = ROOT.parent / "parity"
 BRAINS = PARITY / "brains"
 MANIFEST = BRAINS / "manifest.json"
 BODIES = ("matt", "mattbio", "zombie", "grandma", "kim")
-LOCO = [5, 9, 10, 11, 12, 19, 22]        # Gust Gauntlet, Inverted Sprint, Crab, Slalom, Turntable, Terminal Velocity, Brake
+LOCO = [5, 9, 10, 11, 12, 19, 22]  # Gust Gauntlet, Inverted Sprint, Crab, Slalom, Turntable, Terminal Velocity, Brake
 # brain file stem -> (role, events it drives, body when the fingerprint cannot tell). Roles are what tools/fit_odds.py and
 # the event scenes ask for: one brain per (role, body).
 ROLES = {
-    "rung2": ("rung2", LOCO, "matt"), "zombie_rung2": ("rung2", LOCO, "zombie"),
-    "grandma_rung2": ("rung2", LOCO, "grandma"), "kim_rung2": ("rung2", LOCO, "kim"),
-    "r0_v2_it1000": ("pedestal", [1], "matt"), "zombie_rung0": ("pedestal", [1], "zombie"),
-    "grandma_rung0": ("pedestal", [1], "grandma"), "kim_rung0": ("pedestal", [1], "kim"),
-    "crawl_matt": ("crawl", [8, 23], "matt"), "crawl_zombie": ("crawl", [8, 23], "zombie"),
-    "crawl_grandma": ("crawl", [8, 23], "grandma"), "crawl_kim": ("crawl", [8, 23], "kim"),
-    "slope_matt": ("slope", [14], "matt"), "slope_zombie": ("slope", [14], "zombie"),
-    "slope_grandma": ("slope", [14], "grandma"), "slope_kim": ("slope", [14], "kim"),
+    "rung2": ("rung2", LOCO, "matt"),
+    "zombie_rung2": ("rung2", LOCO, "zombie"),
+    "grandma_rung2": ("rung2", LOCO, "grandma"),
+    "kim_rung2": ("rung2", LOCO, "kim"),
+    "r0_v2_it1000": ("pedestal", [1], "matt"),
+    "zombie_rung0": ("pedestal", [1], "zombie"),
+    "grandma_rung0": ("pedestal", [1], "grandma"),
+    "kim_rung0": ("pedestal", [1], "kim"),
+    "crawl_matt": ("crawl", [8, 23], "matt"),
+    "crawl_zombie": ("crawl", [8, 23], "zombie"),
+    "crawl_grandma": ("crawl", [8, 23], "grandma"),
+    "crawl_kim": ("crawl", [8, 23], "kim"),
+    "slope_matt": ("slope", [14], "matt"),
+    "slope_zombie": ("slope", [14], "zombie"),
+    "slope_grandma": ("slope", [14], "grandma"),
+    "slope_kim": ("slope", [14], "kim"),
     "r2f_v3_it100": ("flight", [13], "matt"),
-    "rs_v8_it1199": ("stance", [7], "matt"), "rs_v6_it2550": ("stance", [6], "matt"), "rs_v6_it3299": ("stance", [], "matt"),
-    "rsq_v2_it500": ("stance", [3], "matt"),               # Deep Squat specialist (2026-10-13): 80 of 80 finish the 12 reps
-    "getup_kim": ("getup", [27], "kim"),                  # + fall recovery in the track races and the slalom
-    "getup_matt": ("getup", [27], "matt"),                  # = mgetup_prone_v1 it 600 (2026-10-11), supine + face down 30/30
-    "getup_zombie": ("getup", [27], "zombie"),            # = zgetup_prone_v1 it 600 (2026-10-11), supine + face down 30/30
-    "getup_grandma": ("getup", [27], "grandma"),            # = ggetup_roll_v4_it599, back from git history (2026-10-11)
-    "rung1": ("rung1", [], "matt"), "r0_v2_latest": ("rung0-old", [], "matt"),
-    "random_brain": ("test", [], "matt"), "random_brain_v4": ("test", [], "matt"), "zero_brain": ("test", [], "matt"),
+    "rs_v8_it1199": ("stance", [7], "matt"),
+    "rs_v6_it2550": ("stance", [6], "matt"),
+    "rs_v6_it3299": ("stance", [], "matt"),
+    "rsq_v2_it500": ("stance", [3], "matt"),  # Deep Squat specialist (2026-10-13): 80 of 80 finish the 12 reps
+    "getup_kim": ("getup", [27], "kim"),  # + fall recovery in the track races and the slalom
+    "getup_matt": ("getup", [27], "matt"),  # = mgetup_prone_v1 it 600 (2026-10-11), supine + face down 30/30
+    "getup_zombie": ("getup", [27], "zombie"),  # = zgetup_prone_v1 it 600 (2026-10-11), supine + face down 30/30
+    "getup_grandma": ("getup", [27], "grandma"),  # = ggetup_roll_v4_it599, back from git history (2026-10-11)
+    "rung1": ("rung1", [], "matt"),
+    "r0_v2_latest": ("rung0-old", [], "matt"),
+    "random_brain": ("test", [], "matt"),
+    "random_brain_v4": ("test", [], "matt"),
+    "zero_brain": ("test", [], "matt"),
 }
 
 
@@ -80,14 +93,23 @@ def _gate(run: str | None, it: int | None, names: list[str]) -> dict | None:
             for line in f.read_text().splitlines():
                 rec = json.loads(line)
                 if rec.get("it") == it:
-                    return {"source": f.name, **{k: v for k, v in rec.items() if k.startswith(("g1_", "getup", "crawl"))
-                                                 and not k.endswith("_log")}}
+                    return {
+                        "source": f.name,
+                        **{
+                            k: v
+                            for k, v in rec.items()
+                            if k.startswith(("g1_", "getup", "crawl")) and not k.endswith("_log")
+                        },
+                    }
     for n in names:
         for f in sorted(PARITY.glob(f"eval_rung*_{n}.json")) + sorted((PARITY / "watch").glob(f"g1_rung*_{n}.json")):
             d = json.loads(f.read_text())
             if "passed_seeds" in d:
-                return {"source": f.relative_to(PARITY).as_posix(), "result": f"{d['passed_seeds']}/{d['seeds']}",
-                        "PASS": d.get("PASS")}
+                return {
+                    "source": f.relative_to(PARITY).as_posix(),
+                    "result": f"{d['passed_seeds']}/{d['seeds']}",
+                    "PASS": d.get("PASS"),
+                }
     return None
 
 
@@ -99,20 +121,31 @@ def record(p: Path, fp_body: dict[str, str]) -> dict:
     role, events, body = ROLES.get(p.stem, ("unassigned", [], None))
     critic = BRAINS / f"{p.stem}.critic.onnx"
     digest = sha256(p)
-    return {"file": p.name, "body": fp_body.get(side.get("fingerprint_sha256") or "-", body), "role": role, "events": events,
-            "name": side.get("name"), "experiment": exp, "run": run, "iteration": it,
-            "contract_version": int(side["contract_version"]) if side.get("contract_version") else None,
-            "sha256": digest, "sidecar_sha256_ok": side.get("onnx_sha256") == digest if side else None,
-            "fingerprint_sha256": side.get("fingerprint_sha256") or None,
-            "fingerprint_current": (side.get("fingerprint_sha256") or "-") in fp_body,
-            "critic": critic.name if critic.exists() else None,
-            "gate": _gate(run, it, [n for n in (side.get("name"), p.stem) if n])}
+    return {
+        "file": p.name,
+        "body": fp_body.get(side.get("fingerprint_sha256") or "-", body),
+        "role": role,
+        "events": events,
+        "name": side.get("name"),
+        "experiment": exp,
+        "run": run,
+        "iteration": it,
+        "contract_version": int(side["contract_version"]) if side.get("contract_version") else None,
+        "sha256": digest,
+        "sidecar_sha256_ok": side.get("onnx_sha256") == digest if side else None,
+        "fingerprint_sha256": side.get("fingerprint_sha256") or None,
+        "fingerprint_current": (side.get("fingerprint_sha256") or "-") in fp_body,
+        "critic": critic.name if critic.exists() else None,
+        "gate": _gate(run, it, [n for n in (side.get("name"), p.stem) if n]),
+    }
 
 
 def build() -> dict:
     fp = _fingerprints()
-    return {"note": "generated by training/tools/brain_manifest.py — do not edit; re-run after deploying a brain",
-            "brains": [record(p, fp) for p in deployed_files()]}
+    return {
+        "note": "generated by training/tools/brain_manifest.py — do not edit; re-run after deploying a brain",
+        "brains": [record(p, fp) for p in deployed_files()],
+    }
 
 
 def check() -> int:
@@ -147,8 +180,10 @@ def main() -> int:
     MANIFEST.write_text(json.dumps(man, indent=1) + "\n")
     for b in man["brains"]:
         gate = {k: v for k, v in (b["gate"] or {}).items() if k != "source"}
-        print(f"{b['file']:26s} {str(b['body']):8s} {b['role']:10s} {str(b['run']):16s} it {str(b['iteration']):5s} "
-              f"v{b['contract_version']} {'' if b['fingerprint_current'] else 'OLD-FINGERPRINT '}{gate or ''}")
+        print(
+            f"{b['file']:26s} {str(b['body']):8s} {b['role']:10s} {str(b['run']):16s} it {str(b['iteration']):5s} "
+            f"v{b['contract_version']} {'' if b['fingerprint_current'] else 'OLD-FINGERPRINT '}{gate or ''}"
+        )
     loose = [b["file"] for b in man["brains"] if b["role"] == "unassigned"]
     if loose:
         print(f"no role in ROLES (add them): {loose}")

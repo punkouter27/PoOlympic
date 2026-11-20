@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- /diag of the WebGL site. scripts/publish_webgl.ps1 fills {{NAME}}, {{VERSION}} and {{CHECKS}} (the diagChecks
+     of scripts/webgl.json plus one check per file of the build bundle) and writes it as diag.html next to index.html.
+     Every row is probed live from the visitor's browser; nothing is shown as healthy without a request. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0f17">
+<link rel="icon" href="data:,">
+<title>System status</title>
+<style>
+  :root { --bg: #0b0f17; --surface: #121826; --line: #1f2937; --text: #e6e9f2; --muted: #9aa3b5; --accent: #6366f1;
+          --ok: #22c55e; --warn: #f59e0b; --bad: #ef4444; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, sans-serif; }
+  header { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+           background: var(--surface); border-bottom: 1px solid var(--line); }
+  header a { color: var(--text); text-decoration: none; font-weight: 600; }
+  header a.back { color: var(--muted); font-weight: 500; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 24px 0 8px; }
+  .banner { padding: 12px 16px; border-radius: 8px; background: var(--surface); border-left: 4px solid var(--muted); font-weight: 600; }
+  .banner.ok { border-color: var(--ok); } .banner.warn { border-color: var(--warn); } .banner.bad { border-color: var(--bad); }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 14px; margin-bottom: 8px;
+         background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  .label { font-weight: 600; } .purpose, .detail { color: var(--muted); font-size: 13px; grid-column: 1 / -1; word-break: break-word; }
+  .right { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+  .pill { padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #0b0f17; background: var(--muted); }
+  .pill.Healthy { background: var(--ok); } .pill.Degraded { background: var(--warn); } .pill.Unhealthy { background: var(--bad); color: #fff; }
+  .ms { color: var(--muted); font-size: 12px; min-width: 56px; text-align: right; }
+  footer { position: fixed; right: 10px; bottom: 4px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header><a href="/">{{NAME}}</a><a class="back" href="/">Back to the game</a></header>
+<main>
+  <h1>System status</h1>
+  <div id="banner" class="banner">Checking…</div>
+  <h2>API</h2><div id="api"></div>
+  <h2>Data</h2><div id="data"></div>
+  <h2>Services</h2><div id="service"></div>
+  <p class="purpose" id="checked"></p>
+</main>
+<footer>v{{VERSION}}</footer>
+<script>
+  const CHECKS = {{CHECKS}};
+  const SLOW_MS = 3000;
+
+  function row(c) {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = '<span class="label"></span><span class="right"><span class="ms"></span><span class="pill">…</span></span>' +
+                   '<span class="purpose"></span><span class="detail"></span>';
+    el.querySelector(".label").textContent = c.label;
+    el.querySelector(".purpose").textContent = c.purpose || "";
+    document.getElementById(c.group).appendChild(el);
+    return el;
+  }
+
+  function show(el, status, ms, detail) {
+    const pill = el.querySelector(".pill");
+    pill.textContent = status; pill.className = "pill " + status;
+    el.querySelector(".ms").textContent = ms == null ? "" : Math.round(ms) + " ms";
+    el.querySelector(".detail").textContent = detail || "";
+    return status;
+  }
+
+  async function probe(c) {
+    const el = row(c);
+    const t0 = performance.now();
+    try {
+      if (c.kind === "webgl2") {
+        const gl = document.createElement("canvas").getContext("webgl2");
+        const info = gl && gl.getExtension("WEBGL_debug_renderer_info");
+        const what = gl ? (info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : "";
+        return show(el, gl ? "Healthy" : "Unhealthy", performance.now() - t0, gl ? what : "This browser has no WebGL2: the game cannot start.");
+      }
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 15000);
+      const r = await fetch(c.url, { method: c.method || "GET", cache: "no-store", signal: ctl.signal });
+      clearTimeout(timer);
+      const ms = performance.now() - t0;
+      if (!r.ok) return show(el, "Unhealthy", ms, `HTTP ${r.status} from ${c.url}`);
+      let detail = `HTTP ${r.status}`;
+      if (c.expect === "json") {
+        const j = await r.json();
+        if (c.jsonKey && !(c.jsonKey in j)) return show(el, "Unhealthy", ms, `answer has no "${c.jsonKey}"`);
+        if (c.jsonKey) detail += ` · ${c.jsonKey} = ${JSON.stringify(j[c.jsonKey]).slice(0, 120)}`;
+      } else if (c.expect) {
+        const text = await r.text();
+        if (!text.includes(c.expect)) return show(el, "Unhealthy", ms, `answer does not contain "${c.expect}"`);
+      } else {
+        const len = r.headers.get("content-length");
+        if (len) detail += ` · ${(Number(len) / 1048576).toFixed(1)} MB`;
+      }
+      return show(el, ms > SLOW_MS ? "Degraded" : "Healthy", ms, ms > SLOW_MS ? detail + " · slow" : detail);
+    } catch (e) {
+      return show(el, "Unhealthy", performance.now() - t0, String(e && e.message || e));
+    }
+  }
+
+  (async () => {
+    const t0 = performance.now();
+    const results = await Promise.all(CHECKS.map(probe));
+    const bad = CHECKS.filter((c, i) => results[i] === "Unhealthy").map(c => c.label);
+    const slow = results.filter(s => s === "Degraded").length;
+    const b = document.getElementById("banner");
+    if (bad.length) { b.textContent = "Not working: " + bad.join(", "); b.className = "banner bad"; }
+    else if (slow) { b.textContent = `Working, with ${slow} thing${slow > 1 ? "s" : ""} degraded`; b.className = "banner warn"; }
+    else { b.textContent = "Everything is working"; b.className = "banner ok"; }
+    document.getElementById("checked").textContent =
+      `Checked ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC from this browser in ${Math.round(performance.now() - t0)} ms.`;
+  })();
+</script>
+</body>
+</html>

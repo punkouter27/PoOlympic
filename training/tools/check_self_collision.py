@@ -23,7 +23,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 BODIES = ["matt", "mattbio", "zombie", "grandma", "kim"]
-SIMPLE = {mujoco.mjtGeom.mjGEOM_CAPSULE: "capsule", mujoco.mjtGeom.mjGEOM_BOX: "box", mujoco.mjtGeom.mjGEOM_SPHERE: "sphere"}
+SIMPLE = {
+    mujoco.mjtGeom.mjGEOM_CAPSULE: "capsule",
+    mujoco.mjtGeom.mjGEOM_BOX: "box",
+    mujoco.mjtGeom.mjGEOM_SPHERE: "sphere",
+}
 
 
 def athlete_geoms(m: mujoco.MjModel) -> list[int]:
@@ -62,17 +66,19 @@ def overlap_all_pairs(m, key_qpos: np.ndarray, pairs: list[tuple[int, int]]) -> 
 
 def swing_poses(m, key_qpos: np.ndarray):
     """A normal stride about the default stance: (label, qpos) for 21 phases."""
+
     def adr(name):
         return m.jnt_qposadr[m.joint(name).id]
+
     for i in range(21):
         ph = 2 * math.pi * i / 21
         q = key_qpos.copy()
         s = math.sin(ph)
         for side, sign in (("l", 1.0), ("r", -1.0)):
-            leg = sign * s                                         # +1 = this leg fully forward
-            q[adr(f"hip_flex_{side}")] += math.radians(32.5 * leg + 7.5)      # -25 .. +40 deg about the stance
-            q[adr(f"knee_{side}")] += math.radians(45.0 * max(0.0, leg))      # the knee bends on the forward swing
-            q[adr(f"shoulder_flex_{side}")] += math.radians(-40.0 * leg)      # arms swing opposite to the legs
+            leg = sign * s  # +1 = this leg fully forward
+            q[adr(f"hip_flex_{side}")] += math.radians(32.5 * leg + 7.5)  # -25 .. +40 deg about the stance
+            q[adr(f"knee_{side}")] += math.radians(45.0 * max(0.0, leg))  # the knee bends on the forward swing
+            q[adr(f"shoulder_flex_{side}")] += math.radians(-40.0 * leg)  # arms swing opposite to the legs
         yield f"swing phase {i}/21", q
 
 
@@ -84,7 +90,7 @@ def check(body: str) -> dict:
     excl = {tuple(sorted((int(s) >> 16, int(s) & 0xFFFF))) for s in m.exclude_signature}
     key = m.key("default").qpos.copy()
     root = m.jnt_qposadr[m.joint("root").id]
-    key[root + 2] += 2.0                                            # off the ground: only self-contacts remain
+    key[root + 2] += 2.0  # off the ground: only self-contacts remain
     res = {"body": body, "parts": len(geoms)}
 
     # shapes
@@ -92,15 +98,21 @@ def check(body: str) -> dict:
     res["non_simple"] = [m.geom(g).name for g in geoms if int(m.geom_type[g]) not in SIMPLE]
 
     # pairs
-    pairs = [(a, b) for i, a in enumerate(geoms) for b in geoms[i + 1:] if m.geom_bodyid[a] != m.geom_bodyid[b]]
-    parent_child = {(a, b) for a, b in pairs
-                    if m.body_parentid[m.geom_bodyid[a]] == m.geom_bodyid[b] or m.body_parentid[m.geom_bodyid[b]] == m.geom_bodyid[a]}
+    pairs = [(a, b) for i, a in enumerate(geoms) for b in geoms[i + 1 :] if m.geom_bodyid[a] != m.geom_bodyid[b]]
+    parent_child = {
+        (a, b)
+        for a, b in pairs
+        if m.body_parentid[m.geom_bodyid[a]] == m.geom_bodyid[b]
+        or m.body_parentid[m.geom_bodyid[b]] == m.geom_bodyid[a]
+    }
     off = [(a, b) for a, b in pairs if (a, b) not in parent_child and not can_collide(m, a, b, excl)]
     touching = overlap_all_pairs(m, key, off)
     res["pairs"] = len(pairs)
     res["parent_child"] = len(parent_child)
     res["colliding"] = len(pairs) - len(parent_child) - len(off)
-    res["off_overlapping_at_rest"] = sorted(f"{m.geom(a).name} / {m.geom(b).name}" for a, b in off if (a, b) in touching)
+    res["off_overlapping_at_rest"] = sorted(
+        f"{m.geom(a).name} / {m.geom(b).name}" for a, b in off if (a, b) in touching
+    )
     res["off_violations"] = sorted(f"{m.geom(a).name} / {m.geom(b).name}" for a, b in off if (a, b) not in touching)
 
     # rest poses
@@ -123,9 +135,11 @@ def check(body: str) -> dict:
 def main(argv: list[str]) -> int:
     report = [check(b) for b in (argv or BODIES)]
     for r in report:
-        print(f"{r['body']:8s} {'PASS' if r['ok'] else 'FAIL'}  shapes {'/'.join(r['shape_types'])}  "
-              f"pairs {r['pairs']}: {r['colliding']} collide, {r['parent_child']} parent-child, "
-              f"{len(r['off_overlapping_at_rest'])} off (overlap at rest), {len(r['off_violations'])} off without a reason")
+        print(
+            f"{r['body']:8s} {'PASS' if r['ok'] else 'FAIL'}  shapes {'/'.join(r['shape_types'])}  "
+            f"pairs {r['pairs']}: {r['colliding']} collide, {r['parent_child']} parent-child, "
+            f"{len(r['off_overlapping_at_rest'])} off (overlap at rest), {len(r['off_violations'])} off without a reason"
+        )
         if r["off_overlapping_at_rest"]:
             print("   off, overlapping at rest:", ", ".join(r["off_overlapping_at_rest"]))
         if r["off_violations"]:

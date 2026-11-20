@@ -1,5 +1,6 @@
 """Builds DOCS/20261119/overnight_training_report.html from the gate files in parity/ (run from the repo root:
 python DOCS/20261119/build_report.py). Every number in the charts comes from parity/watch_<run>.jsonl."""
+
 import json
 import re
 from pathlib import Path
@@ -27,13 +28,25 @@ def rows(run):
             r = json.loads(line)
             g = re.match(r"(\d+)/(\d+)", r.get("g1_2", ""))
             t = re.match(r"([\d.]+)/8", r.get("turntable", ""))
-            out.append({"it": r["it"], "g1": int(g.group(1)) if g else None, "falls": r.get("g1_2_falls"),
-                        "tt": float(t.group(1)) if t else None, "tt_raw": r.get("turntable", "")})
+            out.append(
+                {
+                    "it": r["it"],
+                    "g1": int(g.group(1)) if g else None,
+                    "falls": r.get("g1_2_falls"),
+                    "tt": float(t.group(1)) if t else None,
+                    "tt_raw": r.get("turntable", ""),
+                }
+            )
     return out
 
 
 data = {run: rows(run) for run, *_ in RUNS}
 meta = {run: {"body": b, "label": l, "init": i} for run, b, l, i in RUNS}
-OUT.write_text(Path(__file__).with_name("report_template.html").read_text(encoding="utf-8")
-               .replace("/*DATA*/null", json.dumps({"runs": data, "meta": meta})), encoding="utf-8")
+OUT.write_text(
+    Path(__file__)
+    .with_name("report_template.html")
+    .read_text(encoding="utf-8")
+    .replace("/*DATA*/null", json.dumps({"runs": data, "meta": meta})),
+    encoding="utf-8",
+)
 print(f"wrote {OUT} ({sum(len(v) for v in data.values())} gate rows)")

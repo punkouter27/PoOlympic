@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from poolympic import contract as C  # noqa: E402
 
-MIN_FLIGHT = 0.02      # s
+MIN_FLIGHT = 0.02  # s
 STEADY_S = 3.0
 
 
@@ -39,7 +39,7 @@ def probe(onnx: str, vx: float, seconds: float) -> dict:
     x0 = None
     for tick in range(int(seconds / (m.opt.timestep * C.DECIMATION))):
         r = ath.root_qposadr
-        cmd = np.array([vx, 0.0, C.steer_yaw_rate(d.qpos[r + 3:r + 7], d.qpos[r + 1], vx)])
+        cmd = np.array([vx, 0.0, C.steer_yaw_rate(d.qpos[r + 3 : r + 7], d.qpos[r + 1], vx)])
         phase = C.advance_phase(phase, cmd)
         obs = C.build_obs(ath, d.qpos, d.qvel, cmd, phase, last)
         ctrl, act = sess.run(None, {"obs": obs[None]})
@@ -50,8 +50,10 @@ def probe(onnx: str, vx: float, seconds: float) -> dict:
             x0 = d.qpos[0]
         for _ in range(C.DECIMATION):
             mujoco.mj_step(m, d)
-            on = any((int(c.geom1) in feet and int(c.geom2) == ground) or (int(c.geom2) in feet and int(c.geom1) == ground)
-                     for c in d.contact[:d.ncon])
+            on = any(
+                (int(c.geom1) in feet and int(c.geom2) == ground) or (int(c.geom2) in feet and int(c.geom1) == ground)
+                for c in d.contact[: d.ncon]
+            )
             if t >= STEADY_S:
                 air.append(not on)
                 if not on:
@@ -64,9 +66,15 @@ def probe(onnx: str, vx: float, seconds: float) -> dict:
             fell = round(t, 2)
     steady = seconds - STEADY_S
     fl = np.array(flights) if flights else np.zeros(0)
-    return {"vx": vx, "fell": fell, "speed": float((d.qpos[0] - x0) / steady) if x0 is not None else None,
-            "airborne_fraction": float(np.mean(air)) if air else 0.0, "flights_per_s": len(fl) / steady,
-            "flight_mean_ms": float(1000 * fl.mean()) if len(fl) else 0.0, "flight_max_ms": float(1000 * fl.max()) if len(fl) else 0.0}
+    return {
+        "vx": vx,
+        "fell": fell,
+        "speed": float((d.qpos[0] - x0) / steady) if x0 is not None else None,
+        "airborne_fraction": float(np.mean(air)) if air else 0.0,
+        "flights_per_s": len(fl) / steady,
+        "flight_mean_ms": float(1000 * fl.mean()) if len(fl) else 0.0,
+        "flight_max_ms": float(1000 * fl.max()) if len(fl) else 0.0,
+    }
 
 
 def main() -> int:
@@ -78,8 +86,10 @@ def main() -> int:
     a = ap.parse_args()
     rows = [probe(a.onnx, float(v), a.seconds) for v in a.speeds.split(",")]
     for r in rows:
-        print(f"vx {r['vx']}: speed {r['speed']:.2f} m/s, fell {r['fell']}, airborne {100 * r['airborne_fraction']:.1f} %, "
-              f"{r['flights_per_s']:.2f} flights/s, mean {r['flight_mean_ms']:.0f} ms, max {r['flight_max_ms']:.0f} ms")
+        print(
+            f"vx {r['vx']}: speed {r['speed']:.2f} m/s, fell {r['fell']}, airborne {100 * r['airborne_fraction']:.1f} %, "
+            f"{r['flights_per_s']:.2f} flights/s, mean {r['flight_mean_ms']:.0f} ms, max {r['flight_max_ms']:.0f} ms"
+        )
     if a.out:
         Path(a.out).write_text(json.dumps({"onnx": Path(a.onnx).name, "rows": rows}, indent=1))
     return 0

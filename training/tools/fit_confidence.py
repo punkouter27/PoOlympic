@@ -53,8 +53,8 @@ MODEL = ROOT.parent / "Assets" / "PoOlympic" / "Models" / "confidence_model.json
 REPORT = ROOT.parent / "parity" / "confidence" / "report.json"
 HORIZON_S = 2.0
 SETTLE_S = 1.0
-EMA_TAU_S = 1.0             # value baseline: exponential average over ~1 s of control ticks
-EMA_ALPHA = 0.02            # = control dt (0.02 s) / EMA_TAU_S
+EMA_TAU_S = 1.0  # value baseline: exponential average over ~1 s of control ticks
+EMA_ALPHA = 0.02  # = control dt (0.02 s) / EMA_TAU_S
 
 GROUPS = {
     "stand": {"matt": "r0_v2_it1000", "zombie": "zombie_rung0"},
@@ -68,9 +68,15 @@ GROUPS = {
     "rung2_k": {"kim": "kim_rung2"},
     "crawl_k": {"kim": "crawl_kim"},
 }
-KIND = {"stand_g": "stand", "rung2_g": "rung2", "crawl_g": "crawl",        # how a group is driven (default: its own name)
-        "stand_k": "stand", "rung2_k": "rung2", "crawl_k": "crawl"}
-FLIGHT_STAND_P = 0.25                                  # flight: share of commands that are a standstill
+KIND = {
+    "stand_g": "stand",
+    "rung2_g": "rung2",
+    "crawl_g": "crawl",  # how a group is driven (default: its own name)
+    "stand_k": "stand",
+    "rung2_k": "rung2",
+    "crawl_k": "crawl",
+}
+FLIGHT_STAND_P = 0.25  # flight: share of commands that are a standstill
 
 
 def scene_tag(group: str) -> str:
@@ -96,8 +102,10 @@ def rollout(group: str, seed: int, seconds: float) -> dict[str, list[tuple[float
     scene_bodies = sorted({l.get("body", "matt") for l in layout["lanes"]})
     lanes = make_lanes(m, d, layout, seed, traits, fallback, {b: brains.get(b, fallback) for b in scene_bodies})
     active = [ln.body in brains for ln in lanes]
-    critics = {b: ort.InferenceSession(str(BR / f"{n}.critic.onnx"), providers=["CPUExecutionProvider"])
-               for b, n in GROUPS[group].items()}
+    critics = {
+        b: ort.InferenceSession(str(BR / f"{n}.critic.onnx"), providers=["CPUExecutionProvider"])
+        for b, n in GROUPS[group].items()
+    }
     defaults = {b: body_contract(b)["default_joint_qpos"] for b in scene_bodies}
     lam = [bodies.BODIES[ln.body].length_scale for ln in lanes]
     torso = [m.body(ln.prefix + "torso").id for ln in lanes]
@@ -142,24 +150,35 @@ def rollout(group: str, seed: int, seconds: float) -> dict[str, list[tuple[float
             age = t - ep_start[i]
             r = ln.ath.root_qposadr
             if crawl:
-                c = np.zeros(3) if age < AF.SETUP_S else np.array(
-                    [AF.VX, 0.0, AF.crawl_steer(d.qpos[r + 3:r + 7], d.qpos[r + 1] - ln.origin[1])])
+                c = (
+                    np.zeros(3)
+                    if age < AF.SETUP_S
+                    else np.array([AF.VX, 0.0, AF.crawl_steer(d.qpos[r + 3 : r + 7], d.qpos[r + 1] - ln.origin[1])])
+                )
             else:
                 if t >= cmd_until[i]:
                     if kind == "stand":
                         cmd[i] = np.zeros(3)
                     elif kind == "flight":
-                        cmd[i] = np.zeros(3) if rng.uniform() < FLIGHT_STAND_P else np.array([rng.uniform(3.0, 3.8), 0.0, 0.0])
+                        cmd[i] = (
+                            np.zeros(3)
+                            if rng.uniform() < FLIGHT_STAND_P
+                            else np.array([rng.uniform(3.0, 3.8), 0.0, 0.0])
+                        )
                     else:
                         cmd[i] = _envelope_command(rng)[1]
                     cmd_until[i] = t + rng.uniform(3.0, 5.0)
                 c = cmd[i].copy()
                 if kind == "flight" and c[0] > 0.0:
-                    c[2] = C.steer_yaw_rate(d.qpos[r + 3:r + 7], d.qpos[r + 1] - ln.origin[1], c[0])
+                    c[2] = C.steer_yaw_rate(d.qpos[r + 3 : r + 7], d.qpos[r + 1] - ln.origin[1], c[0])
             # the lane's control step, exposing the observation for the critic (= _Lane.control)
-            bc = (np.asarray(c, float) if ln.body == "matt"
-                  else body_command(np.asarray(c, float), ln.body) if ln.body == "grandma"        # incl. her 2.8 m/s cap
-                  else np.asarray(c, float) * np.array([math.sqrt(lam[i]), math.sqrt(lam[i]), 1.0 / math.sqrt(lam[i])]))
+            bc = (
+                np.asarray(c, float)
+                if ln.body == "matt"
+                else body_command(np.asarray(c, float), ln.body)
+                if ln.body == "grandma"  # incl. her 2.8 m/s cap
+                else np.asarray(c, float) * np.array([math.sqrt(lam[i]), math.sqrt(lam[i]), 1.0 / math.sqrt(lam[i])])
+            )
             ln.phase = ln.advance_phase(bc)
             obs = C.build_obs(ln.ath, d.qpos, d.qvel, bc, ln.phase, ln.last)
             if ln.traits.obs_noise > 0:
@@ -175,13 +194,13 @@ def rollout(group: str, seed: int, seconds: float) -> dict[str, list[tuple[float
                 a = rng.uniform(0, 2 * math.pi)
                 if crawl:
                     dv = rng.uniform(0.3, 4.5) * math.sqrt(lam[i])
-                    d.qvel[ln.ath.root_dofadr: ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                    d.qvel[ln.ath.root_dofadr : ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
                     d.qvel[ln.ath.root_dofadr + 2] += rng.uniform(-2.5, -0.5) * math.sqrt(lam[i])
                     d.qvel[ln.ath.root_dofadr + 3] += rng.uniform(-4.0, 4.0)
                     next_shove[i] = t + rng.uniform(1.0, 2.5)
                 else:
                     dv = rng.uniform(0.3, 2.4) * math.sqrt(lam[i])
-                    d.qvel[ln.ath.root_dofadr: ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
+                    d.qvel[ln.ath.root_dofadr : ln.ath.root_dofadr + 2] += dv * np.array([math.cos(a), math.sin(a)])
                     next_shove[i] = t + rng.uniform(1.5, 3.5)
         for s in range(C.DECIMATION):
             for i, ln in enumerate(lanes):
@@ -218,7 +237,7 @@ def rollout(group: str, seed: int, seconds: float) -> dict[str, list[tuple[float
 def logistic(F: np.ndarray, y: np.ndarray, ridge: float = 1e-3) -> tuple[np.ndarray, float]:
     """P = sigmoid(F @ w + b), IRLS on standardised features; returns raw-feature weights and bias."""
     mu, sd = F.mean(0), F.std(0)
-    used = sd > 1e-3                         # a constant feature (e.g. the crawl's fixed 1.2 m/s command) carries no signal
+    used = sd > 1e-3  # a constant feature (e.g. the crawl's fixed 1.2 m/s command) carries no signal
     mu, sd = np.where(used, mu, 0.0), np.where(used, sd, 1.0)
     X = np.hstack([np.where(used, (F - mu) / sd, 0.0), np.ones((len(F), 1))])
     w = np.zeros(X.shape[1])
@@ -266,7 +285,7 @@ def main() -> int:
         v = F[:, 0]
         falls = int((y == 0).sum())
         a, b = logistic(F, y)
-        if a[1] < 0.0:                   # drop cannot increase survival probability; boundary w_drop = 0
+        if a[1] < 0.0:  # drop cannot increase survival probability; boundary w_drop = 0
             a2, b = logistic(F[:, [0, 2]], y)
             a = np.array([a2[0], 0.0, a2[1]])
         p = 1 / (1 + np.exp(-(F @ a + b)))
@@ -276,22 +295,43 @@ def main() -> int:
         for lo, hi in zip(bins[:-1], bins[1:]):
             sel = (p >= lo) & (p <= hi)
             if sel.any():
-                rel.append({"p_pred": round(float(p[sel].mean()), 3), "p_obs": round(float(y[sel].mean()), 3), "n": int(sel.sum())})
-        entry = {"brain": name, "w_value": float(a[0]), "w_drop": float(a[1]), "w_speed": float(a[2]), "b": b,
-                 "auc": round(score_auc, 4), "auc_value_only": round(auc(v, y), 4), "samples": len(y), "danger_samples": falls,
-                 "base_rate": round(float(y.mean()), 4), "v_p05": float(np.quantile(v, 0.05)),
-                 "v_p50": float(np.quantile(v, 0.5)), "v_p95": float(np.quantile(v, 0.95)),
-                 "calibrated": bool(falls >= 200 and score_auc > 0.6)}
+                rel.append(
+                    {
+                        "p_pred": round(float(p[sel].mean()), 3),
+                        "p_obs": round(float(y[sel].mean()), 3),
+                        "n": int(sel.sum()),
+                    }
+                )
+        entry = {
+            "brain": name,
+            "w_value": float(a[0]),
+            "w_drop": float(a[1]),
+            "w_speed": float(a[2]),
+            "b": b,
+            "auc": round(score_auc, 4),
+            "auc_value_only": round(auc(v, y), 4),
+            "samples": len(y),
+            "danger_samples": falls,
+            "base_rate": round(float(y.mean()), 4),
+            "v_p05": float(np.quantile(v, 0.05)),
+            "v_p50": float(np.quantile(v, 0.5)),
+            "v_p95": float(np.quantile(v, 0.95)),
+            "calibrated": bool(falls >= 200 and score_auc > 0.6),
+        }
         brains.append(entry)
         report[name] = {**entry, "reliability": rel}
-        print(f"{name:14s} n={len(y):7d} danger={falls:6d} AUC={entry['auc']:.3f} (value only {entry['auc_value_only']:.3f}) "
-              f"w=({a[0]:+.4f}, {a[1]:+.4f}, {a[2]:+.4f}) b={b:+.3f} "
-              f"calibrated={entry['calibrated']}")
+        print(
+            f"{name:14s} n={len(y):7d} danger={falls:6d} AUC={entry['auc']:.3f} (value only {entry['auc_value_only']:.3f}) "
+            f"w=({a[0]:+.4f}, {a[1]:+.4f}, {a[2]:+.4f}) b={b:+.3f} "
+            f"calibrated={entry['calibrated']}"
+        )
     REPORT.parent.mkdir(parents=True, exist_ok=True)
-    if args.groups:                      # partial refit: keep the other brains' entries
+    if args.groups:  # partial refit: keep the other brains' entries
         refit = {e["brain"] for e in brains}
-        brains = sorted([e for e in json.loads(MODEL.read_text())["brains"] if e["brain"] not in refit] + brains,
-                        key=lambda e: e["brain"])
+        brains = sorted(
+            [e for e in json.loads(MODEL.read_text())["brains"] if e["brain"] not in refit] + brains,
+            key=lambda e: e["brain"],
+        )
         report = {**(json.loads(REPORT.read_text()) if REPORT.exists() else {}), **report}
     MODEL.write_text(json.dumps({"horizon_s": HORIZON_S, "ema_tau_s": EMA_TAU_S, "brains": brains}, indent=1))
     REPORT.write_text(json.dumps(report, indent=1))

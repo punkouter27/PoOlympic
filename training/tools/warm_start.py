@@ -53,10 +53,12 @@ def main() -> int:
             j = CMD_OFFSET + i
             g["obs_normalizer._mean"][0, j] = mean
             g["obs_normalizer._var"][0, j] = var
-            g["obs_normalizer._std"][0, j] = var ** 0.5
+            g["obs_normalizer._std"][0, j] = var**0.5
         g["obs_normalizer.count"].fill_(a.count)
-        print(f"{group}: command mean {g['obs_normalizer._mean'][0, CMD_OFFSET:CMD_OFFSET + 3].tolist()} "
-              f"std {g['obs_normalizer._std'][0, CMD_OFFSET:CMD_OFFSET + 3].tolist()}")
+        print(
+            f"{group}: command mean {g['obs_normalizer._mean'][0, CMD_OFFSET : CMD_OFFSET + 3].tolist()} "
+            f"std {g['obs_normalizer._std'][0, CMD_OFFSET : CMD_OFFSET + 3].tolist()}"
+        )
     std = sd["actor_state_dict"]["distribution.std_param"]
     std.clamp_(min=a.min_std)
     sd["iter"] = 0

@@ -2,6 +2,7 @@
 turntable times and the mean speed shortfall of the sprint commands.
     uv run python tools/gate_fails.py parity/watch/g1_rung2_<name>.json ...        (body = $POOLYMPIC_BODY: scaled bars)
 """
+
 import json
 import sys
 from collections import Counter, defaultdict
@@ -27,6 +28,8 @@ for path in sys.argv[1:]:
             if s["lin_rms"] >= LIN_BAR:
                 over[s["kind"]].append((round(s["lin_rms"], 2), [round(c, 2) for c in s["cmd"]]))
     for kind in n:
-        print(f"   {kind:7s} {len(over[kind])}/{n[kind]} segments over {LIN_BAR:.3f} m/s: {sorted(over[kind], reverse=True)[:6]}")
+        print(
+            f"   {kind:7s} {len(over[kind])}/{n[kind]} segments over {LIN_BAR:.3f} m/s: {sorted(over[kind], reverse=True)[:6]}"
+        )
     tt = sorted(e["turntable_s"] if e["turntable_s"] is not None else 99.0 for e in j["episodes"])
     print(f"   turntable s (sorted): {tt}   drift max {max(e['turntable_drift_m'] or 0 for e in j['episodes']):.2f} m")

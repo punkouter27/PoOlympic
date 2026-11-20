@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 UI = Path(__file__).resolve().parents[2] / "parity" / "ui"
 D3 = UI.parent / "d3"
-FRAME = (0, 476, 960, 2181)          # the letterboxed 9:16 camera rect in the 960 x 2658 Game view captures
+FRAME = (0, 476, 960, 2181)  # the letterboxed 9:16 camera rect in the 960 x 2658 Game view captures
 FONT = "C:/Windows/Fonts/segoeui.ttf"
 FONT_B = "C:/Windows/Fonts/segoeuib.ttf"
 
@@ -23,13 +23,26 @@ SPECS = {
     "dock_before_after": {
         "title": "Docked broadcast HUD — before (drawn over the game) vs after (top + bottom docks, game in between)",
         "panels": [
-            ("BEFORE · live", UI / "before" / "dock_race_live.png", None,
-             [(8, (27, 638, 733, 1004)), (9, (440, 1683, 940, 1967)), (10, (0, 0, 960, 470))]),
+            (
+                "BEFORE · live",
+                UI / "before" / "dock_race_live.png",
+                None,
+                [(8, (27, 638, 733, 1004)), (9, (440, 1683, 940, 1967)), (10, (0, 0, 960, 470))],
+            ),
             ("BEFORE · result", UI / "before" / "dock_pedestal_result.png", None, []),
-            ("AFTER · race live", UI / "after" / "dock_race_live.png", None,
-             [(1, (0, 93, 960, 566)), (2, (0, 570, 960, 2352)), (3, (0, 2355, 960, 2658))]),
+            (
+                "AFTER · race live",
+                UI / "after" / "dock_race_live.png",
+                None,
+                [(1, (0, 93, 960, 566)), (2, (0, 570, 960, 2352)), (3, (0, 2355, 960, 2658))],
+            ),
             ("AFTER · Iron Pedestal live", UI / "after" / "dock_pedestal_live.png", None, [(4, (20, 2365, 938, 2477))]),
-            ("AFTER · result", UI / "after" / "dock_race_result.png", None, [(5, (0, 1556, 960, 2352)), (6, (20, 2365, 938, 2477))]),
+            (
+                "AFTER · result",
+                UI / "after" / "dock_race_result.png",
+                None,
+                [(5, (0, 1556, 960, 2352)), (6, (20, 2365, 938, 2477))],
+            ),
         ],
         "legend": [
             "1  Top dock: title, clock, standings (CONF + ODDS) on an opaque panel above the game",
@@ -48,12 +61,34 @@ SPECS = {
         "panels": [
             ("BEFORE · Terminal Velocity live", UI / "before" / "fx_race_live.png", FRAME, []),
             ("BEFORE · result card", UI / "before" / "fx_race_result.png", FRAME, []),
-            ("AFTER · Terminal Velocity live", UI / "after" / "fx_race_live_1.png", FRAME,
-             [(1, (487, 656, 647, 993)), (2, (440, 1683, 940, 1967)), (3, (24, 2000, 940, 2104)), (4, (0, 1173, 960, 1627))]),
-            ("AFTER · Iron Pedestal, hot close-up", UI / "after" / "fx_pedestal_hot_1.png", FRAME,
-             [(5, (387, 840, 587, 1613)), (6, (360, 1590, 560, 1650)), (7, (600, 1060, 960, 1600)), (8, (24, 2000, 940, 2104))]),
-            ("AFTER · result card", UI / "after" / "fx_pedestal_result.png", FRAME,
-             [(9, (77, 1573, 887, 1780)), (10, (77, 1787, 887, 1847))]),
+            (
+                "AFTER · Terminal Velocity live",
+                UI / "after" / "fx_race_live_1.png",
+                FRAME,
+                [
+                    (1, (487, 656, 647, 993)),
+                    (2, (440, 1683, 940, 1967)),
+                    (3, (24, 2000, 940, 2104)),
+                    (4, (0, 1173, 960, 1627)),
+                ],
+            ),
+            (
+                "AFTER · Iron Pedestal, hot close-up",
+                UI / "after" / "fx_pedestal_hot_1.png",
+                FRAME,
+                [
+                    (5, (387, 840, 587, 1613)),
+                    (6, (360, 1590, 560, 1650)),
+                    (7, (600, 1060, 960, 1600)),
+                    (8, (24, 2000, 940, 2104)),
+                ],
+            ),
+            (
+                "AFTER · result card",
+                UI / "after" / "fx_pedestal_result.png",
+                FRAME,
+                [(9, (77, 1573, 887, 1780)), (10, (77, 1787, 887, 1847))],
+            ),
         ],
         "legend": [
             "1  NEW CONF column: brain confidence (PPO critic → P(still on its feet in 2 s)), sparkline + %, per athlete",
@@ -72,9 +107,18 @@ SPECS = {
         "title": "Main menu — world records (before vs after)",
         "panels": [
             ("BEFORE", UI / "before" / "fx_menu.png", None, []),
-            ("AFTER · menu", UI / "after" / "fx_menu.png", None, [(1, (260, 1133, 593, 1196)), (2, (53, 2380, 727, 2420))]),
-            ("AFTER · WORLD RECORDS board", UI / "after" / "fx_menu_records.png", None,
-             [(3, (53, 73, 913, 167)), (4, (53, 284, 909, 687)), (5, (53, 700, 909, 1890))]),
+            (
+                "AFTER · menu",
+                UI / "after" / "fx_menu.png",
+                None,
+                [(1, (260, 1133, 593, 1196)), (2, (53, 2380, 727, 2420))],
+            ),
+            (
+                "AFTER · WORLD RECORDS board",
+                UI / "after" / "fx_menu_records.png",
+                None,
+                [(3, (53, 73, 913, 167)), (4, (53, 284, 909, 687)), (5, (53, 700, 909, 1890))],
+            ),
         ],
         "legend": [
             "1  NEW WORLD RECORDS button next to the gauntlet toggle",
@@ -88,9 +132,19 @@ SPECS = {
         "title": "D3 broadcast HUD — before (IMGUI placeholder) vs after (UI Toolkit BroadcastHud + BroadcastDirector)",
         "panels": [
             ("BEFORE · Terminal Velocity (IMGUI)", UI / "before" / "race_hud.png", FRAME, []),
-            ("AFTER · live", UI / "after" / "race_hud_live.png", FRAME,
-             [(1, (24, 499, 938, 605)), (2, (27, 649, 649, 1004)), (3, (566, 649, 649, 1004)), (4, (24, 1995, 938, 2099)),
-              (5, (273, 2112, 560, 2158)), (6, (0, 1050, 960, 1950))]),
+            (
+                "AFTER · live",
+                UI / "after" / "race_hud_live.png",
+                FRAME,
+                [
+                    (1, (24, 499, 938, 605)),
+                    (2, (27, 649, 649, 1004)),
+                    (3, (566, 649, 649, 1004)),
+                    (4, (24, 1995, 938, 2099)),
+                    (5, (273, 2112, 560, 2158)),
+                    (6, (0, 1050, 960, 1950)),
+                ],
+            ),
             ("AFTER · betting slip", D3 / "steeple_1_slip.png", FRAME, [(7, (44, 850, 916, 1662))]),
             ("AFTER · result card", D3 / "steeple_3_live.png", FRAME, [(8, (44, 850, 916, 1380))]),
         ],
@@ -109,9 +163,18 @@ SPECS = {
         "title": "Main menu — before vs after (gauntlet builder, wallet, Event 13)",
         "panels": [
             ("BEFORE", UI / "before" / "menu.png", None, []),
-            ("AFTER · gauntlet mode", UI / "after" / "menu_gauntlet.png", None,
-             [(1, (645, 1176, 912, 1246)), (2, (785, 1365, 875, 2008)), (3, (60, 1925, 900, 2015)),
-              (4, (48, 2385, 912, 2525)), (5, (130, 2530, 830, 2615))]),
+            (
+                "AFTER · gauntlet mode",
+                UI / "after" / "menu_gauntlet.png",
+                None,
+                [
+                    (1, (645, 1176, 912, 1246)),
+                    (2, (785, 1365, 875, 2008)),
+                    (3, (60, 1925, 900, 2015)),
+                    (4, (48, 2385, 912, 2525)),
+                    (5, (130, 2530, 830, 2615)),
+                ],
+            ),
         ],
         "legend": [
             "1  NEW GAUNTLET toggle (shows the number of events in the series)",

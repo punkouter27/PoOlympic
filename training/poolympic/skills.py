@@ -31,18 +31,21 @@ def wrap(a: float) -> float:
 @dataclass(frozen=True)
 class SkillBodies:
     """Ids + local tip offsets for one athlete (prefix) in a compiled model."""
+
     pelvis: int
     chest: int
-    shin: tuple[int, int]            # (left, right)
+    shin: tuple[int, int]  # (left, right)
     forearm: tuple[int, int]
     tip_local: tuple[np.ndarray, np.ndarray]
     foot_geoms: tuple[tuple[int, ...], tuple[int, ...]]
     ground: int
-    knee_z0: tuple[float, float]     # standing knee heights (default keyframe)
+    knee_z0: tuple[float, float]  # standing knee heights (default keyframe)
     pelvis_z0: float
 
     @staticmethod
-    def bind(m: mujoco.MjModel, prefix: str = "", keyframe: str | None = "default", ground: str = "ground") -> "SkillBodies":
+    def bind(
+        m: mujoco.MjModel, prefix: str = "", keyframe: str | None = "default", ground: str = "ground"
+    ) -> "SkillBodies":
         """keyframe None: no standing reference (heights relative to 0) — e.g. the mjlab training model."""
         b = lambda n: m.body(prefix + n).id  # noqa: E731
         fore = (b("forearm_l"), b("forearm_r"))
@@ -120,9 +123,12 @@ def shoulder_in_heading(d: mujoco.MjData, m: mujoco.MjModel, arm: int, prefix: s
     return np.array([c * rel[0] + s * rel[1], -s * rel[0] + c * rel[1], rel[2]])
 
 
-REACH_AZ = (math.radians(-30), math.radians(90))      # target direction from the shoulder: forward .. the arm's own side (tasks/skill_mdp.py imports these)
+REACH_AZ = (
+    math.radians(-30),
+    math.radians(90),
+)  # target direction from the shoulder: forward .. the arm's own side (tasks/skill_mdp.py imports these)
 REACH_EL = (math.radians(-40), math.radians(60))
-REACH_FRAC = (0.45, 0.95)                             # of the reach radius
+REACH_FRAC = (0.45, 0.95)  # of the reach radius
 
 
 def sample_reach_target(rng: np.random.Generator, shoulder: np.ndarray, arm: int, reach: float) -> np.ndarray:

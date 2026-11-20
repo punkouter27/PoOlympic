@@ -18,35 +18,35 @@ Rank by time + penalties.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import math
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import mujoco
 import numpy as np
-import onnxruntime as ort
+import onnxruntime as ort  # noqa: F401  (kept from before the lint pass)
 
 from .. import action_log as AL
 from .. import contract as C
-from .iron_pedestal import Traits, _Lane, make_lanes
+from .iron_pedestal import Traits, make_lanes
 
 SCENE = C.ROOT / "assets" / "scene_slalom8.xml"
 LAYOUT = C.ROOT / "assets" / "slalom8_layout.json"
 DISTANCE = 32.0
-POLE_X0, POLE_DX, N_POLES = 3.0, 4.0, 7      # = venues.json "poles" (checked against the layout in run_heat)
+POLE_X0, POLE_DX, N_POLES = 3.0, 4.0, 7  # = venues.json "poles" (checked against the layout in run_heat)
 # Tuned on CPU (see rl_optimization_log.md): at 2.5-3 m/s the alternating yaw commands topple the Rung 2 brain even
 # without pole contact; 2.2 m/s with the training lateral-acceleration cap finishes 16/16 alone — but a shoulder bump at
 # 2.2 m/s floors it, so the mirror slalom (1.4 m lanes, every runner meets its neighbours) runs at 1.6 m/s: ~7 of 8
 # finish, 4-7 pair-seconds of contact per heat, neighbours knock each other into the poles.
 VX = 1.6
-LINE = (0.40, 0.56)       # m — racing-line amplitude range (seeded per runner). At 2.2 m/s alone: 0.40 ~5 clips,
-                          # 0.45 ~2-3, 0.50 ~1, 0.55 no clips — in the mirror slalom a wide line also swings into the
-                          # neighbour (closest approach 1.4 - A_left - A_right)
-LOOKAHEAD = 0.8           # m
+LINE = (0.40, 0.56)  # m — racing-line amplitude range (seeded per runner). At 2.2 m/s alone: 0.40 ~5 clips,
+# 0.45 ~2-3, 0.50 ~1, 0.55 no clips — in the mirror slalom a wide line also swings into the
+# neighbour (closest approach 1.4 - A_left - A_right)
+LOOKAHEAD = 0.8  # m
 Y_GAIN, HEADING_GAIN = 1.0, 2.0
-WZ_LIMIT = 4.0 / VX       # rad/s — v * wz <= 4 m/s^2, the Rung 2 training cap (AthleteCommandCfg.max_lateral_accel)
-MISS_PENALTY = 2.0        # s per pole on the wrong side
-CLIP_PENALTY = 0.5        # s per pole contact
+WZ_LIMIT = 4.0 / VX  # rad/s — v * wz <= 4 m/s^2, the Rung 2 training cap (AthleteCommandCfg.max_lateral_accel)
+MISS_PENALTY = 2.0  # s per pole on the wrong side
+CLIP_PENALTY = 0.5  # s per pole contact
 MAX_S = 30.0
 
 
@@ -61,7 +61,7 @@ def line_y(x: float, a: float) -> tuple[float, float]:
     if x < lo or x > hi:
         return 0.0, 0.0
     w = math.pi / POLE_DX
-    return a * math.cos(w * (x - POLE_X0)), -a * w * math.sin(w * (x - POLE_X0))   # a < 0: the mirrored course
+    return a * math.cos(w * (x - POLE_X0)), -a * w * math.sin(w * (x - POLE_X0))  # a < 0: the mirrored course
 
 
 def slalom_command(quat: np.ndarray, x: float, y: float, a: float, vx: float = VX) -> np.ndarray:
@@ -90,8 +90,8 @@ def tactician(i: int, xs: list[float], yw: list[float], racing: list[bool], a: f
     return vx, a
 
 
-YIELD_X, LEVEL_X, YIELD_GAP, YIELD_VX, TIGHT_LINE = 1.2, 0.15, 0.9, 0.6, 0.45   # m, m, m, x pace, m — tuned on CPU heats
-BRAWL_VX, BRAWL_LINE = 1.08, 0.56   # Feature 4: aggressive slalom brawl (surge pace + wide swing into neighbour)
+YIELD_X, LEVEL_X, YIELD_GAP, YIELD_VX, TIGHT_LINE = 1.2, 0.15, 0.9, 0.6, 0.45  # m, m, m, x pace, m — tuned on CPU heats
+BRAWL_VX, BRAWL_LINE = 1.08, 0.56  # Feature 4: aggressive slalom brawl (surge pace + wide swing into neighbour)
 
 
 def brawler(i: int, xs: list[float], yw: list[float], racing: list[bool], a: float, vx: float) -> tuple[float, float]:
@@ -118,8 +118,8 @@ class SlalomLane:
     misses: int = 0
     clips: int = 0
     score: float | None = None
-    status: str = ""                 # FINISHED / FELL / DNF
-    falls: int = 0                   # recovery: falls the racer got up from (or is still down from)
+    status: str = ""  # FINISHED / FELL / DNF
+    falls: int = 0  # recovery: falls the racer got up from (or is still down from)
     place: int = 0
 
 
@@ -131,8 +131,19 @@ class SlalomResult:
 
 
 @AL.logged("event_slalom")
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[float] | None = None, vx: float = VX, scene=None, layout_path=None, brains: dict | None = None,
-             tactics: bool = False, aggressive: bool = False, recover: dict | None = None) -> SlalomResult:
+def run_heat(
+    onnx,
+    seed: int,
+    traits: list[Traits] | None = None,
+    lines: list[float] | None = None,
+    vx: float = VX,
+    scene=None,
+    layout_path=None,
+    brains: dict | None = None,
+    tactics: bool = False,
+    aggressive: bool = False,
+    recover: dict | None = None,
+) -> SlalomResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -140,7 +151,7 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[fl
     traits = traits or [Traits.sample(rng) for _ in range(len(layout["lanes"]))]
     lanes = make_lanes(m, d, layout, seed, traits, onnx, brains)
     poles = [{m.geom(f"pole{ln.k}_{g}").id for g in range(N_POLES)} for ln in lanes]
-    for ln in lanes:        # the course constants must match the physical poles
+    for ln in lanes:  # the course constants must match the physical poles
         for g in range(N_POLES):
             p = np.asarray(m.geom_pos[m.geom(f"pole{ln.k}_{g}").id]) - ln.origin
             assert abs(p[0] - (POLE_X0 + g * POLE_DX)) < 1e-6 and abs(p[1]) < 1e-6, (ln.k, g, p)
@@ -151,10 +162,11 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[fl
     touching = [False] * len(lanes)
     dt = m.opt.timestep * C.DECIMATION
     from .track import Recovery
+
     rec = Recovery(lanes, recover, dt)
     tick = 0
     while tick * dt < MAX_S:
-        xs = [float(d.qpos[ln.ath.root_qposadr] - ln.origin[0]) for ln in lanes]       # positions at the tick start
+        xs = [float(d.qpos[ln.ath.root_qposadr] - ln.origin[0]) for ln in lanes]  # positions at the tick start
         yw = [float(d.qpos[ln.ath.root_qposadr + 1]) for ln in lanes]
         racing = [not r.status for r in res]
         for i, ln in enumerate(lanes):
@@ -165,10 +177,14 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[fl
                 ln.control(ln.sess, d, np.zeros(3))
             else:
                 base_a = course_side(ln.k) * lines[i]
-                v, a = (brawler(i, xs, yw, racing, base_a, vx) if aggressive
-                        else tactician(i, xs, yw, racing, base_a, vx) if tactics
-                        else (vx, base_a))
-                ln.control(ln.sess, d, slalom_command(d.qpos[ra + 3: ra + 7], xs[i], yw[i] - ln.origin[1], a, v))
+                v, a = (
+                    brawler(i, xs, yw, racing, base_a, vx)
+                    if aggressive
+                    else tactician(i, xs, yw, racing, base_a, vx)
+                    if tactics
+                    else (vx, base_a)
+                )
+                ln.control(ln.sess, d, slalom_command(d.qpos[ra + 3 : ra + 7], xs[i], yw[i] - ln.origin[1], a, v))
         for s in range(C.DECIMATION):
             for ln in lanes:
                 ln.write_ctrl(d, s)
@@ -221,5 +237,8 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, lines: list[fl
 
 
 def to_json(res: SlalomResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

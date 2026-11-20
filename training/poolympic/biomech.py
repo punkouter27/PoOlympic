@@ -25,15 +25,15 @@ JOINT_GROUPS = ("abdomen", "shoulder", "elbow", "hip", "knee", "ankle")
 # Hill-type torque-velocity envelope: joint-group shortening speed at which the available torque reaches 0 (rad/s;
 # sprint data: knee ~20+, hip ~12-15, ankle ~15-20). MATT units — as in the reward, not Froude-scaled per body.
 HILL_W_MAX = {"abdomen": 8.0, "shoulder": 20.0, "elbow": 20.0, "hip": 15.0, "knee": 22.0, "ankle": 18.0}
-FATIGUE_EFFORT_REF = 0.25    # effort (share of the cap) that tires a fresh group in FATIGUE_TAU_LOAD seconds
-FATIGUE_TAU_LOAD = 10.0      # s at the reference effort from fresh to exhausted (no recovery term)
-FATIGUE_TAU_REST = 30.0      # s time constant of the recovery at rest
+FATIGUE_EFFORT_REF = 0.25  # effort (share of the cap) that tires a fresh group in FATIGUE_TAU_LOAD seconds
+FATIGUE_TAU_LOAD = 10.0  # s at the reference effort from fresh to exhausted (no recovery term)
+FATIGUE_TAU_REST = 30.0  # s time constant of the recovery at rest
 #   -> a sustained effort e settles at level min(1, 3 (e / 0.25)^2), 63 % of the way after 30 s. Measured on KIM's
 #      Rung 2 brain (G1 drill, action log, 2026-10-11): mean effort per group 0.03-0.10 overall (level 0.05-0.5),
 #      0.10-0.13 for hip / knee / ankle while sprinting (level 0.5-0.8 if held). The caps are peak isometric torques, so
 #      the reference sits at a quarter of them; with effort / cap alone (REF = 1) no group passed level 0.04 in 55 s.
 #      Game time scale (heats last 10-45 s), not physiology's minutes. All four constants are proposals to tune.
-FATIGUE_FLOOR = 0.6          # force cap scale of an exhausted group
+FATIGUE_FLOOR = 0.6  # force cap scale of an exhausted group
 
 
 def group_of(name: str) -> int:
@@ -45,7 +45,7 @@ def tables(actuator_names) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     gi = np.array([group_of(n) for n in actuator_names])
     mean = np.zeros((len(gi), len(JOINT_GROUPS)))
     mean[np.arange(len(gi)), gi] = 1.0
-    mean /= np.maximum(mean.sum(axis=0, keepdims=True), 1.0)      # a group without actuators stays at effort 0
+    mean /= np.maximum(mean.sum(axis=0, keepdims=True), 1.0)  # a group without actuators stays at effort 0
     return gi, mean, np.array([HILL_W_MAX[JOINT_GROUPS[g]] for g in gi])
 
 
@@ -77,7 +77,7 @@ class BioLimits:
         self.base = m.actuator_forcerange[ath.actuator_ids].copy()
         self.cap = np.abs(self.base).max(axis=1)
         self.gi, self.mean, self.w_max = tables(ath.actuator_names)
-        self.dt = float(m.opt.timestep) * 4              # contract.DECIMATION
+        self.dt = float(m.opt.timestep) * 4  # contract.DECIMATION
         self.reset(m)
 
     def reset(self, m) -> None:

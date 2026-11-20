@@ -18,29 +18,29 @@ Rank: athletes still in by total recovery time, then the eliminated (later = bet
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import math
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import mujoco
 import numpy as np
-import onnxruntime as ort
+import onnxruntime as ort  # noqa: F401  (kept from before the lint pass)
 
 from .. import action_log as AL
 from .. import contract as C
-from .iron_pedestal import Traits, _Lane, make_lanes
+from .iron_pedestal import Traits, make_lanes
 
 SCENE = C.ROOT / "assets" / "scene_shaker8.xml"
 LAYOUT = C.ROOT / "assets" / "shaker8_layout.json"
 START_S = 1.0
 ROUND_S = 4.0
 N_ROUNDS = 10
-GUST_START, GUST_STEP = 0.5, 0.05       # m/s — 0.5 recovers in ~1.2-2 s, 0.9 pushes ~1 in 4 off the 1.6 m platform
+GUST_START, GUST_STEP = 0.5, 0.05  # m/s — 0.5 recovers in ~1.2-2 s, 0.9 pushes ~1 in 4 off the 1.6 m platform
 GUST_SPREAD = math.radians(30)
-SHAKE_EVERY, SHAKE_V = 2, 2.0           # every 2nd round a 2 m/s platform jolt (~16 cm travel at 2 Hz)
+SHAKE_EVERY, SHAKE_V = 2, 2.0  # every 2nd round a 2 m/s platform jolt (~16 cm travel at 2 Hz)
 HOME_GAIN, HOME_V, HOME_DEADBAND = 1.5, 0.6, 0.08
 CALM_R, CALM_V, CALM_S = 0.15, 0.2, 0.5
-FLOOR_SEED = 5999                       # shared floor: jolt direction stream
+FLOOR_SEED = 5999  # shared floor: jolt direction stream
 
 
 def homing_command(quat: np.ndarray, x: float, y: float) -> np.ndarray:
@@ -79,7 +79,9 @@ class GauntletResult:
 
 
 @AL.logged("event_gauntlet")
-def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None, brains: dict | None = None) -> GauntletResult:
+def run_heat(
+    onnx, seed: int, traits: list[Traits] | None = None, scene=None, layout_path=None, brains: dict | None = None
+) -> GauntletResult:
     m = mujoco.MjModel.from_xml_path(str(scene or SCENE))
     d = mujoco.MjData(m)
     layout = json.loads(Path(layout_path or LAYOUT).read_text())
@@ -95,32 +97,35 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
     dt = m.opt.timestep * C.DECIMATION
     end_tick = round((START_S + N_ROUNDS * ROUND_S) / dt)
     round_ticks = {round((START_S + r * ROUND_S) / dt): r for r in range(N_ROUNDS)}
-    burst_t = [None] * len(lanes)      # time of the current round's burst while not yet recovered
+    burst_t = [None] * len(lanes)  # time of the current round's burst while not yet recovered
     calm = [0.0] * len(lanes)
     for tick in range(end_tick):
         for i, ln in enumerate(lanes):
             ra = ln.ath.root_qposadr
-            cmd = np.zeros(3) if res[i].out_at_s is not None else homing_command(
-                d.qpos[ra + 3: ra + 7], d.qpos[ra] - ln.origin[0], d.qpos[ra + 1] - ln.origin[1])
+            cmd = (
+                np.zeros(3)
+                if res[i].out_at_s is not None
+                else homing_command(d.qpos[ra + 3 : ra + 7], d.qpos[ra] - ln.origin[0], d.qpos[ra + 1] - ln.origin[1])
+            )
             ln.control(ln.sess, d, cmd)
         if tick in round_ticks:
             r = round_ticks[tick]
             dv = GUST_START + GUST_STEP * r
-            fa = floor.uniform(0, 2 * math.pi)       # shared floor jolt direction (drawn every round)
+            fa = floor.uniform(0, 2 * math.pi)  # shared floor jolt direction (drawn every round)
             if shared and r % SHAKE_EVERY == SHAKE_EVERY - 1 and any(x.out_at_s is None for x in res):
-                d.qvel[shaker[0]: shaker[0] + 2] += SHAKE_V * np.array([math.cos(fa), math.sin(fa)])
+                d.qvel[shaker[0] : shaker[0] + 2] += SHAKE_V * np.array([math.cos(fa), math.sin(fa)])
             for i, ln in enumerate(lanes):
                 g = dirs[i]
                 ux, uy = burst(g)
-                sa = g.uniform(0, 2 * math.pi)       # drawn every round so the sequence does not depend on SHAKE_EVERY
+                sa = g.uniform(0, 2 * math.pi)  # drawn every round so the sequence does not depend on SHAKE_EVERY
                 if res[i].out_at_s is not None:
                     continue
-                if burst_t[i] is not None:           # previous round never recovered
+                if burst_t[i] is not None:  # previous round never recovered
                     res[i].recoveries.append(ROUND_S)
                 da = ln.ath.root_dofadr
-                d.qvel[da: da + 2] += dv * np.array([ux, uy])
+                d.qvel[da : da + 2] += dv * np.array([ux, uy])
                 if not shared and r % SHAKE_EVERY == SHAKE_EVERY - 1:
-                    d.qvel[shaker[i]: shaker[i] + 2] += SHAKE_V * np.array([math.cos(sa), math.sin(sa)])
+                    d.qvel[shaker[i] : shaker[i] + 2] += SHAKE_V * np.array([math.cos(sa), math.sin(sa)])
                 burst_t[i], calm[i] = tick * dt, 0.0
         for s in range(C.DECIMATION):
             for ln in lanes:
@@ -156,5 +161,8 @@ def run_heat(onnx, seed: int, traits: list[Traits] | None = None, scene=None, la
 
 
 def to_json(res: GauntletResult) -> dict:
-    return {"seed": res.seed, "duration_s": res.duration_s,
-            "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes]}
+    return {
+        "seed": res.seed,
+        "duration_s": res.duration_s,
+        "lanes": [{**asdict(l), "traits": asdict(l.traits)} for l in res.lanes],
+    }

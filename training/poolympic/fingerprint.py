@@ -33,18 +33,29 @@ def fingerprint(m: mujoco.MjModel, athlete_prefix: str = "", cube_name: str = "c
     fp: dict = {
         "schema": 1,
         "option": {
-            "timestep": float(o.timestep), "gravity": _l(o.gravity), "integrator": int(o.integrator),
-            "cone": int(o.cone), "jacobian": int(o.jacobian), "solver": int(o.solver),
-            "iterations": int(o.iterations), "tolerance": float(o.tolerance),
-            "ls_iterations": int(o.ls_iterations), "ls_tolerance": float(o.ls_tolerance),
-            "impratio": float(o.impratio), "disableflags": int(o.disableflags), "enableflags": int(o.enableflags),
+            "timestep": float(o.timestep),
+            "gravity": _l(o.gravity),
+            "integrator": int(o.integrator),
+            "cone": int(o.cone),
+            "jacobian": int(o.jacobian),
+            "solver": int(o.solver),
+            "iterations": int(o.iterations),
+            "tolerance": float(o.tolerance),
+            "ls_iterations": int(o.ls_iterations),
+            "ls_tolerance": float(o.ls_tolerance),
+            "impratio": float(o.impratio),
+            "disableflags": int(o.disableflags),
+            "enableflags": int(o.enableflags),
         },
-        "bodies": {}, "joints": {}, "geoms": {}, "actuators": {},
+        "bodies": {},
+        "joints": {},
+        "geoms": {},
+        "actuators": {},
     }
 
     def keep(name: str) -> str | None:
         if athlete_prefix:
-            return name[len(athlete_prefix):] if name.startswith(athlete_prefix) else None
+            return name[len(athlete_prefix) :] if name.startswith(athlete_prefix) else None
         return name
 
     for b in range(1, m.nbody):
@@ -56,8 +67,12 @@ def fingerprint(m: mujoco.MjModel, athlete_prefix: str = "", cube_name: str = "c
         parent = m.body(m.body_parentid[b]).name
         fp["bodies"][key] = {
             "parent": "world" if m.body_parentid[b] == 0 else (keep(parent) or parent),
-            "pos": _l(m.body_pos[b]), "quat": _l(m.body_quat[b]), "mass": float(m.body_mass[b]),
-            "inertia": _l(m.body_inertia[b]), "ipos": _l(m.body_ipos[b]), "iquat": _l(m.body_iquat[b]),
+            "pos": _l(m.body_pos[b]),
+            "quat": _l(m.body_quat[b]),
+            "mass": float(m.body_mass[b]),
+            "inertia": _l(m.body_inertia[b]),
+            "ipos": _l(m.body_ipos[b]),
+            "iquat": _l(m.body_iquat[b]),
             "gravcomp": float(m.body_gravcomp[b]),
         }
         if is_cube:
@@ -71,12 +86,21 @@ def fingerprint(m: mujoco.MjModel, athlete_prefix: str = "", cube_name: str = "c
             continue
         d = m.jnt_dofadr[j]
         fp["joints"][key] = {
-            "type": int(m.jnt_type[j]), "body": keep(body), "pos": _l(m.jnt_pos[j]), "axis": _l(m.jnt_axis[j]),
-            "limited": int(m.jnt_limited[j]), "range": _l(m.jnt_range[j]), "stiffness": float(m.jnt_stiffness[j]),
-            "springref": float(m.qpos_spring[m.jnt_qposadr[j]]) if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE else None,
-            "armature": float(m.dof_armature[d]), "damping": float(m.dof_damping[d]),
+            "type": int(m.jnt_type[j]),
+            "body": keep(body),
+            "pos": _l(m.jnt_pos[j]),
+            "axis": _l(m.jnt_axis[j]),
+            "limited": int(m.jnt_limited[j]),
+            "range": _l(m.jnt_range[j]),
+            "stiffness": float(m.jnt_stiffness[j]),
+            "springref": float(m.qpos_spring[m.jnt_qposadr[j]])
+            if m.jnt_type[j] == mujoco.mjtJoint.mjJNT_HINGE
+            else None,
+            "armature": float(m.dof_armature[d]),
+            "damping": float(m.dof_damping[d]),
             "frictionloss": float(m.dof_frictionloss[d]),
-            "solref": _l(m.jnt_solref[j]), "solimp": _l(m.jnt_solimp[j]),
+            "solref": _l(m.jnt_solref[j]),
+            "solimp": _l(m.jnt_solimp[j]),
         }
     for g in range(m.ngeom):
         body = m.body(m.geom_bodyid[g]).name
@@ -92,27 +116,43 @@ def fingerprint(m: mujoco.MjModel, athlete_prefix: str = "", cube_name: str = "c
             if key is None:
                 continue
         fp["geoms"][key] = {
-            "type": int(m.geom_type[g]), "body": "world" if body == "world" else (keep(body) or body),
+            "type": int(m.geom_type[g]),
+            "body": "world" if body == "world" else (keep(body) or body),
             "size": _l(m.geom_size[g]) if name != "ground" else None,  # plane extent is visual only
             "pos": _l(m.geom_pos[g]) if body != cube_name else _l(m.geom_pos[g]),
-            "quat": _l(m.geom_quat[g]), "contype": int(m.geom_contype[g]), "conaffinity": int(m.geom_conaffinity[g]),
-            "condim": int(m.geom_condim[g]), "friction": _l(m.geom_friction[g]), "solref": _l(m.geom_solref[g]),
-            "solimp": _l(m.geom_solimp[g]), "solmix": float(m.geom_solmix[g]), "margin": float(m.geom_margin[g]),
-            "gap": float(m.geom_gap[g]), "priority": int(m.geom_priority[g]),
+            "quat": _l(m.geom_quat[g]),
+            "contype": int(m.geom_contype[g]),
+            "conaffinity": int(m.geom_conaffinity[g]),
+            "condim": int(m.geom_condim[g]),
+            "friction": _l(m.geom_friction[g]),
+            "solref": _l(m.geom_solref[g]),
+            "solimp": _l(m.geom_solimp[g]),
+            "solmix": float(m.geom_solmix[g]),
+            "margin": float(m.geom_margin[g]),
+            "gap": float(m.geom_gap[g]),
+            "priority": int(m.geom_priority[g]),
         }
     for a in range(m.nu):
         key = keep(m.actuator(a).name)
         if key is None:
             continue
         fp["actuators"][key] = {
-            "joint": keep(m.joint(m.actuator_trnid[a, 0]).name), "dyntype": int(m.actuator_dyntype[a]),
-            "gaintype": int(m.actuator_gaintype[a]), "biastype": int(m.actuator_biastype[a]),
-            "gainprm": _l(m.actuator_gainprm[a, :3]), "biasprm": _l(m.actuator_biasprm[a, :3]),
-            "gear": float(m.actuator_gear[a, 0]), "ctrllimited": int(m.actuator_ctrllimited[a]),
-            "forcelimited": int(m.actuator_forcelimited[a]), "forcerange": _l(m.actuator_forcerange[a]),
+            "joint": keep(m.joint(m.actuator_trnid[a, 0]).name),
+            "dyntype": int(m.actuator_dyntype[a]),
+            "gaintype": int(m.actuator_gaintype[a]),
+            "biastype": int(m.actuator_biastype[a]),
+            "gainprm": _l(m.actuator_gainprm[a, :3]),
+            "biasprm": _l(m.actuator_biasprm[a, :3]),
+            "gear": float(m.actuator_gear[a, 0]),
+            "ctrllimited": int(m.actuator_ctrllimited[a]),
+            "forcelimited": int(m.actuator_forcelimited[a]),
+            "forcerange": _l(m.actuator_forcerange[a]),
         }
-    fp["counts"] = {"athlete_bodies": sum(1 for k in fp["bodies"] if k != "cube"),
-                    "athlete_joints": len(fp["joints"]), "athlete_actuators": len(fp["actuators"])}
+    fp["counts"] = {
+        "athlete_bodies": sum(1 for k in fp["bodies"] if k != "cube"),
+        "athlete_joints": len(fp["joints"]),
+        "athlete_actuators": len(fp["actuators"]),
+    }
     return fp
 
 
@@ -126,7 +166,7 @@ def excludes(m: mujoco.MjModel, athlete_prefix: str = "") -> str:
         a, b = m.body(int(sig) >> 16).name, m.body(int(sig) & 0xFFFF).name
         if athlete_prefix and not (a.startswith(athlete_prefix) and b.startswith(athlete_prefix)):
             continue
-        out.append("|".join(sorted((a[len(athlete_prefix):], b[len(athlete_prefix):]))))
+        out.append("|".join(sorted((a[len(athlete_prefix) :], b[len(athlete_prefix) :]))))
     return ",".join(sorted(out))
 
 
@@ -147,6 +187,7 @@ def canonical_bytes(fp: dict) -> bytes:
 def write_python_fingerprint(scene_xml: Path | None = None) -> tuple[Path, str]:
     """Fingerprint of the current body's scene ($POOLYMPIC_BODY): parity/fingerprint_python[_<body>].json + .sha256."""
     from . import bodies
+
     body = bodies.current()
     m = mujoco.MjModel.from_xml_path(str(scene_xml or body.scene_xml))
     fp = fingerprint(m)
@@ -218,6 +259,7 @@ def compare(a: dict, b: dict, path: str = "") -> list[str]:
 def main(argv: list[str]) -> int:
     if len(argv) == 2:
         from . import bodies
+
         unity = json.loads(Path(argv[1]).read_text())
         errs = excludes_mismatch(mujoco.MjModel.from_xml_path(str(bodies.current().scene_xml)), unity)
         errs += compare(normalize_for_compare(json.loads(Path(argv[0]).read_text())), normalize_for_compare(unity))

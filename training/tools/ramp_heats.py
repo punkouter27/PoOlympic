@@ -22,7 +22,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 def main() -> None:
     import fit_odds as F
+
     from poolympic.events import track
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--heats", type=int, default=4)
     ap.add_argument("--brain", action="append", default=[], help="body=brain.onnx instead of the deployed Rung 2 brain")
@@ -45,9 +47,11 @@ def main() -> None:
             per[l.body].append(l)
     for body, ls in per.items():
         fin = [l.finish_s for l in ls if l.status == "FINISHED"]
-        print(f"{body:8s} finished {len(fin)} of {len(ls)}  fell {sum(l.status == 'FELL' for l in ls)}  "
-              f"dnf {sum(l.status == 'DNF' for l in ls)}  mean finish {np.mean(fin) if fin else float('nan'):.1f} s  "
-              f"peak {np.mean([l.peak_mps for l in ls]):.2f} m/s")
+        print(
+            f"{body:8s} finished {len(fin)} of {len(ls)}  fell {sum(l.status == 'FELL' for l in ls)}  "
+            f"dnf {sum(l.status == 'DNF' for l in ls)}  mean finish {np.mean(fin) if fin else float('nan'):.1f} s  "
+            f"peak {np.mean([l.peak_mps for l in ls]):.2f} m/s"
+        )
     if a.out:
         a.out.write_text(json.dumps(runs, indent=1))
         print("->", a.out)

@@ -95,7 +95,7 @@ class SkillSim(E.Sim):
 @dataclass
 class StanceResult:
     seed: int
-    drills: dict = field(default_factory=dict)       # name -> {"pass": bool, ...details}
+    drills: dict = field(default_factory=dict)  # name -> {"pass": bool, ...details}
 
     @property
     def passed(self) -> bool:
@@ -114,7 +114,9 @@ def drill_squat(sim: SkillSim, rng: np.random.Generator) -> dict:
         for target, hold in ((-rng.uniform(0.25, 0.40), 2.5), (0.0, 2.0)):
             sim.skill = C.SkillCommand(pelvis_height=target).to_array()
             buf = []
-            fall = fall or sim.run(hold, lambda t: buf.append(K.pelvis_height_rel(sim.d, sim.sb)) if t > hold - 1.0 else None)
+            fall = fall or sim.run(
+                hold, lambda t: buf.append(K.pelvis_height_rel(sim.d, sim.sb)) if t > hold - 1.0 else None
+            )
             errs.append(abs(float(np.mean(buf)) - target) if buf else 9.9)
     worst = max(errs)
     return {"pass": fall is None and worst < SQUAT_TOL, "fall": fall, "worst_err_m": round(worst, 4)}
@@ -126,7 +128,7 @@ def drill_flamingo(sim: SkillSim, rng: np.random.Generator) -> dict:
     # at the next three gates). Seeds now differ by an extra settle of 0-1 s and by which foot goes first.
     fall = fall or sim.run(float(rng.uniform(0.0, 1.0)))
     touch, slip = 0, 0.0
-    for foot in (("l", "r") if rng.uniform() < 0.5 else ("r", "l")):
+    for foot in ("l", "r") if rng.uniform() < 0.5 else ("r", "l"):
         sim.skill = C.SkillCommand(lift_foot=foot).to_array()
         k = 0 if foot == "l" else 1
         stance = 1 - k
@@ -145,8 +147,12 @@ def drill_flamingo(sim: SkillSim, rng: np.random.Generator) -> dict:
         fall = fall or sim.run(8.0, sample)
         sim.skill = np.zeros(C.SKILL_DIM)
         fall = fall or sim.run(1.5)
-    return {"pass": fall is None and touch == 0 and slip < FLAMINGO_SLIP, "fall": fall, "touch_ticks": touch,
-            "stance_slip_m": round(slip, 4)}
+    return {
+        "pass": fall is None and touch == 0 and slip < FLAMINGO_SLIP,
+        "fall": fall,
+        "touch_ticks": touch,
+        "stance_slip_m": round(slip, 4),
+    }
 
 
 def drill_march(sim: SkillSim, rng: np.random.Generator) -> dict:
@@ -158,7 +164,7 @@ def drill_march(sim: SkillSim, rng: np.random.Generator) -> dict:
 
     def sample(t):
         nonlocal drift
-        if t >= 2.0:                       # after 2 s of marching
+        if t >= 2.0:  # after 2 s of marching
             rise.append(K.knee_rise(sim.d, sim.sb)[0])
         drift = max(drift, float(np.linalg.norm(sim.pelvis()[:2] - p0)))
 
@@ -166,7 +172,7 @@ def drill_march(sim: SkillSim, rng: np.random.Generator) -> dict:
     r = np.array(rise)
     thr = 0.5 * lift
     peaks, starts, i = [], [], 0
-    while i < len(r):                      # one peak per excursion above half the lift
+    while i < len(r):  # one peak per excursion above half the lift
         if r[i] > thr:
             j = i
             while j < len(r) and r[j] > thr:
@@ -184,11 +190,22 @@ def drill_march(sim: SkillSim, rng: np.random.Generator) -> dict:
     # against the 5 % tolerance (seed 1006 failed on exactly that with every brain).
     cadence = ((len(starts) - 1) / ((starts[-1] - starts[0]) * TICK)) if len(starts) >= 3 else count_cadence
     mean_peak = float(np.mean(peaks)) if peaks else 0.0
-    ok = (fall is None and abs(cadence - hz) <= MARCH_CADENCE_TOL * hz and mean_peak >= MARCH_LIFT_FRAC * lift
-          and drift < MARCH_DRIFT)
-    return {"pass": bool(ok), "fall": fall, "cadence_cmd_hz": round(hz, 3), "cadence_hz": round(cadence, 3),
-            "cadence_count_hz": round(count_cadence, 3),
-            "lift_cmd_m": round(lift, 3), "mean_peak_m": round(mean_peak, 3), "drift_m": round(drift, 3)}
+    ok = (
+        fall is None
+        and abs(cadence - hz) <= MARCH_CADENCE_TOL * hz
+        and mean_peak >= MARCH_LIFT_FRAC * lift
+        and drift < MARCH_DRIFT
+    )
+    return {
+        "pass": bool(ok),
+        "fall": fall,
+        "cadence_cmd_hz": round(hz, 3),
+        "cadence_hz": round(cadence, 3),
+        "cadence_count_hz": round(count_cadence, 3),
+        "lift_cmd_m": round(lift, 3),
+        "mean_peak_m": round(mean_peak, 3),
+        "drift_m": round(drift, 3),
+    }
 
 
 def drill_torso(sim: SkillSim, rng: np.random.Generator) -> dict:
@@ -207,8 +224,12 @@ def drill_torso(sim: SkillSim, rng: np.random.Generator) -> dict:
         else:
             worst = 9.9
     slip = float(np.linalg.norm(sim.feet_xy() - feet0, axis=1).max())
-    return {"pass": fall is None and worst < TORSO_TOL and slip < FEET_SLIP, "fall": fall,
-            "worst_err_rad": round(worst, 4), "feet_slip_m": round(slip, 4)}
+    return {
+        "pass": fall is None and worst < TORSO_TOL and slip < FEET_SLIP,
+        "fall": fall,
+        "worst_err_rad": round(worst, 4),
+        "feet_slip_m": round(slip, 4),
+    }
 
 
 def drill_reach(sim: SkillSim, rng: np.random.Generator) -> dict:
@@ -224,12 +245,21 @@ def drill_reach(sim: SkillSim, rng: np.random.Generator) -> dict:
         fall = fall or sim.run(2.0, lambda t: buf.append(K.hand_in_heading(sim.d, sim.sb, arm)) if t > 1.25 else None)
         worst = max(worst, float(np.linalg.norm(np.mean(buf, axis=0) - target)) if buf else 9.9)
     slip = float(np.linalg.norm(sim.feet_xy() - feet0, axis=1).max())
-    return {"pass": fall is None and worst < REACH_TOL and slip < FEET_SLIP, "fall": fall,
-            "worst_err_m": round(worst, 4), "feet_slip_m": round(slip, 4)}
+    return {
+        "pass": fall is None and worst < REACH_TOL and slip < FEET_SLIP,
+        "fall": fall,
+        "worst_err_m": round(worst, 4),
+        "feet_slip_m": round(slip, 4),
+    }
 
 
-DRILLS = {"E3_squat": drill_squat, "E6_flamingo": drill_flamingo, "E7_march": drill_march,
-          "E2_torso": drill_torso, "E4_reach": drill_reach}
+DRILLS = {
+    "E3_squat": drill_squat,
+    "E6_flamingo": drill_flamingo,
+    "E7_march": drill_march,
+    "E2_torso": drill_torso,
+    "E4_reach": drill_reach,
+}
 
 
 @E.AL.logged("rungS", passed=lambda r: r.passed)

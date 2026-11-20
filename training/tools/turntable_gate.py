@@ -20,12 +20,17 @@ sys.path.insert(0, str(ROOT))
 
 def one(job: tuple[str, int]) -> dict:
     from poolympic.events import turntable
+
     brain, seed = job
     res = turntable.run_heat(Path(brain), seed=seed)
     done = [l for l in res.lanes if l.status == "DONE"]
-    return {"seed": seed, "done": len(done), "statuses": [l.status for l in res.lanes],
-            "max_drift": [round(l.max_drift_m, 3) for l in res.lanes],
-            "time": [round(l.time_s, 2) for l in done]}
+    return {
+        "seed": seed,
+        "done": len(done),
+        "statuses": [l.status for l in res.lanes],
+        "max_drift": [round(l.max_drift_m, 3) for l in res.lanes],
+        "time": [round(l.time_s, 2) for l in done],
+    }
 
 
 def main() -> int:

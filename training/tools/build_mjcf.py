@@ -132,11 +132,17 @@ MATT_GAINS = {  # kp (Nm/rad), kv (Nm s/rad), force cap (Nm), armature
 # size scaling: stiffness and torque cap ∝ mass × length × strength, damping additionally × time scale, armature ∝ m l²
 # (Body.stiffness scales kp / kv separately from the cap: GRANDMA is weak but not floppy)
 _TS, _IS, _TT, _GS = BODY.torque_scale, BODY.inertia_scale, BODY.time_scale, BODY.gain_scale
-GAINS = MATT_GAINS if BODY.name == "matt" else {
-    k: (kp * _GS, kv * _GS * _TT, cap * _TS, arm * _IS) for k, (kp, kv, cap, arm) in MATT_GAINS.items()}
-_PS = BODY.mass_scale * L        # passive toe spring: size-scaled, not weakened
-TOE_PASSIVE = dict(stiffness=20.0, damping=1.0, armature=0.005) if BODY.name == "matt" else dict(
-    stiffness=20.0 * _PS, damping=1.0 * _PS * _TT, armature=0.005 * _IS)
+GAINS = (
+    MATT_GAINS
+    if BODY.name == "matt"
+    else {k: (kp * _GS, kv * _GS * _TT, cap * _TS, arm * _IS) for k, (kp, kv, cap, arm) in MATT_GAINS.items()}
+)
+_PS = BODY.mass_scale * L  # passive toe spring: size-scaled, not weakened
+TOE_PASSIVE = (
+    dict(stiffness=20.0, damping=1.0, armature=0.005)
+    if BODY.name == "matt"
+    else dict(stiffness=20.0 * _PS, damping=1.0 * _PS * _TT, armature=0.005 * _IS)
+)
 
 ABDOMEN = [
     JointSpec("abdomen_flex", (0, 1, 0), (-30, 60), "abdomen"),
@@ -163,8 +169,16 @@ ELBOW = [JointSpec("elbow", (0, 0, -1), (0, 145), "elbow", 15.0)]
 
 # de Leva (1996) adult male, scaled to 80 kg (DESIGN §2; torso = Spine + Spine1 segments).
 MASS = {
-    "pelvis": 8.94, "torso": 13.06, "chest": 12.77, "head": 5.55,
-    "upper_arm": 2.17, "forearm": 1.79, "thigh": 11.33, "shin": 3.46, "foot": 0.85, "toe": 0.25,
+    "pelvis": 8.94,
+    "torso": 13.06,
+    "chest": 12.77,
+    "head": 5.55,
+    "upper_arm": 2.17,
+    "forearm": 1.79,
+    "thigh": 11.33,
+    "shin": 3.46,
+    "foot": 0.85,
+    "toe": 0.25,
 }
 
 
@@ -191,8 +205,15 @@ def body_specs() -> list[BodySpec]:
         fingers = [f"{S}Hand{n}{i}" for n in ("Thumb", "Index", "Middle", "Ring", "Pinky") for i in (1, 2, 3)]
         specs += [
             BodySpec(f"upper_arm_{side}", "chest", f"{S}Arm", [f"{S}Arm"], "upper_arm", SHOULDER, side=side),
-            BodySpec(f"forearm_{side}", f"upper_arm_{side}", f"{S}ForeArm", [f"{S}ForeArm", f"{S}Hand", *fingers],
-                     "forearm", ELBOW, side=side),
+            BodySpec(
+                f"forearm_{side}",
+                f"upper_arm_{side}",
+                f"{S}ForeArm",
+                [f"{S}ForeArm", f"{S}Hand", *fingers],
+                "forearm",
+                ELBOW,
+                side=side,
+            ),
             BodySpec(f"thigh_{side}", "pelvis", f"{S}UpLeg", [f"{S}UpLeg"], "thigh", HIP, leg=True, side=side),
             BodySpec(f"shin_{side}", f"thigh_{side}", f"{S}Leg", [f"{S}Leg"], "shin", KNEE, leg=True, side=side),
             BodySpec(f"foot_{side}", f"shin_{side}", f"{S}Foot", [f"{S}Foot"], "foot", ANKLE, leg=True, side=side),
@@ -217,7 +238,9 @@ class Skin:
         keep = np.array([("hair" not in mesh_names[m]) for m in z["mesh"]])  # hair is visual only
         self.verts = z["verts"][keep]
         self.dom = np.array(names)[z["dominant"][keep]]
-        self.sole_z = float(self.verts[np.isin(self.dom, ["LeftFoot", "LeftToeBase", "RightFoot", "RightToeBase"]), 2].min())
+        self.sole_z = float(
+            self.verts[np.isin(self.dom, ["LeftFoot", "LeftToeBase", "RightFoot", "RightToeBase"]), 2].min()
+        )
 
     def of(self, bones: list[str]) -> np.ndarray:
         return self.verts[np.isin(self.dom, bones)]
@@ -299,12 +322,20 @@ def fit_geoms(skin: Skin) -> dict[str, list[dict]]:
     heel_x = float(np.percentile(foot_v[:, 0], 0.5))
     if BODY.family != "matt":
         # AccuRig weights the heel skin to the calf: take the heel from all skin near the sole under this foot
-        sole = skin.verts[(skin.verts[:, 2] < skin.sole_z + 0.03 * L)
-                          & (np.abs(skin.verts[:, 1] - J["LeftFoot"][1]) < 0.07 * L)]
+        sole = skin.verts[
+            (skin.verts[:, 2] < skin.sole_z + 0.03 * L) & (np.abs(skin.verts[:, 1] - J["LeftFoot"][1]) < 0.07 * L)
+        ]
         heel_x = float(np.percentile(sole[:, 0], 0.5))
     g["foot_l"] = [fit_box(foot_v, heel_x, toe_x, skin.sole_z, 0.06 * L)]
-    g["toe_l"] = [fit_box(foot_v[foot_v[:, 0] > toe_x - 0.01 * L], toe_x, float(np.percentile(foot_v[:, 0], 99.5)),
-                          skin.sole_z, 0.035 * L)]
+    g["toe_l"] = [
+        fit_box(
+            foot_v[foot_v[:, 0] > toe_x - 0.01 * L],
+            toe_x,
+            float(np.percentile(foot_v[:, 0], 99.5)),
+            skin.sole_z,
+            0.035 * L,
+        )
+    ]
     for b in ("upper_arm", "forearm", "thigh", "shin", "foot", "toe"):
         g[f"{b}_r"] = [mirror_geom(x) for x in g[f"{b}_l"]]
     return g
@@ -330,10 +361,11 @@ def joint_axis(js: JointSpec, side: str) -> np.ndarray:
     return a
 
 
-def build_robot(skin: Skin, geoms, inertials=None, lane: int = LANE, crowd: bool = False) -> tuple[ET.Element, list, list]:
+def build_robot(
+    skin: Skin, geoms, inertials=None, lane: int = LANE, crowd: bool = False
+) -> tuple[ET.Element, list, list]:
     """Returns (<body name="pelvis"> element, actuator specs, joint specs in qpos order)."""
     specs = body_specs()
-    by_name = {s.name: s for s in specs}
     pivot = {s.name: skin.joint_pos[s.pivot_bone] for s in specs}
     elems: dict[str, ET.Element] = {}
     actuators, joints_in_order = [], []
@@ -345,14 +377,27 @@ def build_robot(skin: Skin, geoms, inertials=None, lane: int = LANE, crowd: bool
         elems[s.name] = el
         if inertials:
             ine = inertials[s.name]
-            ET.SubElement(el, "inertial", {"pos": vec(ine["pos"]), "quat": vec(ine["quat"]),
-                                           "mass": f(ine["mass"]), "diaginertia": vec(ine["diag"])})
+            ET.SubElement(
+                el,
+                "inertial",
+                {
+                    "pos": vec(ine["pos"]),
+                    "quat": vec(ine["quat"]),
+                    "mass": f(ine["mass"]),
+                    "diaginertia": vec(ine["diag"]),
+                },
+            )
         if s.parent is None:
             ET.SubElement(el, "freejoint", {"name": "root"})
         for js in s.joints:
             jname = f"{js.name}_{s.side}" if s.side else js.name
-            ja = {"name": jname, "type": "hinge", "pos": "0 0 0", "axis": vec(joint_axis(js, s.side)),
-                  "range": f"{js.range_deg[0]} {js.range_deg[1]}"}
+            ja = {
+                "name": jname,
+                "type": "hinge",
+                "pos": "0 0 0",
+                "axis": vec(joint_axis(js, s.side)),
+                "range": f"{js.range_deg[0]} {js.range_deg[1]}",
+            }
             if js.group is None:
                 ja.update({k: f(v) for k, v in TOE_PASSIVE.items()})
             else:
@@ -360,12 +405,19 @@ def build_robot(skin: Skin, geoms, inertials=None, lane: int = LANE, crowd: bool
                 actuators.append((jname, js.group))
             ET.SubElement(el, "joint", ja)
             joints_in_order.append((jname, js))
-        ct, ca = lane_bits(lane, s.leg or BODY.self_collision)   # self-colliding body: every geom on the leg bit
+        ct, ca = lane_bits(lane, s.leg or BODY.self_collision)  # self-colliding body: every geom on the leg bit
         if crowd:
             ct, ca = crowd_bits(ct, ca, lane)
         for gi, g in enumerate(geoms[s.name]):
-            ga = {"name": f"{s.name}_geom{gi}", "type": g["type"], "size": vec(g["size"]),
-                  "contype": str(ct), "conaffinity": str(ca), "condim": "3", "friction": vec(BODY_FRICTION)}
+            ga = {
+                "name": f"{s.name}_geom{gi}",
+                "type": g["type"],
+                "size": vec(g["size"]),
+                "contype": str(ct),
+                "conaffinity": str(ca),
+                "condim": "3",
+                "friction": vec(BODY_FRICTION),
+            }
             if not inertials:
                 ga["density"] = "1000"
             if "fromto" in g:
@@ -394,19 +446,39 @@ def actuator_block(parent: ET.Element, actuators):
     for jname, group in actuators:
         kp, kv, cap, _arm = GAINS[group]
         lo, hi = -cap, cap
-        if BODY.torque_caps:        # joint- and direction-specific caps (bodies.BIO_TORQUE_CAPS), never above the group cap
+        if BODY.torque_caps:  # joint- and direction-specific caps (bodies.BIO_TORQUE_CAPS), never above the group cap
             base = jname[:-2] if jname.endswith(("_l", "_r")) else jname
             against, towards = BODY.torque_caps[base]
             lo, hi = -min(against, cap), min(towards, cap)
-        ET.SubElement(act, "position", {"name": jname, "joint": jname, "kp": f(kp), "kv": f(kv),
-                                        "forcelimited": "true", "forcerange": f"{f(lo)} {f(hi)}"})
+        ET.SubElement(
+            act,
+            "position",
+            {
+                "name": jname,
+                "joint": jname,
+                "kp": f(kp),
+                "kv": f(kv),
+                "forcelimited": "true",
+                "forcerange": f"{f(lo)} {f(hi)}",
+            },
+        )
 
 
 def option_block(root: ET.Element):
     ET.SubElement(root, "compiler", {"angle": "degree", "autolimits": "true"})
-    ET.SubElement(root, "option", {"timestep": f(TIMESTEP), "gravity": "0 0 -9.81", "integrator": "implicitfast",
-                                   "solver": "Newton", "iterations": str(SOLVER_ITERATIONS), "cone": "pyramidal",
-                                   "jacobian": "auto"})
+    ET.SubElement(
+        root,
+        "option",
+        {
+            "timestep": f(TIMESTEP),
+            "gravity": "0 0 -9.81",
+            "integrator": "implicitfast",
+            "solver": "Newton",
+            "iterations": str(SOLVER_ITERATIONS),
+            "cone": "pyramidal",
+            "jacobian": "auto",
+        },
+    )
     # Explicit: the Unity plug-in (3.11) defaults MultiCCD to "disable" while MuJoCo defaults it on — pin it (G0).
     ET.SubElement(root.find("option"), "flag", {"multiccd": "disable"})
 
@@ -416,25 +488,45 @@ def indent(el: ET.Element) -> str:
     return ET.tostring(el, encoding="unicode")
 
 
-def compose_model(skin, geoms, inertials, with_scene: bool, n_cubes: int, default_qpos=None,
-                  pedestal_h: float = 0.0) -> str:
+def compose_model(
+    skin, geoms, inertials, with_scene: bool, n_cubes: int, default_qpos=None, pedestal_h: float = 0.0
+) -> str:
     """pedestal_h > 0: Iron Pedestal scene — ground plane at z = -pedestal_h, a static 1 m x 1 m box with its top at z = 0
     under the athlete (same surface as the ground), parked cubes lowered onto the ground."""
-    root = ET.Element("mujoco", {"model": ("pedestal_scene" if pedestal_h else f"{BODY.name}_scene") if with_scene else BODY.name})
+    root = ET.Element(
+        "mujoco", {"model": ("pedestal_scene" if pedestal_h else f"{BODY.name}_scene") if with_scene else BODY.name}
+    )
     option_block(root)
     wb = ET.SubElement(root, "worldbody")
     if with_scene:
         ET.SubElement(wb, "light", {"name": "sun", "pos": "0 0 5", "dir": "0 0 -1", "directional": "true"})
-        ground = {"name": "ground", "type": "plane", "size": "0 0 0.05", "contype": str(ALL_BITS),
-                  "conaffinity": str(ALL_BITS), "condim": "3", "friction": vec(GROUND_FRICTION)}
+        ground = {
+            "name": "ground",
+            "type": "plane",
+            "size": "0 0 0.05",
+            "contype": str(ALL_BITS),
+            "conaffinity": str(ALL_BITS),
+            "condim": "3",
+            "friction": vec(GROUND_FRICTION),
+        }
         if pedestal_h:
             ground["pos"] = vec([0, 0, -pedestal_h])
         ET.SubElement(wb, "geom", ground)
         if pedestal_h:
-            ET.SubElement(wb, "geom", {"name": "pedestal", "type": "box", "pos": vec([0, 0, -pedestal_h / 2]),
-                                       "size": vec([PEDESTAL_HALF, PEDESTAL_HALF, pedestal_h / 2]),
-                                       "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                                       "friction": vec(GROUND_FRICTION)})
+            ET.SubElement(
+                wb,
+                "geom",
+                {
+                    "name": "pedestal",
+                    "type": "box",
+                    "pos": vec([0, 0, -pedestal_h / 2]),
+                    "size": vec([PEDESTAL_HALF, PEDESTAL_HALF, pedestal_h / 2]),
+                    "contype": str(ALL_BITS),
+                    "conaffinity": str(ALL_BITS),
+                    "condim": "3",
+                    "friction": vec(GROUND_FRICTION),
+                },
+            )
     pelvis, actuators, joints = build_robot(skin, geoms, inertials)
     # Declare actuators in joint-tree (depth-first) order == MuJoCo joint id order. mjlab's XmlActuator pairs joint
     # targets (joint order) with ctrl slots (declaration order); any other order silently scrambles the action wiring.
@@ -447,9 +539,19 @@ def compose_model(skin, geoms, inertials, with_scene: bool, n_cubes: int, defaul
             cb = ET.SubElement(wb, "body", {"name": f"cube{i}", "pos": vec(cube_park_pos(i) - [0, 0, pedestal_h])})
             ET.SubElement(cb, "inertial", {"pos": "0 0 0", "mass": f(CUBE_MASS), "diaginertia": vec([inertia] * 3)})
             ET.SubElement(cb, "freejoint", {"name": f"cube{i}_free"})
-            ET.SubElement(cb, "geom", {"name": f"cube{i}_geom", "type": "box", "size": vec([CUBE_HALF] * 3),
-                                       "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                                       "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001"})
+            ET.SubElement(
+                cb,
+                "geom",
+                {
+                    "name": f"cube{i}_geom",
+                    "type": "box",
+                    "size": vec([CUBE_HALF] * 3),
+                    "contype": str(ALL_BITS),
+                    "conaffinity": str(ALL_BITS),
+                    "condim": "3",
+                    "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001",
+                },
+            )
     # Inner thighs overlap at rest (hip pivots 0.172 m apart, thigh radius ~0.089 m): exclude that pair only;
     # shin/foot/toe still collide across legs (leg-crossing detection).
     contact = ET.SubElement(root, "contact")
@@ -464,27 +566,72 @@ def compose_model(skin, geoms, inertials, with_scene: bool, n_cubes: int, defaul
 
 def static_box(parent: ET.Element, name: str, pos, size) -> None:
     """A static event prop (collides with every lane)."""
-    ET.SubElement(parent, "geom", {"name": name, "type": "box", "pos": vec(pos), "size": vec(size),
-                                   "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                                   "friction": vec(GROUND_FRICTION)})
+    ET.SubElement(
+        parent,
+        "geom",
+        {
+            "name": name,
+            "type": "box",
+            "pos": vec(pos),
+            "size": vec(size),
+            "contype": str(ALL_BITS),
+            "conaffinity": str(ALL_BITS),
+            "condim": "3",
+            "friction": vec(GROUND_FRICTION),
+        },
+    )
 
 
 def shaker_body(parent: ET.Element, prefix: str, pos, sh: dict) -> np.ndarray:
     """Spring-mounted platform (body/geom `<prefix>shaker`, slide joints `<prefix>shaker_x/_y`, top at z = 0 when pos is
     the athlete spot). sh["half"]: half side (square) or [half x, half y]. Returns its 2 keyframe qpos."""
     hx, hy = (sh["half"], sh["half"]) if np.isscalar(sh["half"]) else sh["half"]
-    body = ET.SubElement(parent, "body", {"name": prefix + "shaker", "pos": vec(np.asarray(pos, float) + [0, 0, -sh["h"] / 2])})
+    body = ET.SubElement(
+        parent, "body", {"name": prefix + "shaker", "pos": vec(np.asarray(pos, float) + [0, 0, -sh["h"] / 2])}
+    )
     half = [hx, hy, sh["h"] / 2]
-    ET.SubElement(body, "inertial", {"pos": "0 0 0", "mass": f(sh["mass"]), "diaginertia": vec(
-        [sh["mass"] * (half[1] ** 2 + half[2] ** 2) / 3, sh["mass"] * (half[0] ** 2 + half[2] ** 2) / 3,
-         sh["mass"] * (half[0] ** 2 + half[1] ** 2) / 3])})
+    ET.SubElement(
+        body,
+        "inertial",
+        {
+            "pos": "0 0 0",
+            "mass": f(sh["mass"]),
+            "diaginertia": vec(
+                [
+                    sh["mass"] * (half[1] ** 2 + half[2] ** 2) / 3,
+                    sh["mass"] * (half[0] ** 2 + half[2] ** 2) / 3,
+                    sh["mass"] * (half[0] ** 2 + half[1] ** 2) / 3,
+                ]
+            ),
+        },
+    )
     for ax, axis in (("x", "1 0 0"), ("y", "0 1 0")):
-        ET.SubElement(body, "joint", {"name": f"{prefix}shaker_{ax}", "type": "slide", "axis": axis,
-                                      "stiffness": f(sh["stiffness"]), "damping": f(sh["damping"]),
-                                      "limited": "true", "range": vec([-sh["range"], sh["range"]])})
-    ET.SubElement(body, "geom", {"name": prefix + "shaker", "type": "box", "size": vec(half),
-                                 "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                                 "friction": vec(GROUND_FRICTION)})
+        ET.SubElement(
+            body,
+            "joint",
+            {
+                "name": f"{prefix}shaker_{ax}",
+                "type": "slide",
+                "axis": axis,
+                "stiffness": f(sh["stiffness"]),
+                "damping": f(sh["damping"]),
+                "limited": "true",
+                "range": vec([-sh["range"], sh["range"]]),
+            },
+        )
+    ET.SubElement(
+        body,
+        "geom",
+        {
+            "name": prefix + "shaker",
+            "type": "box",
+            "size": vec(half),
+            "contype": str(ALL_BITS),
+            "conaffinity": str(ALL_BITS),
+            "condim": "3",
+            "friction": vec(GROUND_FRICTION),
+        },
+    )
     return np.zeros(2)
 
 
@@ -492,14 +639,20 @@ def stage_shared(wb: ET.Element, pedestal_h: float, shaker: dict | None, beam: d
     """Stage pieces all athletes share (crowd events): the Iron Pedestal beam (geom `pedestal`, {pos, half: [x, y]}, top
     at z = 0) and the Gust Gauntlet shaker floor (shaker["shared"], centred at shaker["pos"]). Returns keyframe qpos."""
     if beam:
-        static_box(wb, "pedestal", np.asarray(beam["pos"], float) + [0, 0, -pedestal_h / 2],
-                   [beam["half"][0], beam["half"][1], pedestal_h / 2])
+        static_box(
+            wb,
+            "pedestal",
+            np.asarray(beam["pos"], float) + [0, 0, -pedestal_h / 2],
+            [beam["half"][0], beam["half"][1], pedestal_h / 2],
+        )
     if shaker and shaker.get("shared"):
         return [shaker_body(wb, "", shaker["pos"], shaker)]
     return []
 
 
-def stage_lane(wb: ET.Element, p: str, o: np.ndarray, pedestal_h: float, shaker: dict | None, beam: dict | None) -> list[np.ndarray]:
+def stage_lane(
+    wb: ET.Element, p: str, o: np.ndarray, pedestal_h: float, shaker: dict | None, beam: dict | None
+) -> list[np.ndarray]:
     """Per-lane stage pieces: its own 1 m pedestal / shaker platform (unless the event shares one)."""
     if pedestal_h and not beam:
         static_box(wb, p + "pedestal", o + [0, 0, -pedestal_h / 2], [PEDESTAL_HALF, PEDESTAL_HALF, pedestal_h / 2])
@@ -508,10 +661,22 @@ def stage_lane(wb: ET.Element, p: str, o: np.ndarray, pedestal_h: float, shaker:
     return []
 
 
-def compose_meet(skin, geoms, inertials, default_qpos: np.ndarray, n_lanes: int = N_LANES,
-                 n_cubes: int = N_CUBES_MEET, origins: list[np.ndarray] | None = None, pedestal_h: float = 0.0,
-                 model: str | None = None, park_offset=(0.0, 0.0, 0.0), props: list[dict] | None = None,
-                 shaker: dict | None = None, beam: dict | None = None, crowd: bool = False) -> tuple[str, dict]:
+def compose_meet(
+    skin,
+    geoms,
+    inertials,
+    default_qpos: np.ndarray,
+    n_lanes: int = N_LANES,
+    n_cubes: int = N_CUBES_MEET,
+    origins: list[np.ndarray] | None = None,
+    pedestal_h: float = 0.0,
+    model: str | None = None,
+    park_offset=(0.0, 0.0, 0.0),
+    props: list[dict] | None = None,
+    shaker: dict | None = None,
+    beam: dict | None = None,
+    crowd: bool = False,
+) -> tuple[str, dict]:
     """Multi-athlete scene (G6 / events): lane k = the training athlete with every name prefixed `L<k>_`, its own
     collision bits and its pelvis shifted to origins[k] (default lane_origin(k)). Ground + cube pool as in the solo
     scene. crowd: athletes of different lanes collide (crowd_bits; every event scene) — otherwise full lane isolation
@@ -526,8 +691,15 @@ def compose_meet(skin, geoms, inertials, default_qpos: np.ndarray, n_lanes: int 
     option_block(root)
     wb = ET.SubElement(root, "worldbody")
     ET.SubElement(wb, "light", {"name": "sun", "pos": "0 0 5", "dir": "0 0 -1", "directional": "true"})
-    ground = {"name": "ground", "type": "plane", "size": "0 0 0.05", "contype": str(ALL_BITS),
-              "conaffinity": str(ALL_BITS), "condim": "3", "friction": vec(GROUND_FRICTION)}
+    ground = {
+        "name": "ground",
+        "type": "plane",
+        "size": "0 0 0.05",
+        "contype": str(ALL_BITS),
+        "conaffinity": str(ALL_BITS),
+        "condim": "3",
+        "friction": vec(GROUND_FRICTION),
+    }
     if pedestal_h or shaker:
         ground["pos"] = vec([0, 0, -(pedestal_h or shaker["h"])])
     ET.SubElement(wb, "geom", ground)
@@ -556,25 +728,44 @@ def compose_meet(skin, geoms, inertials, default_qpos: np.ndarray, n_lanes: int 
         lanes.append({"lane": k, "prefix": p, "origin": o.tolist(), "cubes": [2 * k, 2 * k + 1]})
     inertia = CUBE_MASS * (2 * CUBE_HALF) ** 2 / 6.0
     for i in range(n_cubes):
-        park = cube_park_pos(i) - [0, 0, pedestal_h or (shaker['h'] if shaker else 0.0)] + np.asarray(park_offset, float)
+        park = (
+            cube_park_pos(i) - [0, 0, pedestal_h or (shaker["h"] if shaker else 0.0)] + np.asarray(park_offset, float)
+        )
         cb = ET.SubElement(wb, "body", {"name": f"cube{i}", "pos": vec(park)})
         ET.SubElement(cb, "inertial", {"pos": "0 0 0", "mass": f(CUBE_MASS), "diaginertia": vec([inertia] * 3)})
         ET.SubElement(cb, "freejoint", {"name": f"cube{i}_free"})
-        ET.SubElement(cb, "geom", {"name": f"cube{i}_geom", "type": "box", "size": vec([CUBE_HALF] * 3),
-                                   "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                                   "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001"})
+        ET.SubElement(
+            cb,
+            "geom",
+            {
+                "name": f"cube{i}_geom",
+                "type": "box",
+                "size": vec([CUBE_HALF] * 3),
+                "contype": str(ALL_BITS),
+                "conaffinity": str(ALL_BITS),
+                "condim": "3",
+                "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001",
+            },
+        )
         key_qpos.append(np.concatenate([park, [1, 0, 0, 0]]))
     root.append(contact)
     actuator_block(root, all_actuators)
     kf = ET.SubElement(root, "keyframe")
     ET.SubElement(kf, "key", {"name": "default", "qpos": vec(np.concatenate(key_qpos))})
-    layout = {"n_lanes": n_lanes, "lane_width": LANE_WIDTH, "n_cubes": n_cubes, "lanes": lanes, "pedestal_h": pedestal_h,
-              "crowd": crowd,
-              "note": "lane k: names prefixed L<k>_, pelvis shifted by origin; solo-scene cube i -> meet cube cubes[i]"}
+    layout = {
+        "n_lanes": n_lanes,
+        "lane_width": LANE_WIDTH,
+        "n_cubes": n_cubes,
+        "lanes": lanes,
+        "pedestal_h": pedestal_h,
+        "crowd": crowd,
+        "note": "lane k: names prefixed L<k>_, pelvis shifted by origin; solo-scene cube i -> meet cube cubes[i]",
+    }
     stage_layout(layout, shaker, beam)
     if props:
-        layout["props"] = [{"name": pr["name"], "pos": np.asarray(pr["pos"], float).tolist(), "size": list(pr["size"])}
-                           for pr in props]
+        layout["props"] = [
+            {"name": pr["name"], "pos": np.asarray(pr["pos"], float).tolist(), "size": list(pr["size"])} for pr in props
+        ]
     return indent(root), layout
 
 
@@ -599,8 +790,10 @@ def venue_lane_origins(event: int, reference_lane: int, extra_yaw_deg: float = 0
     frame: the reference lane's spot is the origin and its facing is +x (EventScenes.PlaceStadium does the same turn in
     Unity). extra_yaw_deg turns the athlete relative to the event direction (90 = facing the event's left, crab events).
     Heights are relative to the reference spot (the surface the athlete stands on)."""
-    return [venue_to_athlete(event, reference_lane, lane["pos"], extra_yaw_deg)
-            for lane in json.loads(VENUES_JSON.read_text())["events"][f"{event:02d}"]["lanes"]]
+    return [
+        venue_to_athlete(event, reference_lane, lane["pos"], extra_yaw_deg)
+        for lane in json.loads(VENUES_JSON.read_text())["events"][f"{event:02d}"]["lanes"]
+    ]
 
 
 def venue_to_athlete(event: int, reference_lane: int, pos, extra_yaw_deg: float = 0.0) -> np.ndarray:
@@ -624,7 +817,14 @@ def venue_box(event: int, key: str) -> dict:
 
 # 5 Gust Gauntlet crowd stage: ONE spring-mounted floor under all 8 (venue "floor"); mass, stiffness and damping are 8 x
 # the per-lane platform's, so with the 8 athletes aboard it still rings at 2.0 Hz, damping ratio 0.2
-SHAKER_FLOOR = {"h": 0.1, "mass": 8 * 150.0, "stiffness": 8 * 36300.0, "damping": 8 * 1160.0, "range": 0.25, "shared": True}
+SHAKER_FLOOR = {
+    "h": 0.1,
+    "mass": 8 * 150.0,
+    "stiffness": 8 * 36300.0,
+    "damping": 8 * 1160.0,
+    "range": 0.25,
+    "shared": True,
+}
 
 
 def shaker_floor() -> dict:
@@ -640,7 +840,7 @@ def crab_rails() -> list[dict]:
     x0, length, lw = ev["lanes"][0]["pos"][0], float(ev["length_m"]), abs(ys[0] - ys[1])
     rails = []
     for j in range(len(ys) + 1):
-        y = ys[0] + lw / 2 - j * lw            # lane lines from the lane-1 side
+        y = ys[0] + lw / 2 - j * lw  # lane lines from the lane-1 side
         c = venue_to_athlete(10, 3, [x0 + length / 2, y, 0.3], 90.0)
         rails.append({"name": f"rail{j}", "pos": c, "size": [0.02, length / 2, 0.02]})
     return rails
@@ -650,14 +850,21 @@ def slalom_poles() -> list[dict]:
     """11 Slalom Sprint poles (build_venues.py: 4 cm x 1.2 m steel-orange poles on every lane's centre line; venues.json
     "poles" = per lane the pole positions) as MuJoCo boxes in the athlete frame of reference lane 3."""
     ev = json.loads(VENUES_JSON.read_text())["events"]["11"]
-    return [{"name": f"pole{k}_{g}", "pos": venue_to_athlete(11, 3, [x, y, 0.6]), "size": [0.02, 0.02, 0.6]}
-            for k, lane in enumerate(ev["poles"]) for g, (x, y) in enumerate(lane)]
+    return [
+        {"name": f"pole{k}_{g}", "pos": venue_to_athlete(11, 3, [x, y, 0.6]), "size": [0.02, 0.02, 0.6]}
+        for k, lane in enumerate(ev["poles"])
+        for g, (x, y) in enumerate(lane)
+    ]
 
 
-TRENCH_POST_OUT = 1.2     # m — the ceiling overhangs the lane block by TRENCH_OVERHANG, its posts stand this far outside it
+TRENCH_POST_OUT = (
+    1.2  # m — the ceiling overhangs the lane block by TRENCH_OVERHANG, its posts stand this far outside it
+)
 TRENCH_OVERHANG = 0.8
-TRENCH_UNDERSIDE = 0.72   # m — Event 23 ceiling underside: MATT's crawl brain squeezes through (15-19 s / 16 m), the zombie
-                          # is untouched (tools/trench_probe.py sweep: 0.62-0.70 m stalls MATTs, 0.78 m is no obstacle)
+TRENCH_UNDERSIDE = (
+    0.72  # m — Event 23 ceiling underside: MATT's crawl brain squeezes through (15-19 s / 16 m), the zombie
+)
+# is untouched (tools/trench_probe.py sweep: 0.62-0.70 m stalls MATTs, 0.78 m is no obstacle)
 
 
 def trench_props() -> list[dict]:
@@ -670,13 +877,22 @@ def trench_props() -> list[dict]:
     ys = [l["pos"][1] for l in ev["lanes"]]
     lo, lw = ev["lanes"][0]["pos"][0], abs(ys[0] - ys[1])
     cy, width = (ys[0] + ys[-1]) / 2, lw * len(ys)
-    props = [{"name": "trench_ceiling", "pos": venue_to_athlete(23, 3, [lo + 8.0, cy, TRENCH_UNDERSIDE + 0.02]),
-              "size": [6.0, width / 2 + TRENCH_OVERHANG, 0.02]}]
+    props = [
+        {
+            "name": "trench_ceiling",
+            "pos": venue_to_athlete(23, 3, [lo + 8.0, cy, TRENCH_UNDERSIDE + 0.02]),
+            "size": [6.0, width / 2 + TRENCH_OVERHANG, 0.02],
+        }
+    ]
     for j, y in enumerate((cy - width / 2 - TRENCH_POST_OUT, cy + width / 2 + TRENCH_POST_OUT)):
         for k in range(4):
-            props.append({"name": f"trench_post{j}_{k}",
-                          "pos": venue_to_athlete(23, 3, [lo + 2.0 + 4.0 * k, y, TRENCH_UNDERSIDE / 2]),
-                          "size": [0.025, 0.025, TRENCH_UNDERSIDE / 2]})
+            props.append(
+                {
+                    "name": f"trench_post{j}_{k}",
+                    "pos": venue_to_athlete(23, 3, [lo + 2.0 + 4.0 * k, y, TRENCH_UNDERSIDE / 2]),
+                    "size": [0.025, 0.025, TRENCH_UNDERSIDE / 2],
+                }
+            )
     return props
 
 
@@ -689,9 +905,19 @@ def cube_entity_xml() -> str:
     inertia = CUBE_MASS * (2 * CUBE_HALF) ** 2 / 6.0
     ET.SubElement(cb, "inertial", {"pos": "0 0 0", "mass": f(CUBE_MASS), "diaginertia": vec([inertia] * 3)})
     ET.SubElement(cb, "freejoint", {"name": "cube_free"})
-    ET.SubElement(cb, "geom", {"name": "cube_geom", "type": "box", "size": vec([CUBE_HALF] * 3),
-                               "contype": str(ALL_BITS), "conaffinity": str(ALL_BITS), "condim": "3",
-                               "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001"})
+    ET.SubElement(
+        cb,
+        "geom",
+        {
+            "name": "cube_geom",
+            "type": "box",
+            "size": vec([CUBE_HALF] * 3),
+            "contype": str(ALL_BITS),
+            "conaffinity": str(ALL_BITS),
+            "condim": "3",
+            "friction": f"{f(CUBE_FRICTION)} 0.005 0.0001",
+        },
+    )
     return indent(root)
 
 
@@ -713,8 +939,12 @@ def compute_inertials(skin, geoms) -> dict:
         b = m.body(s.name).id
         mass = targets[s.name] * scale_total
         k = mass / float(m.body_mass[b])
-        out[s.name] = {"mass": mass, "pos": m.body_ipos[b].copy(), "quat": m.body_iquat[b].copy(),
-                       "diag": m.body_inertia[b] * k}
+        out[s.name] = {
+            "mass": mass,
+            "pos": m.body_ipos[b].copy(),
+            "quat": m.body_iquat[b].copy(),
+            "diag": m.body_inertia[b] * k,
+        }
     # enforce exact L/R symmetry of the inertial description
     for s in specs:
         if s.side == "r":
@@ -774,7 +1004,7 @@ def touching_pairs(skin, geoms, inertials) -> list[tuple[str, str]]:
         for c in d.contact[: d.ncon]:
             b1, b2 = m.body(m.geom_bodyid[c.geom1]).name, m.body(m.geom_bodyid[c.geom2]).name
             pairs.add(tuple(sorted((b1, b2))))
-    return ([THIGHS] if THIGHS in pairs else []) + sorted(pairs - {THIGHS})   # thighs first: mattbio's MJCF is unchanged
+    return ([THIGHS] if THIGHS in pairs else []) + sorted(pairs - {THIGHS})  # thighs first: mattbio's MJCF is unchanged
 
 
 def write_other_body(header, skin, geoms, inertials, geom_mass, qdef, scene_xml, robot_xml) -> int:
@@ -784,20 +1014,39 @@ def write_other_body(header, skin, geoms, inertials, geom_mass, qdef, scene_xml,
     m = mujoco.MjModel.from_xml_string(scene_xml)
     specs = body_specs()
     report = {
-        "body": BODY.name, "length_scale": L, "torque_scale": BODY.torque_scale,
+        "body": BODY.name,
+        "length_scale": L,
+        "torque_scale": BODY.torque_scale,
         "total_mass": float(sum(m.body_mass[m.body(s.name).id] for s in specs)),
         "uniform_density_geom_mass": geom_mass,
-        "nq": m.nq, "nv": m.nv, "nu": m.nu, "nbody": m.nbody, "ngeom": m.ngeom,
-        "sole_z_bind": skin.sole_z, "default_qpos": qdef.round(6).tolist(), "excludes": EXCLUDES,
+        "nq": m.nq,
+        "nv": m.nv,
+        "nu": m.nu,
+        "nbody": m.nbody,
+        "ngeom": m.ngeom,
+        "sole_z_bind": skin.sole_z,
+        "default_qpos": qdef.round(6).tolist(),
+        "excludes": EXCLUDES,
         "gains": {k: [round(x, 5) for x in v] for k, v in GAINS.items()},
         "actuators": [m.actuator(i).name for i in range(m.nu)],
-        "bodies": {s.name: {"mass": round(inertials[s.name]["mass"], 4),
-                            "geoms": [{k: (v if isinstance(v, str) else np.round(np.asarray(v, float), 4).tolist())
-                                       for k, v in g.items()} for g in geoms[s.name]]} for s in specs},
+        "bodies": {
+            s.name: {
+                "mass": round(inertials[s.name]["mass"], 4),
+                "geoms": [
+                    {k: (v if isinstance(v, str) else np.round(np.asarray(v, float), 4).tolist()) for k, v in g.items()}
+                    for g in geoms[s.name]
+                ],
+            }
+            for s in specs
+        },
     }
     BODY.body_report.write_text(json.dumps(report, indent=1))
-    print(f"{BODY.robot_xml.name} + {BODY.scene_xml.name} written. nq={m.nq} nv={m.nv} nu={m.nu} bodies={m.nbody} geoms={m.ngeom}")
-    print(f"robot mass={report['total_mass']:.3f} kg, default standing root height z={qdef[2]:.4f} m, excludes={EXCLUDES}")
+    print(
+        f"{BODY.robot_xml.name} + {BODY.scene_xml.name} written. nq={m.nq} nv={m.nv} nu={m.nu} bodies={m.nbody} geoms={m.ngeom}"
+    )
+    print(
+        f"robot mass={report['total_mass']:.3f} kg, default standing root height z={qdef[2]:.4f} m, excludes={EXCLUDES}"
+    )
     return 0
 
 
@@ -810,78 +1059,171 @@ def main() -> int:
         for js in s.joints:
             JOINT_DEFAULTS[f"{js.name}_{s.side}" if s.side else js.name] = js.default_deg
 
-    for jn, deg in BODY.joint_defaults.items():        # body-specific default stance (both sides)
+    for jn, deg in BODY.joint_defaults.items():  # body-specific default stance (both sides)
         for key in (jn, f"{jn}_l", f"{jn}_r"):
             if key in JOINT_DEFAULTS:
                 JOINT_DEFAULTS[key] = deg
     if BODY.self_collision:
-        EXCLUDES.clear()                               # test every pair, the thighs included
+        EXCLUDES.clear()  # test every pair, the thighs included
         EXCLUDES.extend(touching_pairs(skin, geoms, inertials))
     qdef = default_pose_qpos(skin, geoms, inertials)
     robot_xml = compose_model(skin, geoms, inertials, with_scene=False, n_cubes=0)
-    scene_xml = compose_model(skin, geoms, inertials, with_scene=True, n_cubes=N_CUBES_TRAINING, default_qpos=np.concatenate(
-        [qdef, np.concatenate([np.concatenate([cube_park_pos(i), [1, 0, 0, 0]]) for i in range(N_CUBES_TRAINING)])]))
+    scene_xml = compose_model(
+        skin,
+        geoms,
+        inertials,
+        with_scene=True,
+        n_cubes=N_CUBES_TRAINING,
+        default_qpos=np.concatenate(
+            [qdef, np.concatenate([np.concatenate([cube_park_pos(i), [1, 0, 0, 0]]) for i in range(N_CUBES_TRAINING)])]
+        ),
+    )
     header = f"<!-- GENERATED by training/tools/build_mjcf.py from {BODY.glb.relative_to(ROOT.parent).as_posix()}. Do not edit. -->\n"
     if BODY.name != "matt":
         return write_other_body(header, skin, geoms, inertials, geom_mass, qdef, scene_xml, robot_xml)
     (ASSETS / "cube.xml").write_text(header + cube_entity_xml() + "\n")
     (ASSETS / "matt.xml").write_text(header + robot_xml + "\n")
     (ASSETS / "scene_matt.xml").write_text(header + scene_xml + "\n")
-    pedestal_xml = compose_model(skin, geoms, inertials, with_scene=True, n_cubes=N_CUBES_TRAINING, pedestal_h=PEDESTAL_H,
-                                 default_qpos=np.concatenate([qdef, np.concatenate(
-                                     [np.concatenate([cube_park_pos(i) - [0, 0, PEDESTAL_H], [1, 0, 0, 0]])
-                                      for i in range(N_CUBES_TRAINING)])]))
+    pedestal_xml = compose_model(
+        skin,
+        geoms,
+        inertials,
+        with_scene=True,
+        n_cubes=N_CUBES_TRAINING,
+        pedestal_h=PEDESTAL_H,
+        default_qpos=np.concatenate(
+            [
+                qdef,
+                np.concatenate(
+                    [
+                        np.concatenate([cube_park_pos(i) - [0, 0, PEDESTAL_H], [1, 0, 0, 0]])
+                        for i in range(N_CUBES_TRAINING)
+                    ]
+                ),
+            ]
+        ),
+    )
     (ASSETS / "scene_pedestal.xml").write_text(header + pedestal_xml + "\n")
     meet_xml, meet_layout = compose_meet(skin, geoms, inertials, qdef)
     # Event scenes are crowd scenes (athletes of different lanes collide: crowd_bits); scene_meet8 (G6) stays isolated.
     # 1 Iron Pedestal: all 8 shoulder to shoulder (0.7 m) on one iron beam (venue "beam")
     ped_origins = venue_lane_origins(1, reference_lane=3)
-    ped8_xml, ped8_layout = compose_meet(skin, geoms, inertials, qdef, origins=ped_origins, pedestal_h=PEDESTAL_H,
-                                         model="pedestal8", beam=venue_box(1, "beam"), crowd=True)
+    ped8_xml, ped8_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=ped_origins,
+        pedestal_h=PEDESTAL_H,
+        model="pedestal8",
+        beam=venue_box(1, "beam"),
+        crowd=True,
+    )
     (ASSETS / "scene_pedestal8.xml").write_text(header + ped8_xml + "\n")
     (ASSETS / "pedestal8_layout.json").write_text(json.dumps(ped8_layout, indent=1) + "\n")
     # straight-track races (9 Inverted, 13 Steeplechase, 19 Terminal Velocity, 22 Emergency Brake): flat lanes 1.22 m
     # apart, from the home-straight venue of event 22 (the back straight has the same layout in the runner's frame)
     # cube pool parked 30 m to the side: the default park line (x = 50..80, y = 0) is lane 4's running line
-    track_xml, track_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(22, reference_lane=3),
-                                           model="track8", park_offset=(0.0, -30.0, 0.0), crowd=True)
+    track_xml, track_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(22, reference_lane=3),
+        model="track8",
+        park_offset=(0.0, -30.0, 0.0),
+        crowd=True,
+    )
     (ASSETS / "scene_track8.xml").write_text(header + track_xml + "\n")
     (ASSETS / "track8_layout.json").write_text(json.dumps(track_layout, indent=1) + "\n")
     # 8 30m All Fours: crawlers 1.1 m apart on the home straight (venue 08)
-    crawl_xml, crawl_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(8, reference_lane=3),
-                                           model="crawl8", park_offset=(0.0, -30.0, 0.0), crowd=True)
+    crawl_xml, crawl_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(8, reference_lane=3),
+        model="crawl8",
+        park_offset=(0.0, -30.0, 0.0),
+        crowd=True,
+    )
     (ASSETS / "scene_crawl8.xml").write_text(header + crawl_xml + "\n")
     (ASSETS / "crawl8_layout.json").write_text(json.dumps(crawl_layout, indent=1) + "\n")
     # 12 The 360 Turntable: 8 spin spots on the venue's ring, neighbours 0.75 m apart; the cube park line is clear of it
-    turn_xml, turn_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(12, reference_lane=3),
-                                         model="turntable8", crowd=True)
+    turn_xml, turn_layout = compose_meet(
+        skin, geoms, inertials, qdef, origins=venue_lane_origins(12, reference_lane=3), model="turntable8", crowd=True
+    )
     (ASSETS / "scene_turntable8.xml").write_text(header + turn_xml + "\n")
     (ASSETS / "turntable8_layout.json").write_text(json.dumps(turn_layout, indent=1) + "\n")
     # 3 Deep Squat Endurance: 2 x 4 station grid (3 m x 4 m apart, no contact), flat floor, Rung S brain
-    squat_xml, squat_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(3, reference_lane=3),
-                                           model="squat8", park_offset=(0.0, -30.0, 0.0), crowd=True)
+    squat_xml, squat_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(3, reference_lane=3),
+        model="squat8",
+        park_offset=(0.0, -30.0, 0.0),
+        crowd=True,
+    )
     (ASSETS / "scene_squat8.xml").write_text(header + squat_xml + "\n")
     (ASSETS / "squat8_layout.json").write_text(json.dumps(squat_layout, indent=1) + "\n")
     # 10 Crab Shuffle: athletes turned to face the event's left (they side-step to their right = down the course);
     # lanes are then 1.22 m apart along x, the steel rails on the lane lines are real (shin-height) obstacles
-    crab_xml, crab_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(10, 3, 90.0),
-                                         model="crab8", park_offset=(0.0, -30.0, 0.0), props=crab_rails(), crowd=True)
+    crab_xml, crab_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(10, 3, 90.0),
+        model="crab8",
+        park_offset=(0.0, -30.0, 0.0),
+        props=crab_rails(),
+        crowd=True,
+    )
     (ASSETS / "scene_crab8.xml").write_text(header + crab_xml + "\n")
     (ASSETS / "crab8_layout.json").write_text(json.dumps(crab_layout, indent=1) + "\n")
     # 5 Gust Gauntlet: all 8 on ONE spring-mounted shaker floor (venue "floor", 0.1 m high, top = z 0), 2 x 4 grid 0.8 m
     # apart (SHAKER_FLOOR: 2.0 Hz, damping ratio 0.2 with everyone aboard; +-0.25 m travel)
-    shaker8_xml, shaker8_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(5, 3),
-                                               model="shaker8", park_offset=(0.0, -30.0, 0.0), shaker=shaker_floor(), crowd=True)
+    shaker8_xml, shaker8_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(5, 3),
+        model="shaker8",
+        park_offset=(0.0, -30.0, 0.0),
+        shaker=shaker_floor(),
+        crowd=True,
+    )
     (ASSETS / "scene_shaker8.xml").write_text(header + shaker8_xml + NL)
     (ASSETS / "shaker8_layout.json").write_text(json.dumps(shaker8_layout, indent=1) + NL)
     # 11 Slalom Sprint: 7 physical poles on every lane's centre line (venues.json "poles"), 1.4 m mirror-slalom lanes
-    slalom_xml, slalom_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(11, 3),
-                                             model="slalom8", park_offset=(0.0, -30.0, 0.0), props=slalom_poles(), crowd=True)
+    slalom_xml, slalom_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(11, 3),
+        model="slalom8",
+        park_offset=(0.0, -30.0, 0.0),
+        props=slalom_poles(),
+        crowd=True,
+    )
     (ASSETS / "scene_slalom8.xml").write_text(header + slalom_xml + "\n")
     (ASSETS / "slalom8_layout.json").write_text(json.dumps(slalom_layout, indent=1) + "\n")
     # 23 The Trench Crawl: 8 crawl lanes (1.22 m) under a 12 m ceiling on posts (trench_props), crawl brains
-    trench_xml, trench_layout = compose_meet(skin, geoms, inertials, qdef, origins=venue_lane_origins(23, 3),
-                                             model="trench8", park_offset=(0.0, -30.0, 0.0), props=trench_props(), crowd=True)
+    trench_xml, trench_layout = compose_meet(
+        skin,
+        geoms,
+        inertials,
+        qdef,
+        origins=venue_lane_origins(23, 3),
+        model="trench8",
+        park_offset=(0.0, -30.0, 0.0),
+        props=trench_props(),
+        crowd=True,
+    )
     (ASSETS / "scene_trench8.xml").write_text(header + trench_xml + "\n")
     (ASSETS / "trench8_layout.json").write_text(json.dumps(trench_layout, indent=1) + "\n")
     (ASSETS / f"scene_meet{N_LANES}.xml").write_text(header + meet_xml + "\n")
@@ -891,13 +1233,24 @@ def main() -> int:
     report = {
         "total_mass": float(sum(m.body_mass[m.body(s.name).id] for s in body_specs())),
         "uniform_density_geom_mass": geom_mass,
-        "nq": m.nq, "nv": m.nv, "nu": m.nu, "nbody": m.nbody, "ngeom": m.ngeom,
+        "nq": m.nq,
+        "nv": m.nv,
+        "nu": m.nu,
+        "nbody": m.nbody,
+        "ngeom": m.ngeom,
         "sole_z_bind": skin.sole_z,
         "default_qpos": qdef.round(6).tolist(),
         "actuators": [m.actuator(i).name for i in range(m.nu)],
-        "bodies": {s.name: {"mass": round(inertials[s.name]["mass"], 4),
-                            "geoms": [{k: (v if isinstance(v, str) else np.round(np.asarray(v, float), 4).tolist())
-                                       for k, v in g.items()} for g in geoms[s.name]]} for s in body_specs()},
+        "bodies": {
+            s.name: {
+                "mass": round(inertials[s.name]["mass"], 4),
+                "geoms": [
+                    {k: (v if isinstance(v, str) else np.round(np.asarray(v, float), 4).tolist()) for k, v in g.items()}
+                    for g in geoms[s.name]
+                ],
+            }
+            for s in body_specs()
+        },
     }
     (DERIVED / "body_report.json").write_text(json.dumps(report, indent=1))
     print(f"matt.xml + scene_matt.xml written. nq={m.nq} nv={m.nv} nu={m.nu} bodies={m.nbody} geoms={m.ngeom}")

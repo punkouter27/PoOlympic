@@ -3,12 +3,14 @@
 import math
 
 import pytest
+from lfs_files import brain_present
 
 from poolympic import contract as C
 from poolympic.events import crab, gauntlet, slalom, track, turntable
 
-BRAIN = C.ROOT.parent / "parity" / "brains" / "rung2.onnx"
-pytestmark = pytest.mark.skipif(not BRAIN.exists(), reason="rung2.onnx not exported")
+BRAIN = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rung2.onnx"
+# slow tier: full-event CPU simulations with the shipped brains (local, not in CI)
+pytestmark = [pytest.mark.slow, pytest.mark.skipif(not brain_present(BRAIN), reason="rung2.onnx not exported")]
 
 
 def test_inverted_sprint_heat():
@@ -45,12 +47,14 @@ def test_crab_shuffle_heat():
     for l in done:
         # 20 m at a 1.2 m/s side-step command
         assert crab.DISTANCE / crab.VY < l.finish_s < 30.0
-        assert l.max_x_drift_m < 0.5          # rails are 0.61 m from the lane line
-        assert l.score == pytest.approx(l.finish_s + crab.CROSS_PENALTY * l.crossings + crab.RAIL_PENALTY * l.rail_touches)
+        assert l.max_x_drift_m < 0.5  # rails are 0.61 m from the lane line
+        assert l.score == pytest.approx(
+            l.finish_s + crab.CROSS_PENALTY * l.crossings + crab.RAIL_PENALTY * l.rail_touches
+        )
 
 
 def test_slalom_heat():
-    res = slalom.run_heat(BRAIN, seed=2)        # run_heat also asserts the course constants against the pole geoms
+    res = slalom.run_heat(BRAIN, seed=2)  # run_heat also asserts the course constants against the pole geoms
     assert sorted(l.place for l in res.lanes) == list(range(1, 9))
     done = [l for l in res.lanes if l.status == "FINISHED"]
     assert len(done) >= 5
@@ -79,15 +83,15 @@ def test_gust_gauntlet_heat():
     outs = [l.out_at_s for l in by_place if l.out_at_s is not None]
     assert all(l.out_at_s is None for l in by_place[: 8 - len(outs)])
     assert outs == sorted(outs, reverse=True)
-    assert any(l.out_at_s is None or l.out_at_s > 10.0 for l in res.lanes)   # the first bursts are survivable
+    assert any(l.out_at_s is None or l.out_at_s > 10.0 for l in res.lanes)  # the first bursts are survivable
 
 
 def test_homing_command_walks_back_to_the_spot():
     q0 = [1.0, 0.0, 0.0, 0.0]
-    vx, vy, wz = gauntlet.homing_command(q0, 0.3, -0.2)          # pushed forward-right → walk back-left
+    vx, vy, wz = gauntlet.homing_command(q0, 0.3, -0.2)  # pushed forward-right → walk back-left
     assert vx < 0 and vy > 0 and wz == 0.0
-    assert gauntlet.homing_command(q0, 0.03, 0.03).tolist() == [0.0, 0.0, 0.0]   # inside the deadband
-    half = math.radians(90) / 2                                    # facing +y: world +x offset is to the right
+    assert gauntlet.homing_command(q0, 0.03, 0.03).tolist() == [0.0, 0.0, 0.0]  # inside the deadband
+    half = math.radians(90) / 2  # facing +y: world +x offset is to the right
     vx, vy, _ = gauntlet.homing_command([math.cos(half), 0.0, 0.0, math.sin(half)], 0.3, 0.0)
     assert vy > 0 and abs(vx) < 1e-9
 
@@ -95,13 +99,13 @@ def test_homing_command_walks_back_to_the_spot():
 def test_crab_command_holds_the_course():
     q0 = [1.0, 0.0, 0.0, 0.0]
     assert crab.crab_command(q0, 0.0).tolist() == [0.0, -crab.VY, 0.0]
-    vx, _, _ = crab.crab_command(q0, 0.2)                 # drifted forward towards the next rail → step back
+    vx, _, _ = crab.crab_command(q0, 0.2)  # drifted forward towards the next rail → step back
     assert vx < 0
-    half = math.radians(20) / 2                            # turned 20° left → turn right
+    half = math.radians(20) / 2  # turned 20° left → turn right
     assert crab.crab_command([math.cos(half), 0.0, 0.0, math.sin(half)], 0.0)[2] < 0
 
 
-FLIGHT = C.ROOT.parent / "parity" / "brains" / "r2f_v3_it100.onnx"
+FLIGHT = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "r2f_v3_it100.onnx"
 
 
 @pytest.mark.skipif(not FLIGHT.exists(), reason="r2f_v3_it100.onnx not exported")
@@ -119,15 +123,23 @@ def test_steeplechase_heat():
     assert all(a.score_s <= b.score_s for a, b in zip(by_place, by_place[1:]))
 
 
-CRAWL = {"matt": C.ROOT.parent / "parity" / "brains" / "crawl_matt.onnx",
-         "zombie": C.ROOT.parent / "parity" / "brains" / "crawl_zombie.onnx"}
+CRAWL = {
+    "matt": C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "crawl_matt.onnx",
+    "zombie": C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "crawl_zombie.onnx",
+}
 
 
 @pytest.mark.skipif(not CRAWL["matt"].exists(), reason="crawl brains not exported")
 def test_trench_crawl_heat():
     from poolympic.events import all_fours
-    res = all_fours.run_race(CRAWL, seed=1, scene=C.ROOT / "assets" / "scene_trench8_mzmzmzmz.xml",
-                             layout_path=C.ROOT / "assets" / "trench8_mzmzmzmz_layout.json", distance=all_fours.TRENCH_DISTANCE)
+
+    res = all_fours.run_race(
+        CRAWL,
+        seed=1,
+        scene=C.ROOT / "assets" / "scene_trench8_mzmzmzmz.xml",
+        layout_path=C.ROOT / "assets" / "trench8_mzmzmzmz_layout.json",
+        distance=all_fours.TRENCH_DISTANCE,
+    )
     assert sorted(l.place for l in res.lanes) == list(range(1, 9))
     finished = [l for l in res.lanes if l.status == "FINISHED"]
     assert len(finished) >= 7
@@ -135,50 +147,56 @@ def test_trench_crawl_heat():
     assert all(12.0 < l.finish_s < 30.0 for l in finished)
 
 
-SQUAT_BRAIN = C.ROOT.parent / "parity" / "brains" / "rsq_v2_it500.onnx"
+SQUAT_BRAIN = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rsq_v2_it500.onnx"
 
 
 @pytest.mark.skipif(not SQUAT_BRAIN.exists(), reason="Rung S brain not exported")
 def test_deep_squat_heat():
     from poolympic.events import squat
+
     res = squat.run_heat(SQUAT_BRAIN, seed=1)
     assert sorted(l.place for l in res.lanes) == list(range(1, 9))
     assert res.duration_s == pytest.approx(squat.START_S + squat.total_s(), abs=0.03)
-    assert [l.status for l in res.lanes] == ["DONE"] * 8          # rs_v6 it 3299: feet slid apart, most out STEPPED
+    assert [l.status for l in res.lanes] == ["DONE"] * 8  # rs_v6 it 3299: feet slid apart, most out STEPPED
     for l in res.lanes:
         assert l.status in ("DONE", "FELL", "STEPPED")
-        assert len(l.reps) >= 8                                   # nobody is out before the 9th rep (~27 s)
+        assert len(l.reps) >= 8  # nobody is out before the 9th rep (~27 s)
         assert all(0.0 <= p <= squat.REP_POINTS for p in l.reps)
         assert l.points == pytest.approx(sum(l.reps) + (squat.BALANCE_BONUS if l.status == "DONE" else 0.0), abs=1e-2)
-        assert all(e < 0.10 for e in l.errs_m[:6])               # the first six reps (25-35 cm) are accurate
+        assert all(e < 0.10 for e in l.errs_m[:6])  # the first six reps (25-35 cm) are accurate
     by_place = sorted(res.lanes, key=lambda l: l.place)
     assert all(a.points >= b.points for a, b in zip(by_place, by_place[1:]))
 
 
-TARGET_BRAINS = {"archer": C.ROOT.parent / "parity" / "brains" / "rs_v8_it1199.onnx",
-                 "reach": C.ROOT.parent / "parity" / "brains" / "rs_reach_v1_it1199.onnx"}
+TARGET_BRAINS = {
+    "archer": C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rs_v8_it1199.onnx",
+    "reach": C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rs_reach_v1_it1199.onnx",
+}
 
 
 @pytest.mark.parametrize("kind", ["archer", "reach"])
 def test_target_heat(kind):
     from poolympic.events import targets
+
     if not TARGET_BRAINS[kind].exists():
         pytest.skip("Rung S brain not exported")
     res = targets.run_heat(TARGET_BRAINS[kind], seed=1, kind=kind)
     assert sorted(l.place for l in res.lanes) == list(range(1, 9))
     assert res.duration_s == pytest.approx(targets.START_S + targets.total_s(), abs=0.03)
-    assert [l.status for l in res.lanes] == ["DONE"] * 8          # the targets stay inside what the body can reach
+    assert [l.status for l in res.lanes] == ["DONE"] * 8  # the targets stay inside what the body can reach
     for l in res.lanes:
         assert len(l.rounds) == targets.ROUNDS
         assert l.points == pytest.approx(sum(l.rounds) + targets.BALANCE_BONUS, abs=1e-2)
-        assert l.points > 0.5 * targets.ROUNDS * targets.ROUND_POINTS   # archer 71-80, reach 94-107 of 130
+        assert l.points > 0.5 * targets.ROUNDS * targets.ROUND_POINTS  # archer 71-80, reach 94-107 of 130
     by_place = sorted(res.lanes, key=lambda l: l.place)
     assert all(a.points >= b.points for a, b in zip(by_place, by_place[1:]))
 
 
 def test_target_schedules_stay_reachable():
     import numpy as np
+
     from poolympic.events import targets
+
     rng = np.random.default_rng(3)
     aims = targets.archer_aims(rng)
     assert len(aims) == targets.ROUNDS + 1 and all(abs(y) <= targets.ARCHER_YAW for y, _ in aims)
@@ -187,45 +205,66 @@ def test_target_schedules_stay_reachable():
     assert [a for a, *_ in dirs[:2]] in ([-1, 1], [1, -1]) and dirs[-1][3] == pytest.approx(targets.REACH_FRAC[1])
 
 
-SLOPE_BRAINS = {b: C.ROOT.parent / "parity" / "brains" / f"slope_{b}.onnx" for b in ("matt", "zombie", "grandma", "kim")}
+SLOPE_BRAINS = {
+    b: C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / f"slope_{b}.onnx"
+    for b in ("matt", "zombie", "grandma", "kim")
+}
 
 
 @pytest.mark.skipif(not all(p.exists() for p in SLOPE_BRAINS.values()), reason="slope brains not deployed")
 def test_alpine_ramp_mixed_field_climbs():
     """Event 14: every body's slope brain gets up the 15 deg ramp (tilted gravity) in time; the flat brains do not."""
-    res = track.run_race(SLOPE_BRAINS["matt"], "ramp", 14000, scene=C.ROOT / "assets" / "scene_track8_mzgkmzgk.xml",
-                         layout_path=C.ROOT / "assets" / "track8_mzgkmzgk_layout.json", brains=SLOPE_BRAINS)
+    res = track.run_race(
+        SLOPE_BRAINS["matt"],
+        "ramp",
+        14000,
+        scene=C.ROOT / "assets" / "scene_track8_mzgkmzgk.xml",
+        layout_path=C.ROOT / "assets" / "track8_mzgkmzgk_layout.json",
+        brains=SLOPE_BRAINS,
+    )
     assert [l.status for l in res.lanes] == ["FINISHED"] * 8
     assert all(10.0 < l.finish_s < track.MODES["ramp"]["max_s"] for l in res.lanes)
     by_place = sorted(res.lanes, key=lambda l: l.place)
     assert all(a.finish_s <= b.finish_s for a, b in zip(by_place, by_place[1:]))
 
 
-FLAMINGO_BRAIN = C.ROOT.parent / "parity" / "brains" / "rs_v6_it2550.onnx"
+FLAMINGO_BRAIN = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rs_v6_it2550.onnx"
 
 
 @pytest.mark.skipif(not FLAMINGO_BRAIN.exists(), reason="Rung S flamingo brain not exported")
 def test_flamingo_heat():
     from poolympic.events import flamingo
+
     res = flamingo.run_heat(FLAMINGO_BRAIN, seed=1)
     assert res.foot in ("l", "r")
     for l in res.lanes:
-        assert l.status in ("TOUCHDOWN", "HOPPED", "FELL")           # the rising gusts bring everyone down before MAX_S
-        assert l.status == "FELL" or l.out_at_s >= flamingo.LIFT_S   # touches during the lift time do not count
+        assert l.status in ("TOUCHDOWN", "HOPPED", "FELL")  # the rising gusts bring everyone down before MAX_S
+        assert l.status == "FELL" or l.out_at_s >= flamingo.LIFT_S  # touches during the lift time do not count
         assert l.max_hop_m <= flamingo.HOP_TOL or l.status == "HOPPED"
     by_place = sorted(res.lanes, key=lambda l: l.place)
     assert by_place[0].place == 1 and all(a.out_at_s >= b.out_at_s for a, b in zip(by_place, by_place[1:]))
-    assert 15.0 < by_place[0].out_at_s < 60.0                        # heats last 23-38 s
+    assert 15.0 < by_place[0].out_at_s < 60.0  # heats last 23-38 s
     assert res.duration_s == pytest.approx(flamingo.START_S + by_place[0].out_at_s, abs=0.03)
 
 
 def test_slalom_tactician_yields_to_a_close_neighbour_ahead():
     xs, yw, racing = [5.0, 5.5, 5.0], [1.4, 0.8, 0.0], [True, True, True]
-    assert slalom.tactician(0, xs, yw, racing, -0.5, slalom.VX) == (slalom.VX * slalom.YIELD_VX, -slalom.TIGHT_LINE)   # lane 1 is 0.5 m ahead, 0.6 m across
-    assert slalom.tactician(1, xs, yw, racing, 0.5, slalom.VX) == (slalom.VX, 0.5)       # nobody ahead of the leader
-    assert slalom.tactician(2, xs, yw, racing, -0.42, slalom.VX) == (slalom.VX * slalom.YIELD_VX, -0.42)   # an already tight line stays
-    assert slalom.tactician(0, xs, yw, [True, False, True], -0.5, slalom.VX) == (slalom.VX, -0.5)   # a runner who is out is not raced
-    assert slalom.tactician(1, [5.0, 5.0], [1.4, 0.8], [True, True], 0.5, slalom.VX)[0] < slalom.VX   # level: the higher lane yields
+    assert slalom.tactician(0, xs, yw, racing, -0.5, slalom.VX) == (
+        slalom.VX * slalom.YIELD_VX,
+        -slalom.TIGHT_LINE,
+    )  # lane 1 is 0.5 m ahead, 0.6 m across
+    assert slalom.tactician(1, xs, yw, racing, 0.5, slalom.VX) == (slalom.VX, 0.5)  # nobody ahead of the leader
+    assert slalom.tactician(2, xs, yw, racing, -0.42, slalom.VX) == (
+        slalom.VX * slalom.YIELD_VX,
+        -0.42,
+    )  # an already tight line stays
+    assert slalom.tactician(0, xs, yw, [True, False, True], -0.5, slalom.VX) == (
+        slalom.VX,
+        -0.5,
+    )  # a runner who is out is not raced
+    assert (
+        slalom.tactician(1, [5.0, 5.0], [1.4, 0.8], [True, True], 0.5, slalom.VX)[0] < slalom.VX
+    )  # level: the higher lane yields
     assert slalom.tactician(0, [5.0, 5.0], [1.4, 0.8], [True, True], -0.5, slalom.VX)[0] == slalom.VX
 
 
@@ -235,9 +274,9 @@ def test_aggressive_brawler_surges_and_collides():
     assert vx == pytest.approx(slalom.VX * slalom.BRAWL_VX) and a == pytest.approx(-slalom.BRAWL_LINE)
     hw, level = [0.32] * 8, [10.0] * 8
     tight_lines = [track.pack_target(i, level, [True] * 8, hw, 3.66, aggressive=True) for i in range(8)]
-    assert tight_lines[1] > 3.66 - 0.61   # tighter than 0.61 m so shoulders actively collide
+    assert tight_lines[1] > 3.66 - 0.61  # tighter than 0.61 m so shoulders actively collide
     bvx, off = track.brawl_steer(0, [10.0, 10.5], [1.22, 0.0], [1.22, 0.0], [True, True], 3.5)
-    assert bvx > 3.5 and off > 0.0        # pulled right (toward y=0), so my_y - target_y > 0
+    assert bvx > 3.5 and off > 0.0  # pulled right (toward y=0), so my_y - target_y > 0
 
 
 def test_fallen_runner_with_a_getup_brain_gets_up_and_finishes(monkeypatch):
@@ -247,11 +286,19 @@ def test_fallen_runner_with_a_getup_brain_gets_up_and_finishes(monkeypatch):
     import mujoco
     import numpy as np
 
-    brains = C.ROOT.parent / "parity" / "brains"
+    brains = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains"
     scene, layout = C.ROOT / "assets" / "scene_track8_mzgkmzgk.xml", C.ROOT / "assets" / "track8_mzgkmzgk_layout.json"
     if not (brains / "getup_kim.onnx").exists() or not scene.exists():
         pytest.skip("getup_kim.onnx / the KIM line-up not in this clone")
-    r2 = {b: brains / f for b, f in (("matt", "rung2.onnx"), ("zombie", "zombie_rung2.onnx"), ("grandma", "grandma_rung2.onnx"), ("kim", "kim_rung2.onnx"))}
+    r2 = {
+        b: brains / f
+        for b, f in (
+            ("matt", "rung2.onnx"),
+            ("zombie", "zombie_rung2.onnx"),
+            ("grandma", "grandma_rung2.onnx"),
+            ("kim", "kim_rung2.onnx"),
+        )
+    }
     kims = [l["prefix"] for l in json.loads(layout.read_text())["lanes"] if l.get("body") == "kim"]
     real, n = mujoco.mj_step, [0]
 
@@ -260,11 +307,13 @@ def test_fallen_runner_with_a_getup_brain_gets_up_and_finishes(monkeypatch):
         if n[0] == 600:
             for p in kims:
                 da = m.jnt_dofadr[m.joint(p + "root").id]
-                d.qvel[da:da + 2] += np.array([0.0, 6.0])
+                d.qvel[da : da + 2] += np.array([0.0, 6.0])
         real(m, d)
 
     monkeypatch.setattr(mujoco, "mj_step", step)
-    res = track.run_race(r2["matt"], "dash", 9000, scene=scene, layout_path=layout, brains=r2, recover={"kim": brains / "getup_kim.onnx"})
+    res = track.run_race(
+        r2["matt"], "dash", 9000, scene=scene, layout_path=layout, brains=r2, recover={"kim": brains / "getup_kim.onnx"}
+    )
     kim = [l for l in res.lanes if l.body == "kim"]
     assert kim and all(l.falls >= 1 for l in kim), "the shove must floor her (else the test checks nothing)"
     assert all(l.status == "FINISHED" for l in kim)
@@ -272,12 +321,28 @@ def test_fallen_runner_with_a_getup_brain_gets_up_and_finishes(monkeypatch):
 
 def test_resurrection_dash_rises_and_sprints():
     """Event 27: everyone starts on the back; bodies with a get-up brain rise and run 5 m, the others stay down (DNF)."""
-    brains = C.ROOT.parent / "parity" / "brains"
+    brains = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains"
     scene, layout = C.ROOT / "assets" / "scene_track8_mzgkmzgk.xml", C.ROOT / "assets" / "track8_mzgkmzgk_layout.json"
     if not (brains / "getup_kim.onnx").exists() or not scene.exists():
         pytest.skip("getup_kim.onnx / the KIM line-up not in this clone")
-    r2 = {b: brains / f for b, f in (("matt", "rung2.onnx"), ("zombie", "zombie_rung2.onnx"), ("grandma", "grandma_rung2.onnx"), ("kim", "kim_rung2.onnx"))}
-    res = track.run_race(r2["matt"], "resurrection", 9000, scene=scene, layout_path=layout, brains=r2, recover={"kim": brains / "getup_kim.onnx"})
+    r2 = {
+        b: brains / f
+        for b, f in (
+            ("matt", "rung2.onnx"),
+            ("zombie", "zombie_rung2.onnx"),
+            ("grandma", "grandma_rung2.onnx"),
+            ("kim", "kim_rung2.onnx"),
+        )
+    }
+    res = track.run_race(
+        r2["matt"],
+        "resurrection",
+        9000,
+        scene=scene,
+        layout_path=layout,
+        brains=r2,
+        recover={"kim": brains / "getup_kim.onnx"},
+    )
     kim = [l for l in res.lanes if l.body == "kim"]
     assert kim and all(l.status == "FINISHED" and 2.0 < l.finish_s < 15.0 for l in kim)
     assert all(l.status == "DNF" for l in res.lanes if l.body != "kim")
@@ -286,34 +351,50 @@ def test_resurrection_dash_rises_and_sprints():
 
 def test_terminal_pack_lines():
     from poolympic.events import track
+
     hw, level = [0.32] * 8, [10.0] * 8
     lines = [track.pack_target(i, level, [True] * 8, hw, 3.66) for i in range(8)]
-    assert lines == pytest.approx([3.66 - 0.61 * i for i in range(8)])       # level MATTs: 0.61 m apart
+    assert lines == pytest.approx([3.66 - 0.61 * i for i in range(8)])  # level MATTs: 0.61 m apart
     # lanes 0 and 4 level, the rest far behind or down: the two run shoulder to shoulder on the inside
     xs = [40.0, 30.0, 30.0, 30.0, 40.5, 30.0, 30.0, 40.2]
     racing = [True] * 7 + [False]
     assert track.pack_target(0, xs, racing, hw, 3.66) == pytest.approx(3.66)
     assert track.pack_target(4, xs, racing, hw, 3.66) == pytest.approx(3.05)
-    assert track.pack_target(3, xs, racing, hw, 3.66) == pytest.approx(3.66 - 2 * 0.61)   # third in its own group
+    assert track.pack_target(3, xs, racing, hw, 3.66) == pytest.approx(3.66 - 2 * 0.61)  # third in its own group
 
 
-MARCH_BRAIN = C.ROOT.parent / "parity" / "brains" / "rs_v8_it1199.onnx"
+MARCH_BRAIN = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains" / "rs_v8_it1199.onnx"
 
 
 @pytest.mark.skipif(not MARCH_BRAIN.exists(), reason="Rung S brain not exported")
 def test_cadence_march_holds_the_spot():
     from poolympic.events import march
+
     res = march.run_heat(MARCH_BRAIN, seed=9000)
-    assert [l.status for l in res.lanes] == ["DONE"] * 8          # without the spot hold: 6 of 8 WANDERED in this heat
+    assert [l.status for l in res.lanes] == ["DONE"] * 8  # without the spot hold: 6 of 8 WANDERED in this heat
     assert max(l.max_drift_m for l in res.lanes) < 0.4
 
 
 def _rung2_brains():
-    brains = C.ROOT.parent / "parity" / "brains"
-    r2 = {b: brains / f for b, f in (("matt", "rung2.onnx"), ("zombie", "zombie_rung2.onnx"),
-                                     ("grandma", "grandma_rung2.onnx"), ("kim", "kim_rung2.onnx"))}
-    gu = {b: brains / f for b, f in (("matt", "getup_matt.onnx"), ("zombie", "getup_zombie.onnx"),
-                                     ("grandma", "getup_grandma.onnx"), ("kim", "getup_kim.onnx"))}
+    brains = C.ROOT.parent / "Assets" / "PoOlympic" / "Models" / "Brains"
+    r2 = {
+        b: brains / f
+        for b, f in (
+            ("matt", "rung2.onnx"),
+            ("zombie", "zombie_rung2.onnx"),
+            ("grandma", "grandma_rung2.onnx"),
+            ("kim", "kim_rung2.onnx"),
+        )
+    }
+    gu = {
+        b: brains / f
+        for b, f in (
+            ("matt", "getup_matt.onnx"),
+            ("zombie", "getup_zombie.onnx"),
+            ("grandma", "getup_grandma.onnx"),
+            ("kim", "getup_kim.onnx"),
+        )
+    }
     return r2, gu
 
 
@@ -329,11 +410,19 @@ def test_collision_track_modes_mixed(mode, tag):
     assert any(l.status == "FINISHED" for l in res.lanes)
 
 
-@pytest.mark.parametrize("mode,tag", [
-    ("sumo", "sumo8"), ("bridge", "bridge8"), ("pads", "pads8"), ("beacon", "beacon8"), ("hill", "hill8"),
-])
+@pytest.mark.parametrize(
+    "mode,tag",
+    [
+        ("sumo", "sumo8"),
+        ("bridge", "bridge8"),
+        ("pads", "pads8"),
+        ("beacon", "beacon8"),
+        ("hill", "hill8"),
+    ],
+)
 def test_collision_arena_events_mixed(mode, tag):
     from poolympic.events import arena_brawl
+
     r2, gu = _rung2_brains()
     scene = C.ROOT / "assets" / f"scene_{tag}_mzgkmzgk.xml"
     layout = C.ROOT / "assets" / f"{tag}_mzgkmzgk_layout.json"
@@ -347,5 +436,3 @@ def test_collision_arena_events_mixed(mode, tag):
         assert any(l.status in ("FINISHED", "FELL") for l in res.lanes)
     else:
         assert max(l.score_s for l in res.lanes) > 0.5
-
-

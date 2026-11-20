@@ -25,7 +25,11 @@ from poolympic import contract as C  # noqa: E402
 
 LAM = C.BODY.length_scale
 # other bodies: "up" scaled by their standing pelvis height (crouched stances), as tasks/getup_env.py (MATT family: 1)
-K = 1.0 if C.BODY.family == "matt" else float(mujoco.MjModel.from_xml_path(str(C.SCENE_XML)).key("default").qpos[2]) / 0.9549291
+K = (
+    1.0
+    if C.BODY.family == "matt"
+    else float(mujoco.MjModel.from_xml_path(str(C.SCENE_XML)).key("default").qpos[2]) / 0.9549291
+)
 UP_Z, UP_TILT_DEG, HOLD_S, SECONDS = 0.85 * K, 20.0, 1.0, 10.0
 
 
@@ -40,8 +44,8 @@ def episode(onnx: str, seed: int, prone: bool = False) -> dict:
     roll, pitch, yaw = rng.uniform(-0.3, 0.3), side + rng.uniform(-0.2, 0.2), rng.uniform(-math.pi, math.pi)
     q = np.zeros(4)
     mujoco.mju_euler2Quat(q, np.array([roll, pitch, yaw]), "XYZ")
-    d.qpos[r:r + 3] = [0.0, 0.0, 0.22 * LAM]
-    d.qpos[r + 3:r + 7] = q
+    d.qpos[r : r + 3] = [0.0, 0.0, 0.22 * LAM]
+    d.qpos[r + 3 : r + 7] = q
     mujoco.mj_forward(m, d)
     torso = m.body("torso").id
     sess = ort.InferenceSession(onnx, providers=["CPUExecutionProvider"])
@@ -66,7 +70,12 @@ def episode(onnx: str, seed: int, prone: bool = False) -> dict:
             up_since = None
             if first_up is not None and d.qpos[r + 2] < 0.55 * K:
                 fell_after = True
-    return {"seed": seed, "time_to_up_s": first_up, "up_at_end": bool(up_since is not None), "fell_after_up": fell_after}
+    return {
+        "seed": seed,
+        "time_to_up_s": first_up,
+        "up_at_end": bool(up_since is not None),
+        "fell_after_up": fell_after,
+    }
 
 
 def main() -> int:
@@ -78,9 +87,13 @@ def main() -> int:
     a = ap.parse_args()
     rows = [episode(a.onnx, 3000 + s, a.prone) for s in range(a.seeds)]
     ups = [x["time_to_up_s"] for x in rows if x["time_to_up_s"] is not None]
-    print(f"{Path(a.onnx).name}: up {len(ups)}/{len(rows)}, time to up {min(ups) if ups else '-'}..{max(ups) if ups else '-'} s"
-          f" (mean {np.mean(ups):.2f})" if ups else f"{Path(a.onnx).name}: up 0/{len(rows)}",
-          f"| up at end {sum(x['up_at_end'] for x in rows)}/{len(rows)} | fell after up {sum(x['fell_after_up'] for x in rows)}")
+    print(
+        f"{Path(a.onnx).name}: up {len(ups)}/{len(rows)}, time to up {min(ups) if ups else '-'}..{max(ups) if ups else '-'} s"
+        f" (mean {np.mean(ups):.2f})"
+        if ups
+        else f"{Path(a.onnx).name}: up 0/{len(rows)}",
+        f"| up at end {sum(x['up_at_end'] for x in rows)}/{len(rows)} | fell after up {sum(x['fell_after_up'] for x in rows)}",
+    )
     if a.out:
         Path(a.out).write_text(json.dumps({"onnx": Path(a.onnx).name, "rows": rows}, indent=1))
     return 0

@@ -16,7 +16,6 @@ from __future__ import annotations
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
-from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity import mdp as vel_mdp
 
@@ -27,9 +26,9 @@ from . import mdp
 # MATT crawl geometry (m / deg): on hands and knees his pelvis sits ~0.5 m up; bear-crawl (knees off) ~0.7 m
 CRAWL_PELVIS_Z, CRAWL_PELVIS_STD = 0.5, 0.15
 CRAWL_TILT_DEG, CRAWL_TILT_STD = 80.0, 25.0
-CRAWL_VX = (0.3, 1.5)          # m/s, commanded crawl speeds (a human bear crawl ~1-1.5 m/s)
-CRAWL_WZ = 0.5                 # rad/s, lane-keeping range (contract steering limit)
-STAND_Z = 0.8                  # pelvis above this with the torso within 40° of vertical = standing up (penalised)
+CRAWL_VX = (0.3, 1.5)  # m/s, commanded crawl speeds (a human bear crawl ~1-1.5 m/s)
+CRAWL_WZ = 0.5  # rad/s, lane-keeping range (contract steering limit)
+STAND_Z = 0.8  # pelvis above this with the torso within 40° of vertical = standing up (penalised)
 
 
 def _crawl(cfg: ManagerBasedRlEnvCfg, lam: float = 1.0, ss: float = 1.0, ws: float = 1.0) -> ManagerBasedRlEnvCfg:
@@ -37,37 +36,52 @@ def _crawl(cfg: ManagerBasedRlEnvCfg, lam: float = 1.0, ss: float = 1.0, ws: flo
     length, speed and angular-rate scales (1 for MATT)."""
     cfg.episode_length_s = 20.0
     cfg.scene.sensors = cfg.scene.sensors + (
-        ContactSensorCfg(name=mdp.HAND_SENSOR,
-                         primary=ContactMatch(mode="subtree", pattern=r"^(forearm_l|forearm_r)$", entity="robot"),
-                         secondary=ContactMatch(mode="body", pattern="terrain"),
-                         fields=("found",), reduce="netforce", num_slots=1),
+        ContactSensorCfg(
+            name=mdp.HAND_SENSOR,
+            primary=ContactMatch(mode="subtree", pattern=r"^(forearm_l|forearm_r)$", entity="robot"),
+            secondary=ContactMatch(mode="body", pattern="terrain"),
+            fields=("found",),
+            reduce="netforce",
+            num_slots=1,
+        ),
     )
     cmd = cfg.commands["athlete"]
     cmd.resampling_time_range = (3.0, 8.0)
     cmd.rel_standing_envs = 0.1
     cmd.rel_heading_envs = 0.0
     cmd.heading_command = False
-    cmd.ranges = mdp.AthleteCommandCfg.Ranges(lin_vel_x=(CRAWL_VX[0] * ss, CRAWL_VX[1] * ss), lin_vel_y=(0.0, 0.0),
-                                              ang_vel_z=(-CRAWL_WZ * ws, CRAWL_WZ * ws))
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=(CRAWL_VX[0] * ss, CRAWL_VX[1] * ss), lin_vel_y=(0.0, 0.0), ang_vel_z=(-CRAWL_WZ * ws, CRAWL_WZ * ws)
+    )
     cfg.events["reset_base"].params["prone_fraction"] = 0.7
     rw = cfg.rewards
     for k in ("height", "upright", "height_progress", "upright_linear", "standing_tall", "rise"):
         rw.pop(k, None)
-    rw.update({
-        "track_lin": RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=3.0,
-                                   params={"command_name": "athlete", "std": 0.3 * ss}),
-        "track_lin_coarse": RewardTermCfg(func=vel_mdp.track_linear_velocity, weight=1.0,
-                                          params={"command_name": "athlete", "std": 1.0 * ss}),
-        "track_yaw": RewardTermCfg(func=mdp.track_yaw_rate, weight=1.0,
-                                   params={"command_name": "athlete", "std": 0.5 * ws}),
-        "crawl_height": RewardTermCfg(func=mdp.base_height_tracking, weight=1.5,
-                                      params={"target": CRAWL_PELVIS_Z * lam, "std": CRAWL_PELVIS_STD * lam}),
-        "crawl_tilt": RewardTermCfg(func=mdp.torso_tilt_target, weight=1.5,
-                                    params={"target_deg": CRAWL_TILT_DEG, "std_deg": CRAWL_TILT_STD}),
-        "hands_down": RewardTermCfg(func=mdp.hands_on_ground, weight=0.5),
-        "standing_up": RewardTermCfg(func=mdp.standing_tall, weight=-3.0,
-                                     params={"min_height": STAND_Z * lam, "max_tilt_deg": 40.0}),
-    })
+    rw.update(
+        {
+            "track_lin": RewardTermCfg(
+                func=vel_mdp.track_linear_velocity, weight=3.0, params={"command_name": "athlete", "std": 0.3 * ss}
+            ),
+            "track_lin_coarse": RewardTermCfg(
+                func=vel_mdp.track_linear_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0 * ss}
+            ),
+            "track_yaw": RewardTermCfg(
+                func=mdp.track_yaw_rate, weight=1.0, params={"command_name": "athlete", "std": 0.5 * ws}
+            ),
+            "crawl_height": RewardTermCfg(
+                func=mdp.base_height_tracking,
+                weight=1.5,
+                params={"target": CRAWL_PELVIS_Z * lam, "std": CRAWL_PELVIS_STD * lam},
+            ),
+            "crawl_tilt": RewardTermCfg(
+                func=mdp.torso_tilt_target, weight=1.5, params={"target_deg": CRAWL_TILT_DEG, "std_deg": CRAWL_TILT_STD}
+            ),
+            "hands_down": RewardTermCfg(func=mdp.hands_on_ground, weight=0.5),
+            "standing_up": RewardTermCfg(
+                func=mdp.standing_tall, weight=-3.0, params={"min_height": STAND_Z * lam, "max_tilt_deg": 40.0}
+            ),
+        }
+    )
     return cfg
 
 
@@ -81,19 +95,21 @@ def matt_crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 def zombie_crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """The zombie crawl (POOLYMPIC_BODY=zombie): MATT's crawl with the zombie body, Froude-scaled."""
     from .zombie_env import FALL_Z, zombie_entity_cfg  # noqa: F401  (zombie process only)
+
     z = bodies.BODIES["zombie"]
     lam, ss, ws = z.length_scale, z.speed_scale, 1.0 / z.time_scale
     cfg = M.matt_getup3_env_cfg(play=play)
     cfg.scene.entities["robot"] = zombie_entity_cfg()
     cfg.events["reset_base"].params["z"] = (0.2 * lam, 0.25 * lam)
     if "getup_assist" in cfg.events:
-        cfg.events["getup_assist"].params.update({"max_fraction": 0.4, "decay_steps": 600 * 24,
-                                                  "body_weight_n": z.total_mass * 9.81})
+        cfg.events["getup_assist"].params.update(
+            {"max_fraction": 0.4, "decay_steps": 600 * 24, "body_weight_n": z.total_mass * 9.81}
+        )
     cfg = _crawl(cfg, lam, ss, ws)
     rw = cfg.rewards
     rw["joint_vel_limit"].params["limit"] = 18.0 * ws
-    rw["torques"].weight = rw["torques"].weight / z.torque_scale ** 2
-    cfg.sim.nconmax, cfg.sim.njmax = 160, 800          # full self-collision: more contacts
+    rw["torques"].weight = rw["torques"].weight / z.torque_scale**2
+    cfg.sim.nconmax, cfg.sim.njmax = 160, 800  # full self-collision: more contacts
     cfg.viewer.distance = 3.5 * lam
     return cfg
 
@@ -103,6 +119,7 @@ def _crawl2(cfg: ManagerBasedRlEnvCfg, ss: float = 1.0) -> ManagerBasedRlEnvCfg:
     posture terms paid ~3.5 per step, the exp speed kernels ~0 until already moving. Add a forward-progress reward
     (speed / command, w 3), halve the posture terms, and a speed curriculum 0.2-0.8 → 0.3-1.5 m/s (× √λ)."""
     from mjlab.managers.curriculum_manager import CurriculumTermCfg
+
     rw = cfg.rewards
     rw["progress"] = RewardTermCfg(func=mdp.forward_progress, weight=3.0, params={"command_name": "athlete"})
     rw["crawl_height"].weight = 0.75
@@ -110,10 +127,18 @@ def _crawl2(cfg: ManagerBasedRlEnvCfg, ss: float = 1.0) -> ManagerBasedRlEnvCfg:
     rw["hands_down"].weight = 0.3
     cmd = cfg.commands["athlete"]
     cmd.ranges.lin_vel_x = (0.2 * ss, 0.8 * ss)
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [
-            {"step": 0, "lin_vel_x": (0.2 * ss, 0.8 * ss)},
-            {"step": 600 * 24, "lin_vel_x": (CRAWL_VX[0] * ss, CRAWL_VX[1] * ss)}]})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel,
+            params={
+                "command_name": "athlete",
+                "velocity_stages": [
+                    {"step": 0, "lin_vel_x": (0.2 * ss, 0.8 * ss)},
+                    {"step": 600 * 24, "lin_vel_x": (CRAWL_VX[0] * ss, CRAWL_VX[1] * ss)},
+                ],
+            },
+        )
+    }
     return cfg
 
 
@@ -176,26 +201,29 @@ def grandma_crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     lanes). The zombie's final recipe (zcrawl_v3 = crawl5: heading-frame speed terms, progress gated on all fours,
     climb-to-crawl-height, turn tracking x3 + linear turn error) on her body, Froude-scaled. Warm start: her own
     Rung 0 brain, as on the zombie (another body's crawl actions are offsets from that body's default pose)."""
-    from .grandma_env import G as g, grandma_entity_cfg  # noqa: F401  (grandma / KIM process: G = that body)
+    from .grandma_env import G as g  # noqa: F401  (grandma / KIM process: G = that body)
+    from .grandma_env import grandma_entity_cfg
+
     lam, ss, ws = g.length_scale, g.speed_scale, 1.0 / g.time_scale
     cfg = M.matt_getup3_env_cfg(play=play)
     cfg.scene.entities["robot"] = grandma_entity_cfg()
     cfg.events["reset_base"].params["z"] = (0.2 * lam, 0.25 * lam)
     if "getup_assist" in cfg.events:
-        cfg.events["getup_assist"].params.update({"max_fraction": 0.4, "decay_steps": 600 * 24,
-                                                  "body_weight_n": g.total_mass * 9.81})
+        cfg.events["getup_assist"].params.update(
+            {"max_fraction": 0.4, "decay_steps": 600 * 24, "body_weight_n": g.total_mass * 9.81}
+        )
     cfg = _crawl3(_crawl2(_crawl(cfg, lam, ss, ws), ss), ss, ws)
     rw = cfg.rewards
     rw["joint_vel_limit"].params["limit"] = 18.0 * ws
-    rw["torques"].weight = rw["torques"].weight / g.torque_scale ** 2
+    rw["torques"].weight = rw["torques"].weight / g.torque_scale**2
     target = CRAWL_PELVIS_Z * lam
     rw["progress"] = RewardTermCfg(func=mdp.crawl_progress_gated, weight=3.0, params={"target_z": target})
     rw["crawl_up"] = RewardTermCfg(func=mdp.height_progress, weight=1.5, params={"target": target})
     rw["hands_down"].weight = 1.0
     rw["track_yaw"].weight = 3.0
     rw["yaw_l1"] = RewardTermCfg(func=mdp.yaw_rate_world_l1, weight=-0.5)
-    cfg.sim.nconmax, cfg.sim.njmax = 160, 800          # full self-collision: more contacts
-    cfg.scene.num_envs = 4096                          # the queue passes no CLI overrides
+    cfg.sim.nconmax, cfg.sim.njmax = 160, 800  # full self-collision: more contacts
+    cfg.scene.num_envs = 4096  # the queue passes no CLI overrides
     cfg.viewer.distance = 3.5 * lam
     return cfg
 
@@ -205,14 +233,24 @@ def grandma_crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 # 30 Nm at 60 % strength, 65 kg) cannot press her off the floor, and nothing else got her knees under her. Her all-fours
 # pose from FK on her body: hands and knees touch together at a trunk pitch of 74°, pelvis 0.32 m up — not MATT's
 # 0.5 m × λ = 0.435 m, which is a bear crawl (knees off the ground) for her short thighs.
-GRANDMA_FOURS = ({"shoulder_elev": 0, "shoulder_flex": 100, "elbow": 5, "hip_flex": 85, "knee": 110, "ankle_dorsi": -30,
-                  "abdomen_flex": 0}, 74.0)
+GRANDMA_FOURS = (
+    {
+        "shoulder_elev": 0,
+        "shoulder_flex": 100,
+        "elbow": 5,
+        "hip_flex": 85,
+        "knee": 110,
+        "ankle_dorsi": -30,
+        "abdomen_flex": 0,
+    },
+    74.0,
+)
 GRANDMA_CRAWL_Z = 0.32
 # KIM (short thighs too, tools FK 2026-10-10): the same joint pose touches hands and knees at 73 deg, pelvis 0.335 m
 if bodies.current().name == "kim":
     GRANDMA_FOURS, GRANDMA_CRAWL_Z = (GRANDMA_FOURS[0], 73.0), 0.335
 _CRAWL_BODY = bodies.current() if bodies.current().name == "kim" else bodies.BODIES["grandma"]
-FOURS_BLENDS = (0.25, 0.5, 0.75, 1.0)      # start poses between lying face down (0) and on hands and knees (1)
+FOURS_BLENDS = (0.25, 0.5, 0.75, 1.0)  # start poses between lying face down (0) and on hands and knees (1)
 
 
 def _fours_table() -> list:
@@ -220,16 +258,27 @@ def _fours_table() -> list:
     import math
 
     from .getup_env import _pose_table
+
     angles, pitch = GRANDMA_FOURS
-    default = {(n[:-2] if n.endswith(("_l", "_r")) else n): math.degrees(v)
-               for n, v in zip(mdp.CONTRACT_ACTUATORS, mdp.CONTRACT_DEFAULTS)}
-    poses = {a: ({k: (1 - a) * default[k] + a * v for k, v in angles.items()}, math.radians((1 - a) * 90.0 + a * pitch))
-             for a in FOURS_BLENDS}
+    default = {
+        (n[:-2] if n.endswith(("_l", "_r")) else n): math.degrees(v)
+        for n, v in zip(mdp.CONTRACT_ACTUATORS, mdp.CONTRACT_DEFAULTS)
+    }
+    poses = {
+        a: ({k: (1 - a) * default[k] + a * v for k, v in angles.items()}, math.radians((1 - a) * 90.0 + a * pitch))
+        for a in FOURS_BLENDS
+    }
     return list(_pose_table(poses).values())
 
 
-def reset_crawl_mix(env, env_ids, fours_fraction: float = 0.6, prone_fraction: float = 0.7,
-                    z: tuple[float, float] = (0.2, 0.25), joint_noise: float = 0.05) -> None:
+def reset_crawl_mix(
+    env,
+    env_ids,
+    fours_fraction: float = 0.6,
+    prone_fraction: float = 0.7,
+    z: tuple[float, float] = (0.2, 0.25),
+    joint_noise: float = 0.05,
+) -> None:
     """Crawl reset with a pose continuum: with probability fours_fraction the episode starts in one of the FOURS_BLENDS
     poses (from a quarter of the way up to on hands and knees, placed on the ground, random yaw), else lying as before
     (mdp.reset_lying, the event start). All fours is then visited from the first iteration, and every start is a small
@@ -237,6 +286,7 @@ def reset_crawl_mix(env, env_ids, fours_fraction: float = 0.6, prone_fraction: f
     import math
 
     import torch
+
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=env.device)
     n = len(env_ids)
@@ -245,12 +295,16 @@ def reset_crawl_mix(env, env_ids, fours_fraction: float = 0.6, prone_fraction: f
     dev = env.device
     table = getattr(env, "_poolympic_crawl_fours", None)
     if table is None:
-        table = env._poolympic_crawl_fours = [(torch.as_tensor(q, device=dev, dtype=torch.float32), float(h), quat)
-                                              for q, h, quat in _fours_table()]
+        table = env._poolympic_crawl_fours = [
+            (torch.as_tensor(q, device=dev, dtype=torch.float32), float(h), quat) for q, h, quat in _fours_table()
+        ]
     asset = env.scene["robot"]
     ix = mdp._idx(env)
-    stage = torch.where(torch.rand(n, device=dev) < fours_fraction, torch.randint(0, len(table), (n,), device=dev),
-                        torch.full((n,), -1, device=dev))
+    stage = torch.where(
+        torch.rand(n, device=dev) < fours_fraction,
+        torch.randint(0, len(table), (n,), device=dev),
+        torch.full((n,), -1, device=dev),
+    )
     for k in range(-1, len(table)):
         ids = env_ids[stage == k]
         m = len(ids)
@@ -265,10 +319,12 @@ def reset_crawl_mix(env, env_ids, fours_fraction: float = 0.6, prone_fraction: f
             mdp.reset_lying(env, ids, prone_fraction=prone_fraction, z=z)
             continue
         _, h, quat = table[k]
-        half = (torch.rand(m, device=dev) * 2 - 1) * math.pi / 2          # yaw / 2
+        half = (torch.rand(m, device=dev) * 2 - 1) * math.pi / 2  # yaw / 2
         w1, z1 = torch.cos(half), torch.sin(half)
         w2, x2, y2, z2 = (float(v) for v in quat)
-        qq = torch.stack([w1 * w2 - z1 * z2, w1 * x2 - z1 * y2, w1 * y2 + z1 * x2, w1 * z2 + z1 * w2], -1)   # yaw * pitch
+        qq = torch.stack(
+            [w1 * w2 - z1 * z2, w1 * x2 - z1 * y2, w1 * y2 + z1 * x2, w1 * z2 + z1 * w2], -1
+        )  # yaw * pitch
         pos = env.scene.env_origins[ids].clone()
         pos[:, 2] = h
         asset.write_root_link_pose_to_sim(torch.cat([pos, qq], -1), env_ids=ids)
@@ -295,13 +351,18 @@ def grandma_crawl3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     +6 mean reward per 100 its when the run ended). Same recipe without what a restart would bring back: no torso assist
     (it had faded to 0 by it 600) and the full speed range from the first iteration (no curriculum stage)."""
     from mjlab.managers.curriculum_manager import CurriculumTermCfg
+
     ss = _CRAWL_BODY.speed_scale
     cfg = grandma_crawl2_env_cfg(play=play)
     cfg.events.pop("getup_assist", None)
     full = (CRAWL_VX[0] * ss, CRAWL_VX[1] * ss)
     cfg.commands["athlete"].ranges.lin_vel_x = full
-    cfg.curriculum = {"command_vel": CurriculumTermCfg(func=vel_mdp.commands_vel, params={
-        "command_name": "athlete", "velocity_stages": [{"step": 0, "lin_vel_x": full}]})}
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel,
+            params={"command_name": "athlete", "velocity_stages": [{"step": 0, "lin_vel_x": full}]},
+        )
+    }
     return cfg
 
 

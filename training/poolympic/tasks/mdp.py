@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.velocity.mdp.velocity_command import UniformVelocityCommand, UniformVelocityCommandCfg
 
@@ -52,7 +51,12 @@ def _load_contract_actuators():
 
     m = mujoco.MjModel.from_xml_path(str(C.SCENE_XML))
     ath = C.Athlete.bind(m)
-    return ath.actuator_names, [float(x) for x in ath.default_pos], [float(x) for x in ath.range_lo], [float(x) for x in ath.range_hi]
+    return (
+        ath.actuator_names,
+        [float(x) for x in ath.default_pos],
+        [float(x) for x in ath.range_lo],
+        [float(x) for x in ath.range_hi],
+    )
 
 
 CONTRACT_ACTUATORS, CONTRACT_DEFAULTS, CONTRACT_RANGE_LO, CONTRACT_RANGE_HI = _load_contract_actuators()
@@ -149,28 +153,40 @@ class AthleteCommand(UniformVelocityCommand):
             adv = torch.remainder(self.phase + hz * C.DECIMATION * 0.005, 1.0)
             self.phase = torch.where(moving, adv, torch.zeros_like(self.phase))
 
-
     def _resample_command(self, env_ids):
         super()._resample_command(env_ids)
         frac = getattr(self.cfg, "sprint_fraction", 0.0)
         if frac:  # r2_v8: extra mass on fast running with a mild turn (the G1 margin misses: 3.2-3.8 m/s, |wz| 0.2-0.5)
             n = len(env_ids)
-            pick = torch.rand(n, device=self.device) < frac      # masked writes: no GPU->CPU sync
+            pick = torch.rand(n, device=self.device) < frac  # masked writes: no GPU->CPU sync
             lo, hi = self.cfg.sprint_vx
             cur = self.vel_command_b[env_ids]
-            sprint = torch.stack([torch.empty(n, device=self.device).uniform_(lo, hi), torch.zeros(n, device=self.device),
-                                  torch.empty(n, device=self.device).uniform_(-self.cfg.sprint_wz, self.cfg.sprint_wz)], -1)
+            sprint = torch.stack(
+                [
+                    torch.empty(n, device=self.device).uniform_(lo, hi),
+                    torch.zeros(n, device=self.device),
+                    torch.empty(n, device=self.device).uniform_(-self.cfg.sprint_wz, self.cfg.sprint_wz),
+                ],
+                -1,
+            )
             self.vel_command_b[env_ids] = torch.where(pick[:, None], sprint, cur)
             if hasattr(self, "is_standing_env"):
                 self.is_standing_env[env_ids] = self.is_standing_env[env_ids] & ~pick
         cfrac = getattr(self.cfg, "crab_fraction", 0.0)
-        if cfrac:  # g2_v7: extra mass on side-stepping (the G1 crab segments: small vx, |vy| up to the envelope edge, no turn)
+        if (
+            cfrac
+        ):  # g2_v7: extra mass on side-stepping (the G1 crab segments: small vx, |vy| up to the envelope edge, no turn)
             n = len(env_ids)
             pick = torch.rand(n, device=self.device) < cfrac
             side = torch.where(torch.rand(n, device=self.device) < 0.5, -1.0, 1.0)
-            crab = torch.stack([torch.empty(n, device=self.device).uniform_(*self.cfg.crab_vx),
-                                side * torch.empty(n, device=self.device).uniform_(*self.cfg.crab_vy),
-                                torch.zeros(n, device=self.device)], -1)
+            crab = torch.stack(
+                [
+                    torch.empty(n, device=self.device).uniform_(*self.cfg.crab_vx),
+                    side * torch.empty(n, device=self.device).uniform_(*self.cfg.crab_vy),
+                    torch.zeros(n, device=self.device),
+                ],
+                -1,
+            )
             self.vel_command_b[env_ids] = torch.where(pick[:, None], crab, self.vel_command_b[env_ids])
             if hasattr(self, "is_standing_env"):
                 self.is_standing_env[env_ids] = self.is_standing_env[env_ids] & ~pick
@@ -186,7 +202,9 @@ class AthleteCommand(UniformVelocityCommand):
             if hasattr(self, "is_standing_env"):
                 self.is_standing_env[env_ids] = self.is_standing_env[env_ids] & ~pick
         sfrac = getattr(self.cfg, "spin_fraction", 0.0)
-        if sfrac:  # 2026-11-19 (SpinAthleteCommandCfg only): long in-place spins, |wz| in spin_wz, either way (Event 12)
+        if (
+            sfrac
+        ):  # 2026-11-19 (SpinAthleteCommandCfg only): long in-place spins, |wz| in spin_wz, either way (Event 12)
             n = len(env_ids)
             pick = torch.rand(n, device=self.device) < sfrac
             sign = torch.where(torch.rand(n, device=self.device) < 0.5, -1.0, 1.0)
@@ -206,13 +224,13 @@ class AthleteCommand(UniformVelocityCommand):
 @dataclass(kw_only=True)
 class AthleteCommandCfg(UniformVelocityCommandCfg):
     max_lateral_accel: float | None = None  # m/s^2; None = independent uniform sampling
-    sprint_fraction: float = 0.0            # share of resamples drawn from the sprint band below
+    sprint_fraction: float = 0.0  # share of resamples drawn from the sprint band below
     sprint_vx: tuple[float, float] = (2.5, 4.0)
     sprint_wz: float = 0.6
-    crab_fraction: float = 0.0              # share of resamples drawn from the side-step band below (after the sprint draw)
+    crab_fraction: float = 0.0  # share of resamples drawn from the side-step band below (after the sprint draw)
     crab_vx: tuple[float, float] = (-0.5, 0.5)
-    crab_vy: tuple[float, float] = (0.4, 1.1)   # |vy|, either side
-    bands: tuple = ()                       # ((fraction, (vx lo, hi), (|vy| lo, hi), |wz| max), ...) after the draws above
+    crab_vy: tuple[float, float] = (0.4, 1.1)  # |vy|, either side
+    bands: tuple = ()  # ((fraction, (vx lo, hi), (|vy| lo, hi), |wz| max), ...) after the draws above
 
     def build(self, env):
         return AthleteCommand(self, env)
@@ -222,9 +240,10 @@ class AthleteCommandCfg(UniformVelocityCommandCfg):
 class SpinAthleteCommandCfg(AthleteCommandCfg):
     """2026-11-19: + a share of resamples that spin in place (the 360 Turntable: wz 3 rad/s for ~6.3 s inside a 0.75 m
     ring). A subclass so that no existing task's command cfg (and hash) changes; only the -Spin task IDs use it."""
+
     spin_fraction: float = 0.0
-    spin_wz: tuple[float, float] = (2.0, 3.3)   # |wz|, either way
-    spin_v: float = 0.1                         # |vx|, |vy| at most (drift-free spin)
+    spin_wz: tuple[float, float] = (2.0, 3.3)  # |wz|, either way
+    spin_v: float = 0.1  # |vx|, |vy| at most (drift-free spin)
 
     def build(self, env):
         return AthleteCommand(self, env)
@@ -234,6 +253,7 @@ def with_spin(cmd: AthleteCommandCfg, fraction: float, **kw) -> SpinAthleteComma
     """The same command cfg as a SpinAthleteCommandCfg with spin_fraction set (every other field copied)."""
     import copy
     import dataclasses
+
     vals = {f.name: copy.deepcopy(getattr(cmd, f.name)) for f in dataclasses.fields(cmd) if f.init}
     return SpinAthleteCommandCfg(**vals, spin_fraction=fraction, **kw)
 
@@ -283,20 +303,29 @@ def torso_upright(env, std: float) -> torch.Tensor:
     return torch.exp(-(torso_tilt_rad(env) ** 2) / std**2)
 
 
-def reset_lying(env, env_ids, prone_fraction: float = 0.5, z: tuple[float, float] = (0.2, 0.25),
-                roll: float = 0.3, pitch_jitter: float = 0.2, asset_cfg=None) -> None:
+def reset_lying(
+    env,
+    env_ids,
+    prone_fraction: float = 0.5,
+    z: tuple[float, float] = (0.2, 0.25),
+    roll: float = 0.3,
+    pitch_jitter: float = 0.2,
+    asset_cfg=None,
+) -> None:
     """Get-up reset: each env lying on its back (pitch -90°) or, with probability prone_fraction, on its front (+90°),
     pitch ± pitch_jitter, roll ± roll, any yaw, pelvis at z metres; zero velocity (mjlab reset_root_state_uniform can
     only sample one interval per angle, not two poses)."""
     from mjlab.utils.lab_api.math import quat_from_euler_xyz, quat_mul
+
     asset = env.scene["robot" if asset_cfg is None else asset_cfg.name]
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=env.device)
     n = len(env_ids)
     u = lambda lo, hi: lo + (hi - lo) * torch.rand(n, device=env.device)
     prone = torch.rand(n, device=env.device) < prone_fraction
-    pitch = torch.where(prone, torch.full((n,), math.pi / 2, device=env.device),
-                        torch.full((n,), -math.pi / 2, device=env.device)) + u(-pitch_jitter, pitch_jitter)
+    pitch = torch.where(
+        prone, torch.full((n,), math.pi / 2, device=env.device), torch.full((n,), -math.pi / 2, device=env.device)
+    ) + u(-pitch_jitter, pitch_jitter)
     q = quat_from_euler_xyz(u(-roll, roll), pitch, u(-math.pi, math.pi))
     root = asset.data.default_root_state[env_ids].clone()
     pos = root[:, 0:3] + env.scene.env_origins[env_ids]
@@ -305,8 +334,14 @@ def reset_lying(env, env_ids, prone_fraction: float = 0.5, z: tuple[float, float
     asset.write_root_link_velocity_to_sim(torch.zeros(n, 6, device=env.device), env_ids=env_ids)
 
 
-def getup_assist(env, env_ids, asset_cfg, max_fraction: float = 0.6, decay_steps: int = 36000,
-                 body_weight_n: float | None = 80.0 * 9.81) -> None:
+def getup_assist(
+    env,
+    env_ids,
+    asset_cfg,
+    max_fraction: float = 0.6,
+    decay_steps: int = 36000,
+    body_weight_n: float | None = 80.0 * 9.81,
+) -> None:
     """Get-up curriculum (reset event): a constant upward world force on the torso for the whole episode,
     U(0, current max) × body weight, the max fading linearly from max_fraction to 0 over decay_steps env steps
     (1500 its × 24). From flat on the floor no small motion changes height or uprightness — getup_v1/v2 lay still
@@ -373,8 +408,8 @@ def crawl_heading(qp: torch.Tensor) -> torch.Tensor:
     direction (x axis points down, z axis along the spine) — the contract's yaw (x axis only) flips towards the feet
     as soon as the hips are higher than the shoulders."""
     w, x, y, z = qp[:, 3], qp[:, 4], qp[:, 5], qp[:, 6]
-    xa = torch.stack([1 - 2 * (y * y + z * z), 2 * (x * y + w * z)], -1)       # R[:, 0] horizontal part
-    za = torch.stack([2 * (x * z + w * y), 2 * (y * z - w * x)], -1)           # R[:, 2] horizontal part
+    xa = torch.stack([1 - 2 * (y * y + z * z), 2 * (x * y + w * z)], -1)  # R[:, 0] horizontal part
+    za = torch.stack([2 * (x * z + w * y), 2 * (y * z - w * x)], -1)  # R[:, 2] horizontal part
     h = xa + za
     return h / torch.clamp(torch.linalg.norm(h, dim=-1, keepdim=True), min=1e-6)
 
@@ -412,7 +447,9 @@ def crawl_progress(env, command_name: str = "athlete", min_cmd: float = 0.1) -> 
     """forward_progress in the crawl heading frame."""
     cmd = env.command_manager.get_command(command_name)[:, 0]
     fwd, _ = _crawl_vel(env)
-    return torch.where(cmd > min_cmd, torch.clamp(fwd / torch.clamp(cmd, min=min_cmd), -0.5, 1.0), torch.zeros_like(cmd))
+    return torch.where(
+        cmd > min_cmd, torch.clamp(fwd / torch.clamp(cmd, min=min_cmd), -0.5, 1.0), torch.zeros_like(cmd)
+    )
 
 
 def crawl_progress_gated(env, target_z: float, command_name: str = "athlete") -> torch.Tensor:
@@ -469,9 +506,15 @@ def nonfoot_ground_contact(env, sensor_name: str) -> torch.Tensor:
 
 
 # ---- events ------------------------------------------------------------------------------------------------
-def drop_cube_on_athlete(env, env_ids, cube_names: tuple[str, ...], height_above_shoulder: float,
-                         xy_jitter: float = 0.15, shoulder_above_pelvis: float = 0.55,
-                         down_speed_range: tuple[float, float] = (0.0, 0.0)):
+def drop_cube_on_athlete(
+    env,
+    env_ids,
+    cube_names: tuple[str, ...],
+    height_above_shoulder: float,
+    xy_jitter: float = 0.15,
+    shoulder_above_pelvis: float = 0.55,
+    down_speed_range: tuple[float, float] = (0.0, 0.0),
+):
     """Teleport a pooled cube above the athlete (native MuJoCo free-joint state; mirrors MjCubePool.DropOnAthlete)."""
     if env_ids is None or len(env_ids) == 0:
         return
@@ -479,7 +522,7 @@ def drop_cube_on_athlete(env, env_ids, cube_names: tuple[str, ...], height_above
     n = len(env_ids)
     dev = env.device
     root = env.sim.data.qpos[env_ids][:, ix.q_free]
-    if len(cube_names) == 1:                                   # recipe v5: no per-cube masking (no GPU->CPU sync)
+    if len(cube_names) == 1:  # recipe v5: no per-cube masking (no GPU->CPU sync)
         pose = torch.zeros(n, 7, device=dev)
         pose[:, 0:2] = root[:, 0:2] + (torch.rand(n, 2, device=dev) * 2 - 1) * xy_jitter
         pose[:, 2] = root[:, 2] + shoulder_above_pelvis + height_above_shoulder
@@ -570,7 +613,9 @@ def _filtered_yaw_error(env, command_name: str, tau: float) -> torch.Tensor:
     return env.command_manager.get_command(command_name)[:, 2] - st[0]
 
 
-def spin_drift(env, command_name: str = "athlete", max_v: float = 0.15, min_wz: float = 1.5, cap: float = 1.0) -> torch.Tensor:
+def spin_drift(
+    env, command_name: str = "athlete", max_v: float = 0.15, min_wz: float = 1.5, cap: float = 1.0
+) -> torch.Tensor:
     """2026-11-19 (Event 12, the 360 Turntable: max distance from the spot must stay < 0.75 m over ~6-8 s of 3 rad/s).
     Horizontal distance of the pelvis from where it stood when the current command began, while that command is an
     in-place spin (|v_cmd| <= max_v, |wz| >= min_wz); 0 otherwise. Capped at `cap` m. Use with a negative weight.
@@ -603,7 +648,7 @@ def yaw_rate_filtered_l1(env, tau: float = 0.5, command_name: str = "athlete") -
 def yaw_wobble_l2(env, tau: float = 0.5, command_name: str = "athlete") -> torch.Tensor:
     """(yaw rate − its stride-filtered value)²: the per-stride pelvis rotation only (use with a negative weight).
     Sustained turning and the steering error are left to the filtered terms."""
-    _filtered_yaw_error(env, command_name, tau)                 # advances the shared EMA state for this step
+    _filtered_yaw_error(env, command_name, tau)  # advances the shared EMA state for this step
     rate = env.scene["robot"].data.root_link_ang_vel_b[:, 2]
     return torch.square(rate - env._poolympic_yaw_ema[0])
 
@@ -617,8 +662,9 @@ def flight_phase(env, command_name: str = "athlete", speed_threshold: float = 2.
     return (airborne & fast).float()
 
 
-def flight_landing(env, command_name: str = "athlete", speed_threshold: float = 2.2, min_s: float = 0.04,
-                   cap_s: float = 0.2) -> torch.Tensor:
+def flight_landing(
+    env, command_name: str = "athlete", speed_threshold: float = 2.2, min_s: float = 0.04, cap_s: float = 0.2
+) -> torch.Tensor:
     """Paid once per flight, at touchdown: (flight duration − min_s) clipped to [0, cap_s − min_s], divided by the step
     length (the reward manager multiplies by dt, so each flight earns its seconds above min_s × weight). r2f_v1's
     per-step airborne reward bought airborne time with many ~50 ms hops (4.8 flights/s at 3.5 m/s); this pays for
@@ -670,13 +716,14 @@ def mechanical_power(env) -> torch.Tensor:
 
 # Hill-type torque-velocity envelope: the torque a muscle group can still produce falls linearly from the actuator cap
 # at rest to 0 at w_max (joint-group shortening speed, rad/s; sprint data: knee ~20+, hip ~12-15, ankle ~15-20).
-HILL_W_MAX = biomech.HILL_W_MAX      # one definition, shared with the physics-side limit (bio_force_limits)
+HILL_W_MAX = biomech.HILL_W_MAX  # one definition, shared with the physics-side limit (bio_force_limits)
 
 
 def _hill_tables(env):
     t = getattr(env, "_poolympic_hill", None)
     if t is None:
         import mujoco
+
         m = mujoco.MjModel.from_xml_path(str(C.SCENE_XML))
         cap, wmax = [], []
         for n in CONTRACT_ACTUATORS:
@@ -704,7 +751,7 @@ def foot_impact(env, body_weight_n: float, limit_bw: float = 3.0) -> torch.Tenso
     """Σ over feet of relu(|F_ground| − limit_bw · body weight) / body weight: soft landings. Human ground reaction
     peaks at ~1.2 BW walking and ~2.5-3 BW running (bio_probe: rung2.onnx per foot p95 1.9 / max 2.6 BW at 3.0 m/s,
     r2f_v3 max 3.4 BW) — a guard against stamping, not a shaping term (use with a negative weight; needs the feet_ground sensor with fields ('found', 'force'))."""
-    f = env.scene[FOOT_SENSOR].data.force                        # [N, 2, 3] net force per foot subtree
+    f = env.scene[FOOT_SENSOR].data.force  # [N, 2, 3] net force per foot subtree
     return (torch.relu(torch.linalg.norm(f, dim=-1) - limit_bw * body_weight_n) / body_weight_n).sum(-1)
 
 
@@ -753,7 +800,7 @@ def feet_under_pelvis(env, std: float, max_height: float = 0.08, height_std: flo
     _, qp, _ = _root(env)
     d2 = ((xy - (qp[:, :2] - env.scene.env_origins[:, :2])) ** 2).sum(-1)
     z = ent.data.data.geom_xpos[:, env._poolympic_foot_geom_ids, 2].mean(-1)
-    return torch.exp(-d2 / std**2) * torch.exp(-(torch.relu(z - max_height) / height_std) ** 2)
+    return torch.exp(-d2 / std**2) * torch.exp(-((torch.relu(z - max_height) / height_std) ** 2))
 
 
 # ------------------------------------------------------------------ Iron Pedestal v2: heat-shaped gusts + adaptive level
@@ -777,8 +824,17 @@ def push_gust(env, env_ids, asset_cfg=None, min_fraction: float = 1.0, record: b
         st[0][ids], st[1][ids] = dv, int(env.common_step_counter)
 
 
-def gust_curriculum(env, env_ids, start: float, step: float, max_level: float, up: float, down: float,
-                    steps_per_it: int = 0, min_count: int = 64) -> dict:
+def gust_curriculum(
+    env,
+    env_ids,
+    start: float,
+    step: float,
+    max_level: float,
+    up: float,
+    down: float,
+    steps_per_it: int = 0,
+    min_count: int = 64,
+) -> dict:
     """Adaptive gust magnitude: among the envs being reset, the fraction that lasted the full episode decides —
     > up: harder (+step), < down: easier (−step). Keeps training at the edge of what the athlete can survive.
     steps_per_it = 0 (Pedestal2): one decision per reset batch. steps_per_it = 24 (the shove ramp, DESIGN §5 "intensity
@@ -786,7 +842,7 @@ def gust_curriculum(env, env_ids, start: float, step: float, max_level: float, u
     min_count episodes have ended (per-reset decisions arrive in waves and oscillate: ped_v2, getup_rev)."""
     if not hasattr(env, "_poolympic_gust"):
         env._poolympic_gust = start
-        env._poolympic_gust_pool = [0.0, 0.0, -1]            # full episodes, ended episodes, last iteration
+        env._poolympic_gust_pool = [0.0, 0.0, -1]  # full episodes, ended episodes, last iteration
 
     def decide(full: float) -> None:
         if full > up:
@@ -828,7 +884,7 @@ def torso_pitch_tracking(env, target_deg: float, std_deg: float, body_name: str 
     ent = env.scene["robot"]
     bid = _body_id(env, body_name)
     w, x, y, z = ent.data.body_link_quat_w[:, bid].unbind(-1)
-    axis = torch.stack([2 * (x * z + w * y), 2 * (y * z - w * x)], dim=-1)          # torso z axis, world xy part
+    axis = torch.stack([2 * (x * z + w * y), 2 * (y * z - w * x)], dim=-1)  # torso z axis, world xy part
     up = 1.0 - 2.0 * (x * x + y * y)
     fwd = _heading_frame_xy(env, axis)[:, 0]
     pitch = torch.atan2(fwd, up)
@@ -837,7 +893,7 @@ def torso_pitch_tracking(env, target_deg: float, std_deg: float, body_name: str 
 
 def feet_width(env, target: float, std: float) -> torch.Tensor:
     """Reward a lateral foot spacing of `target` metres (heading frame) — the zombie's wide stance."""
-    xy = _foot_geom_xy(env)                                                        # (N, 4, 2): foot_l, toe_l, foot_r, toe_r
+    xy = _foot_geom_xy(env)  # (N, 4, 2): foot_l, toe_l, foot_r, toe_r
     lat = _heading_frame_xy(env, xy)[..., 1]
     width = lat[:, 0] - lat[:, 2]
     return torch.exp(-((width - target) ** 2) / std**2)
@@ -874,11 +930,13 @@ def robot_mass(env) -> torch.Tensor:
 SELF_SENSOR = "self_contact"
 
 
-def self_contact_force(env, body_weight_n: float, sensor_name: str = SELF_SENSOR, deadband_bw: float = 0.0) -> torch.Tensor:
+def self_contact_force(
+    env, body_weight_n: float, sensor_name: str = SELF_SENSOR, deadband_bw: float = 0.0
+) -> torch.Tensor:
     """Σ over the self-contact slots of relu(|F| − deadband) / body weight (use with a small negative weight; AGENTS.md
     "Self-collision": self-contact never ends an episode — if the policy leans on it, charge the force). Needs the sensor
     of matt_env.self_contact_sensor_cfg (athlete subtree against itself, fields found + force)."""
-    f = torch.linalg.norm(env.scene[sensor_name].data.force, dim=-1)              # [N, slots]
+    f = torch.linalg.norm(env.scene[sensor_name].data.force, dim=-1)  # [N, slots]
     return torch.relu(f / body_weight_n - deadband_bw).sum(-1)
 
 
@@ -904,9 +962,19 @@ def _solref_event():
         """Contact softness / restitution (DESIGN §4 "restitution via solref"): randomise geom_solref = (time constant,
         damping ratio). ranges {0: (lo, hi), 1: (lo, hi)}; a damping ratio below 1 makes the contact bounce. The time
         constant must stay >= 2 x the timestep (0.01 s here; the default is 0.02 s)."""
-        _core._randomize_model_field(env, env_ids, "geom_solref", entity_type="geom", ranges=ranges, operation=operation,
-                                     asset_cfg=asset_cfg, shared_random=shared_random, default_axes=[0, 1],
-                                     valid_axes=[0, 1])
+        _core._randomize_model_field(
+            env,
+            env_ids,
+            "geom_solref",
+            entity_type="geom",
+            ranges=ranges,
+            operation=operation,
+            asset_cfg=asset_cfg,
+            shared_random=shared_random,
+            default_axes=[0, 1],
+            valid_axes=[0, 1],
+        )
+
     return dr_geom_solref
 
 
@@ -923,14 +991,20 @@ def _bio_event():
         st = getattr(env, "_poolympic_bio", None)
         if st is None:
             ix = _idx(env)
-            _act_torque_vel(env)                                           # resolves env._poolympic_act_ids (contract order)
+            _act_torque_vel(env)  # resolves env._poolympic_act_ids (contract order)
             gi, mean, wmax = biomech.tables(CONTRACT_ACTUATORS)
             ctrl = ix.entity.indexing.ctrl_ids[env._poolympic_act_ids]
-            base = env.sim.model.actuator_forcerange[:, ctrl].clone()      # per env: after the strength DR (startup)
+            base = env.sim.model.actuator_forcerange[:, ctrl].clone()  # per env: after the strength DR (startup)
             f32 = lambda a: torch.as_tensor(a, device=env.device, dtype=torch.float32)  # noqa: E731
             st = env._poolympic_bio = SimpleNamespace(
-                ctrl=ctrl, base=base, cap=base.abs().amax(-1), gi=torch.as_tensor(gi, device=env.device), mean=f32(mean),
-                wmax=f32(wmax), level=torch.zeros(env.num_envs, len(biomech.JOINT_GROUPS), device=env.device))
+                ctrl=ctrl,
+                base=base,
+                cap=base.abs().amax(-1),
+                gi=torch.as_tensor(gi, device=env.device),
+                mean=f32(mean),
+                wmax=f32(wmax),
+                level=torch.zeros(env.num_envs, len(biomech.JOINT_GROUPS), device=env.device),
+            )
         return st
 
     @requires_model_fields("actuator_forcerange")
@@ -942,7 +1016,7 @@ def _bio_event():
         CPU mirror: biomech.BioLimits."""
         st = state(env)
         fr = env.sim.model.actuator_forcerange
-        if env_ids is not None:                                            # reset
+        if env_ids is not None:  # reset
             st.level[env_ids] = torch.rand(len(env_ids), st.level.shape[1], device=env.device) * init_level_max
             scale, _ = biomech.force_scale(st.level[env_ids][:, st.gi], 0.0, st.wmax, False, fatigue)
             fr[env_ids[:, None], st.ctrl] = st.base[env_ids] * scale[..., None]
@@ -953,6 +1027,7 @@ def _bio_event():
         fr[:, st.ctrl, 0] = st.base[..., 0] * lo
         fr[:, st.ctrl, 1] = st.base[..., 1] * hi
         env.extras.setdefault("log", {})["Metrics/fatigue_max_group"] = st.level.mean(0).max()
+
     return bio_force_limits
 
 
@@ -969,15 +1044,22 @@ def obs_fatigue(env) -> torch.Tensor:
 
 
 # ---- privileged critic observations (asymmetric critic; never in the actor group, never exported) ----------------------
-PRIV_DIM = 8          # foot forces 4 + friction 1 + mass 1 + shove 2 (tasks/symmetry.py mirrors this block)
+PRIV_DIM = 8  # foot forces 4 + friction 1 + mass 1 + shove 2 (tasks/symmetry.py mirrors this block)
 
 
 def priv_foot_force(env, body_weight_n: float) -> torch.Tensor:
     """[N, 4] ground reaction per foot subtree in body weights: (left vertical, left horizontal, right vertical, right
     horizontal). Needs the feet_ground sensor (Rung 1+)."""
-    f = env.scene[FOOT_SENSOR].data.force / body_weight_n                    # [N, 2, 3] world frame (netforce)
-    return torch.stack([f[:, 0, 2].abs(), torch.linalg.norm(f[:, 0, :2], dim=-1),
-                        f[:, 1, 2].abs(), torch.linalg.norm(f[:, 1, :2], dim=-1)], dim=-1)
+    f = env.scene[FOOT_SENSOR].data.force / body_weight_n  # [N, 2, 3] world frame (netforce)
+    return torch.stack(
+        [
+            f[:, 0, 2].abs(),
+            torch.linalg.norm(f[:, 0, :2], dim=-1),
+            f[:, 1, 2].abs(),
+            torch.linalg.norm(f[:, 1, :2], dim=-1),
+        ],
+        dim=-1,
+    )
 
 
 def priv_friction_scale(env) -> torch.Tensor:
@@ -997,8 +1079,10 @@ def priv_mass_scale(env) -> torch.Tensor:
 def _shove_state(env):
     st = getattr(env, "_poolympic_shove", None)
     if st is None:
-        st = env._poolympic_shove = [torch.zeros(env.num_envs, 2, device=env.device),
-                                     torch.full((env.num_envs,), -10**6, device=env.device, dtype=torch.long)]
+        st = env._poolympic_shove = [
+            torch.zeros(env.num_envs, 2, device=env.device),
+            torch.full((env.num_envs,), -(10**6), device=env.device, dtype=torch.long),
+        ]
     return st
 
 
