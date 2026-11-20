@@ -53,6 +53,12 @@ def main() -> int:
                 m = re.search(r"up (\d+)/(\d+).*?up at end (\d+)/", txt)
                 rec[g] = f"up {m.group(1)}/{m.group(2)}, at end {m.group(3)}" if m else "ERROR " + txt[-300:]
                 continue
+            if g == "turntable":                         # Event 12 heat, seeds 0-11 (tools/turntable_gate.py; MATT)
+                txt = run([str(ROOT / "tools" / "turntable_gate.py"), str(onnx), "--seeds", "12", "--workers", "12",
+                           "--out", str(PARITY / "watch" / f"turntable_{name}.json")])
+                m = re.search(r"turntable: DONE (\S+) mean ([\d.]+)/8 min (\d+)", txt)
+                rec["turntable"] = f"{m.group(2)}/8 min {m.group(3)} ({m.group(1)})" if m else "ERROR " + txt[-300:]
+                continue
             if g == "crawl":                             # Event 8: tools/crawl_probe.py (prone start, 30 m at 1.2 m/s)
                 txt = run([str(ROOT / "tools" / "crawl_probe.py"), str(onnx), "--seeds", "5",
                            "--out", str(PARITY / "watch" / f"crawl_{name}.json")])

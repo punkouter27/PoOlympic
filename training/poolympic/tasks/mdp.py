@@ -185,6 +185,17 @@ class AthleteCommand(UniformVelocityCommand):
             self.vel_command_b[env_ids] = torch.where(pick[:, None], band, self.vel_command_b[env_ids])
             if hasattr(self, "is_standing_env"):
                 self.is_standing_env[env_ids] = self.is_standing_env[env_ids] & ~pick
+        sfrac = getattr(self.cfg, "spin_fraction", 0.0)
+        if sfrac:  # 2026-11-19 (SpinAthleteCommandCfg only): long in-place spins, |wz| in spin_wz, either way (Event 12)
+            n = len(env_ids)
+            pick = torch.rand(n, device=self.device) < sfrac
+            sign = torch.where(torch.rand(n, device=self.device) < 0.5, -1.0, 1.0)
+            u = lambda lo, hi: torch.empty(n, device=self.device).uniform_(lo, hi)
+            v = self.cfg.spin_v
+            spin = torch.stack([u(-v, v), u(-v, v), sign * u(*self.cfg.spin_wz)], -1)
+            self.vel_command_b[env_ids] = torch.where(pick[:, None], spin, self.vel_command_b[env_ids])
+            if hasattr(self, "is_standing_env"):
+                self.is_standing_env[env_ids] = self.is_standing_env[env_ids] & ~pick
         a_max = getattr(self.cfg, "max_lateral_accel", None)
         if a_max:  # |wz| <= a_max / |v|: no physically impossible sprint-and-spin commands (r2_v6)
             v = torch.linalg.norm(self.vel_command_b[env_ids, :2], dim=-1).clamp(min=1e-3)
@@ -205,6 +216,26 @@ class AthleteCommandCfg(UniformVelocityCommandCfg):
 
     def build(self, env):
         return AthleteCommand(self, env)
+
+
+@dataclass(kw_only=True)
+class SpinAthleteCommandCfg(AthleteCommandCfg):
+    """2026-11-19: + a share of resamples that spin in place (the 360 Turntable: wz 3 rad/s for ~6.3 s inside a 0.75 m
+    ring). A subclass so that no existing task's command cfg (and hash) changes; only the -Spin task IDs use it."""
+    spin_fraction: float = 0.0
+    spin_wz: tuple[float, float] = (2.0, 3.3)   # |wz|, either way
+    spin_v: float = 0.1                         # |vx|, |vy| at most (drift-free spin)
+
+    def build(self, env):
+        return AthleteCommand(self, env)
+
+
+def with_spin(cmd: AthleteCommandCfg, fraction: float, **kw) -> SpinAthleteCommandCfg:
+    """The same command cfg as a SpinAthleteCommandCfg with spin_fraction set (every other field copied)."""
+    import copy
+    import dataclasses
+    vals = {f.name: copy.deepcopy(getattr(cmd, f.name)) for f in dataclasses.fields(cmd) if f.init}
+    return SpinAthleteCommandCfg(**vals, spin_fraction=fraction, **kw)
 
 
 # ---- rewards -----------------------------------------------------------------------------------------------
@@ -537,6 +568,28 @@ def _filtered_yaw_error(env, command_name: str, tau: float) -> torch.Tensor:
         st[0] = torch.where(fresh, rate, st[0] + alpha * (rate - st[0]))
         st[1] = step
     return env.command_manager.get_command(command_name)[:, 2] - st[0]
+
+
+def spin_drift(env, command_name: str = "athlete", max_v: float = 0.15, min_wz: float = 1.5, cap: float = 1.0) -> torch.Tensor:
+    """2026-11-19 (Event 12, the 360 Turntable: max distance from the spot must stay < 0.75 m over ~6-8 s of 3 rad/s).
+    Horizontal distance of the pelvis from where it stood when the current command began, while that command is an
+    in-place spin (|v_cmd| <= max_v, |wz| >= min_wz); 0 otherwise. Capped at `cap` m. Use with a negative weight.
+    Velocity tracking barely sees the drift (0.1 m/s of creep costs ~10 % of track_lin) but it adds up over a spin."""
+    pos = env.scene["robot"].data.root_link_pos_w[:, :2]
+    cmd = env.command_manager.get_command(command_name)
+    st = getattr(env, "_poolympic_spin_anchor", None)
+    step = int(env.common_step_counter)
+    if st is None or st[0].shape != pos.shape:
+        st = [pos.clone(), cmd.clone(), -1]
+        env._poolympic_spin_anchor = st
+    if st[2] != step:
+        new = (env.episode_length_buf <= 1) | (cmd != st[1]).any(-1)
+        st[0] = torch.where(new[:, None], pos, st[0])
+        st[1] = cmd.clone()
+        st[2] = step
+    spin = (torch.linalg.norm(cmd[:, :2], dim=-1) <= max_v) & (cmd[:, 2].abs() >= min_wz)
+    d = torch.linalg.norm(pos - st[0], dim=-1).clamp(max=cap)
+    return torch.where(spin, d, torch.zeros_like(d))
 
 
 def track_yaw_rate_filtered(env, std: float, tau: float = 0.5, command_name: str = "athlete") -> torch.Tensor:

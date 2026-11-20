@@ -993,3 +993,23 @@ All on 4096 envs, 0 falls at every gate. G1 Rung 2, 10 seeds (bar 0.157 m/s = 0.
 - One CUDA "unspecified launch failure" killed ks15_v1 at it 764; the queue resumed it from it 700.
 - Review page: `parity/tb/slope/review.html`. Open: the athletes climb at 0.3-0.6 m/s (a person walks up 15 deg at about
   1 m/s); MATT's brain does 0.8 m/s when asked for more, the others stall above their 15 %.
+
+## 2026-11-19 (night) · Warm-start bugs fixed; MATT turntable = contact, not spinning; zombie 71 -> 75/100 (nothing deployed)
+
+Full log `DOCS/20261119/overnight_training.md`, report `DOCS/20261119/overnight_training_report.html`. First training on
+the RTX 5070 Ti laptop (2.0-2.4 s/it at 4096 envs, ~2x the RTX 2060). No `training/runs` here: warm starts rebuilt from ONNX.
+
+- **Bug 1, observation normaliser:** `onnx_to_checkpoint.py` kept the template's sample count (1,536; 1e6 after
+  `expand_obs.py`), so the statistics re-fit to reset poses within ~10 iterations and a 100/100 brain scored 0/30 with
+  frozen weights. Now pinned (`--norm-count`, default 1e12). Likely the real cause of the six 2026-11-13 zombie failures.
+- **Bug 2, empty Adam state:** freezing the actor while a rebuilt critic fits is not enough; at the unfreeze Adam's first
+  steps move every weight by ~lr (episodes 1000 -> 30 steps in three iterations). `symmetry.critic_warmup_runner(n)` runs
+  PPO normally for n iterations and restores the actor after each update (moments fill, policy stays). Works.
+- **MATT Event 12:** with athlete-athlete contact off every brain finishes the all-MATT turntable heat 8/8 with 5-9 cm
+  drift; all DQs are neighbours colliding (spots 0.75 m apart). 24 seeds: r2_v8 7.12, held candidate 4.00, m2spin_v1 it
+  350 5.04. Spin band / spot-drift term / solo crowd bumps: no fix (G1 28-30/30, 0 falls). In mixed lineups the held
+  candidate finishes 18/18 turntables; its real costs are slalom (+1.3 s) and turntable (+1 s); gains gauntlet (12 ok vs
+  4, 0 falls vs 3) and sprint (-1.4 s).
+- **ZOMBIE:** 100-seed G1 deployed 71, z2warm_v1 it 100 76, z2warm_v2 it 50 75. Every run peaks within 50-100
+  iterations then erodes; the four fast turning sprints (2.75-2.95 m/s, error 0.20-0.36 vs 0.157) never moved.
+- The adaptive lr sits at its 1e-5 floor at action std 0.10 / desired KL 0.003 (KL ~ 1/sigma^2); std 0.15 made it worse.

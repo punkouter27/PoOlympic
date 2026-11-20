@@ -1004,6 +1004,104 @@ if bodies.current().name == "zombie":
     _zombie_rung2_opts()
 
 
+# 2026-11-19 overnight (opt-in; existing tasks untouched). Warm starts are rebuilt from deployed / candidate ONNX files
+# (this machine has no checkpoints), so every run freezes the actor for its first 50 iterations while the rebuilt critic
+# fits the returns (symmetry.critic_warmup_runner) and starts at a low learning rate.
+if bodies.current().name == "matt":
+    def _matt_ramp_spin():
+        from .matt_env import matt_ppo_cfg, matt_rung2_ramp_env_cfg
+        from .symmetry import critic_warmup_runner
+        # m2ramp_ss_v1 it 200 (G1 100/100, E19 crowd falls -33 %) failed the Event 12 heat: 3.5 of 8 finish 3 turns at
+        # 3 rad/s inside the 0.75 m ring (r2_v8: 7.3). SprintSharp draws 45 % sprints, so long in-place spins were rare.
+        # Same recipe + 15 % of resamples spinning in place (|wz| 2.0-3.3, |v| <= 0.1).
+        cfg = matt_rung2_ramp_env_cfg()
+        cfg.scene.num_envs = 4096
+        cfg.commands["athlete"].sprint_fraction = 0.45
+        cfg.rewards["track_lin"].weight = 3.0
+        cfg.rewards["track_ang"].weight = 2.5
+        from . import mdp
+        cfg.commands["athlete"] = mdp.with_spin(cfg.commands["athlete"], 0.15)
+        rl = matt_ppo_cfg("matt_rung2", max_iterations=400)
+        rl.algorithm.learning_rate, rl.algorithm.entropy_coef, rl.algorithm.desired_kl = 3.0e-4, 0.0002, 0.003
+        rl.save_interval = 25
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-Spin", env_cfg=cfg,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl,
+                            runner_cls=critic_warmup_runner(50))
+        # m2spin_v1 kept G1 30/30 but the heat stayed at 4.0-4.3 of 8: every miss is drift past the 0.75 m ring (r2_v8
+        # drifts 0.2-0.6 m, these 0.6-0.76). + spin_drift (distance from the spot the spin began, w -3), spins 20 %.
+        # Warm start = a m2spin_v1 checkpoint via plain_init.py (real Adam state: plain SymmetricRunner).
+        from .matt_env import RewardTermCfg
+        from .symmetry import SymmetricRunner
+        cfg_h = matt_rung2_ramp_env_cfg()
+        cfg_h.scene.num_envs = 4096
+        cfg_h.commands["athlete"].sprint_fraction = 0.45
+        cfg_h.rewards["track_lin"].weight = 3.0
+        cfg_h.rewards["track_ang"].weight = 2.5
+        cfg_h.commands["athlete"] = mdp.with_spin(cfg_h.commands["athlete"], 0.20)
+        cfg_h.rewards["spin_drift"] = RewardTermCfg(func=mdp.spin_drift, weight=-3.0, params={"command_name": "athlete"})
+        rl_h = matt_ppo_cfg("matt_rung2", max_iterations=400)
+        rl_h.algorithm.learning_rate, rl_h.algorithm.entropy_coef, rl_h.algorithm.desired_kl = 3.0e-4, 0.0002, 0.003
+        rl_h.save_interval = 25
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-SpinHold", env_cfg=cfg_h,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=rl_h, runner_cls=SymmetricRunner)
+        # Diagnosis 23:10: with athlete-athlete contact off every brain finishes the heat 8/8 with 5-9 cm drift; ALL the
+        # drift is neighbours knocking each other off the spot (24 seeds with contact: r2_v8 7.1/8, the SprintSharp line
+        # 4.0-5.0). SpinHold's drift term alone has nothing to act on. + the crowd bumps (forearms / chest, +-300 N,
+        # 0.03-0.25 s every 1.5-4 s): under bumps the drift term pays for holding the spot. Warm start m2spin_v1 it 350.
+        import copy
+        from .matt_env import add_crowd_bumps
+        cfg_b = add_crowd_bumps(copy.deepcopy(cfg_h), 1.0)
+        register_mjlab_task(task_id="PoOlympic-Matt-Rung2-Ramp-SpinBump", env_cfg=cfg_b,
+                            play_env_cfg=matt_rung2_ramp_env_cfg(play=True), rl_cfg=copy.deepcopy(rl_h),
+                            runner_cls=SymmetricRunner)
+    _matt_ramp_spin()
+
+if bodies.current().name == "zombie":
+    def _zombie_rung2_warm():
+        from .matt_env import matt_ppo_cfg
+        from .symmetry import critic_warmup_runner
+        from .zombie_env import SS, WS, ZOMBIE_VX_TOP, zombie_rung2_wobble_env_cfg
+        # The deployed brain (z2_v11, 23/30: 4 sprints 2.75-2.95 m/s, 3 slow creeps) rebuilt from zombie_rung2.onnx + its
+        # critic. The six 2026-11-13 runs from the same rebuild fell to 0/30 at once (critic / Adam reset at lr 1e-3).
+        # Here: its own Wobble recipe, the Polish bands (fast runs with a turn, side-steps) + the backward band Polish
+        # lacked, the actor frozen for 50 iterations, lr 3e-4.
+        cfg = zombie_rung2_wobble_env_cfg()
+        cfg.scene.num_envs = 4096
+        cfg.commands["athlete"].bands = ((0.20, (2.0 * SS, ZOMBIE_VX_TOP * SS), (0.0, 0.0), 0.6 * WS),
+                                         (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * WS),
+                                         (0.20, (-0.5 * SS, 0.5 * SS), (0.1 * SS, 1.1 * SS), 0.0))
+        rl = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl.algorithm.learning_rate, rl.algorithm.entropy_coef, rl.algorithm.desired_kl = 3.0e-4, 0.0002, 0.003
+        rl.save_interval = 25
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Wobble-Warm", env_cfg=cfg,
+                            play_env_cfg=zombie_rung2_wobble_env_cfg(play=True), rl_cfg=rl,
+                            runner_cls=critic_warmup_runner(50))
+        # Round 2 (z2warm_v1: 22 -> 25/30 by it 100, 0 falls). What is left: fast runs with a turn at 2.75-2.95 m/s
+        # (G1's sprint segments; the forward band stopped at 3.6 x SS = 2.83 m/s) and slow diagonal side-steps
+        # (|v| 0.2-0.4 m/s, 2-18 mm/s over the 0.157 bar). Forward band to 3.8 x SS = 2.99 m/s (the zombie's envelope,
+        # not past it: z2_v18's 4.0 x SS taught "fast command = do not run"), + 10 % slow diagonal side-steps.
+        # Warm start = a z2warm_v1 checkpoint via plain_init.py (real Adam state): plain SymmetricRunner.
+        from .symmetry import SymmetricRunner
+        cfg2 = zombie_rung2_wobble_env_cfg()
+        cfg2.scene.num_envs = 4096
+        cfg2.commands["athlete"].bands = ((0.25, (2.0 * SS, 3.8 * SS), (0.0, 0.0), 0.6 * WS),
+                                          (0.10, (-1.5 * SS, -0.8 * SS), (0.0, 0.0), 0.5 * WS),
+                                          (0.15, (-0.5 * SS, 0.5 * SS), (0.1 * SS, 1.1 * SS), 0.0),
+                                          (0.10, (-0.4 * SS, 0.4 * SS), (0.15 * SS, 0.5 * SS), 0.0))
+        # z2warm_v1 it 150 missed the G1 turntable (360 deg < 2.358 s) on every even seed by one tick (2.36 s): 10 % spins
+        # in place around the drill's 2.5 x WS so one turning direction does not slow down
+        from . import mdp
+        cfg2.commands["athlete"] = mdp.with_spin(cfg2.commands["athlete"], 0.10, spin_wz=(2.4 * WS, 3.0 * WS),
+                                                 spin_v=0.1 * SS)
+        rl2 = matt_ppo_cfg("zombie_rung2", max_iterations=400)
+        rl2.algorithm.learning_rate, rl2.algorithm.entropy_coef, rl2.algorithm.desired_kl = 3.0e-4, 0.0002, 0.003
+        rl2.save_interval = 25
+        register_mjlab_task(task_id="PoOlympic-Zombie-Rung2-Wobble-Warm2", env_cfg=cfg2,
+                            play_env_cfg=zombie_rung2_wobble_env_cfg(play=True), rl_cfg=rl2,
+                            runner_cls=SymmetricRunner)
+    _zombie_rung2_warm()
+
+
 # ---- registry hygiene -------------------------------------------------------------------------------------------------
 # Task IDs whose recipe a later ID of the same body and skill replaced, or that were tried and dropped. They stay
 # registered (old runs, the queue and the log refer to them) and build exactly what they always built; do not start new

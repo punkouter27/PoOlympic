@@ -610,3 +610,15 @@ get up → finish). Unity: `SpectacleTests`.
 - [x] 9 Docs: September log entries -> `docs/log/rl_optimization_log_2026-09.md` (root log 212 -> 96 KB), finished Phases 0 / A / B / C / K -> `docs/log/tasks_done.md` (tasks.md 91 -> 75 KB).
 - [x] 10 Hand-tuned scenes: `HandTuned` marker + `HandTunedSave.SaveBuilt` (all 11 event-scene builders): a marked object keeps its local transform across a rebuild (`HandTunedSaveTests`).
 - Total: 3.8 GB (2,760 MB deleted, 504 MB quarantined, 511 MB out of the working tree and the Unity project), about 1,900 files.
+
+## Overnight training 2026-11-19 — open decisions (log: `DOCS/20261119/overnight_training.md`)
+
+- [ ] **Decision (user):** MATT Rung 2 — deploy `m2ramp_ss_v1_it200` (or `m2spin_v1_it350`) for every event except
+  Event 12, which keeps r2_v8 (per-event brains, as for the stance events)? Blocker today is only the all-MATT
+  turntable test (`test_turntable_heat`); mixed-lineup heats finish 18/18. Costs: slalom +1.3 s. 100-seed G1 for
+  m2spin_v1 it 350 not run yet.
+- [ ] Event 12 robustness for real: multi-athlete training envs (spinning neighbours), or an event-rule change (homing
+  steering back to the spot, as in the Gust Gauntlet). Solo recipes tried tonight: spin band, spot-drift term, bumps.
+- [ ] ZOMBIE: fast turning sprints at 2.75-2.95 m/s (G1's Froude-scaled 3.8 m/s at the body's 2.99 m/s envelope) —
+  recipe or gate question; candidates `z2warm_v1_it100` (76/100) / `z2warm_v2_it50` (75/100) vs deployed 71/100.
+- [ ] `compare_brain_events.py` / `fit_odds.py`: event 10 still maps to the removed Center Beacon Scramble (KeyError).

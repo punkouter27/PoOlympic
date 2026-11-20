@@ -4,7 +4,10 @@ A contract brain carries everything the actor needs (observation mean / std and 
 critic file carries the value net (tools/export_critic.py). This writes <dst>/model_0.pt with those weights in the
 layout of a template checkpoint of the same architecture (any run of the same body: 84 obs, 512-256-128, 23 actions):
   * actor / critic MLP and normalisers from the ONNX files (std = exported std - 0.01, the epsilon export_brain adds)
-  * normaliser count kept high (the statistics are the brain's own; they should drift slowly)
+  * normaliser count set to --norm-count (default 1e12 = pinned). The statistics are the brain's own; a low count lets
+    them re-fit to the first rollouts (reset poses), which moves every input of the policy. 2026-11-19: the template's
+    count (1,536 for a 1-iteration template, 1e6 after expand_obs) broke a 100/100 brain to 0/30 within 75 iterations
+    with the actor weights frozen — and is the likely cause of the six 2026-11-13 zombie runs that fell to 0/30
   * action std set to --std (not stored in a brain; 0.15-0.2 = a careful fine-tune)
   * optimiser moments cleared, iter = 0, infos dropped
 Verifies: the rebuilt actor reproduces the brain's pre-clip action on random observations.
@@ -46,14 +49,21 @@ def main() -> int:
     ap.add_argument("template", type=Path)
     ap.add_argument("dst", type=Path)
     ap.add_argument("--std", type=float, default=0.15)
+    ap.add_argument("--lr", type=float, default=3e-4, help="optimiser learning rate (the template's adaptive lr is not "
+                    "this brain's; rsl_rl restores lr from the checkpoint). 2026-11-19: a 1-iteration template carried 1e-5")
+    ap.add_argument("--norm-count", type=float, default=1e12, help="observation-normaliser sample count (high = pinned)")
     a = ap.parse_args()
     actor, critic = _init(a.brain), _init(a.brain.with_suffix("").with_suffix(".critic.onnx"))
     sd = torch.load(a.template, map_location="cpu", weights_only=False)
     _fill(sd["actor_state_dict"], actor, actor["obs_mean"], actor["obs_std"])
     _fill(sd["critic_state_dict"], critic, critic["mean"], critic["std"])
     sd["actor_state_dict"]["distribution.std_param"].fill_(a.std)
+    for g in ("actor_state_dict", "critic_state_dict"):
+        sd[g]["obs_normalizer.count"].fill_(a.norm_count)
     if "optimizer_state_dict" in sd:
         sd["optimizer_state_dict"]["state"] = {}          # Adam moments belong to the template's weights
+        for g in sd["optimizer_state_dict"]["param_groups"]:
+            g["lr"] = a.lr
     sd["iter"] = 0
     sd["infos"] = None
 

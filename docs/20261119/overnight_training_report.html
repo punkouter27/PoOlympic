@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overnight Training 2026-11-19</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3f0; --surface-1: #fcfcfb; --border: #dddcd6;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7973;
+  --grid: #e7e6e1; --ref: #8a8984;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --good: #0a7d32; --bad: #c4302b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #33332f;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #94938b;
+    --grid: #2a2a27; --ref: #8d8c85;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --good: #3fb265; --bad: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --border: #33332f;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #94938b;
+  --grid: #2a2a27; --ref: #8d8c85;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --good: #3fb265; --bad: #e66767;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 40px 0 10px; }
+.sub { color: var(--text-secondary); margin: 0 0 24px; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.tile .k { color: var(--text-secondary); font-size: 13px; }
+.tile .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .n { color: var(--text-muted); font-size: 13px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-secondary); margin: 4px 0 8px; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.legend i.ref { background: none; border-top: 2px dashed var(--ref); height: 0; }
+svg text { fill: var(--text-muted); font-size: 12px; }
+.tip { position: fixed; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 9px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,.15); display: none; z-index: 5; }
+.good { color: var(--good); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
+code { font-size: 13px; }
+ul { padding-left: 20px; } li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>Overnight training, 2026-11-19 → 20</h1>
+<p class="sub">MATT and ZOMBIE Rung 2 fine-tunes on the RTX 5070 Ti laptop (first training run on this PC). Nothing was deployed. Log: <code>DOCS/20261119/overnight_training.md</code>.</p>
+
+<div class="tiles">
+  <div class="card tile"><div class="k">Warm-start bugs found and fixed</div><div class="v">2</div><div class="n">normaliser count, empty Adam state: likely what sank the six 2026-11-13 zombie runs</div></div>
+  <div class="card tile"><div class="k">MATT G1 Rung 2 (30 seeds), Spin run</div><div class="v">28–30</div><div class="n">0 falls at every gate; Event 12 all-MATT heat stays 4–5.5 of 8 (r2_v8 7.1)</div></div>
+  <div class="card tile"><div class="k">ZOMBIE G1, 100 seeds</div><div class="v">75–76</div><div class="n">vs deployed 71; graduation needs 100</div></div>
+  <div class="card tile"><div class="k">Event 12 drift with contact off</div><div class="v">5–9 cm</div><div class="n">every brain 8/8: the heat's DQs are neighbours colliding</div></div>
+</div>
+
+<h2>MATT: Event 12 all-MATT heat by checkpoint</h2>
+<div class="card">
+  <div class="legend" id="leg-matt"></div>
+  <div id="chart-matt"></div>
+  <p class="sub" style="margin:6px 0 0">Mean finishers of 8 in the heat of <code>test_turntable_heat</code>. m2spin / m2hold: seeds 0–5, m2bump: seeds 0–11, reference lines: 24 seeds. G1 Rung 2 (30 seeds, hover a point): 30/30 up to it 250 in m2spin / m2hold, 28–30 after; m2bump 30 → 26 by it 200. 0 falls at every gate. The test bar is ≥ 6 of 8 on seed 1.</p>
+</div>
+
+<h2>ZOMBIE: G1 Rung 2 (30 seeds) by checkpoint</h2>
+<div class="card">
+  <div class="legend" id="leg-zombie"></div>
+  <div id="chart-zombie"></div>
+  <p class="sub" style="margin:6px 0 0">Every run peaks within 50–100 iterations of its warm start, then erodes (0 falls throughout). Left over at the peaks: four fast runs with a turn (2.75–2.95 m/s, error 0.20–0.36 vs the 0.157 m/s bar, unchanged since the deployed brain).</p>
+</div>
+
+<h2>Why Event 12 is not a spinning problem</h2>
+<div class="card scroll">
+<table>
+<tr><th>brain (6 seeds)</th><th>default heat</th><th>nominal traits</th><th>no athlete-athlete contact</th><th>both</th></tr>
+<tr><td>r2_v8 (deployed <code>rung2</code>)</td><td>7.33 / 0.415 m</td><td>4.67 / 0.585 m</td><td class="good">8.00 / 0.071 m</td><td>8.00 / 0.053 m</td></tr>
+<tr><td>m2spin_v1 it 350</td><td>5.50 / 0.604 m</td><td>4.67 / 0.655 m</td><td class="good">8.00 / 0.079 m</td><td>8.00 / 0.070 m</td></tr>
+<tr><td>m2hold_v1 it 100</td><td>4.50 / 0.617 m</td><td>4.00 / 0.620 m</td><td class="good">8.00 / 0.090 m</td><td>8.00 / 0.074 m</td></tr>
+</table>
+<p class="sub" style="margin:8px 0 0">Finishers of 8 / mean max drift. Spots are 0.75 m apart, the ring is 0.75 m and a spinning athlete reaches ~0.5 m: contact is continuous by design. Contact impulse per heat: r2_v8 470 N s, held candidate 817, m2spin_v1 it 350 660, m2bump_v1 it 100 768.</p>
+</div>
+
+<h2>MATT candidates in mixed lineups (how the game draws heats)</h2>
+<div class="card scroll">
+<table>
+<tr><th>event (6 heats, MATT lanes)</th><th>r2_v8 deployed</th><th>m2ramp_ss_v1 it 200 (held)</th><th>m2spin_v1 it 350</th></tr>
+<tr><td>E05 Gust Gauntlet</td><td>4 ok · 11 stepped · <span class="bad">3 fell</span></td><td class="good">12 ok · 6 stepped · 0 fell</td><td>10 ok · 8 stepped · 0 fell</td></tr>
+<tr><td>E09 Inverted Sprint</td><td>14.93 s</td><td>14.88 s</td><td>15.01 s</td></tr>
+<tr><td>E11 Slalom</td><td class="good">place 3.44 · 25.63 s</td><td class="bad">4.06 · 26.90 s</td><td class="bad">4.56 · 26.90 s</td></tr>
+<tr><td>E12 Turntable</td><td>18/18 · mark 7.12</td><td>18/18 · 8.17</td><td>16/18 · 7.91</td></tr>
+<tr><td>E13 Steeplechase</td><td>9.09 (flight brain)</td><td>9.09</td><td>9.09</td></tr>
+<tr><td>E19 Sprint</td><td>24.24 s</td><td class="good">22.85 s</td><td>23.22 s</td></tr>
+</table>
+<p class="sub" style="margin:8px 0 0">Event 10 not run: <code>compare_brain_events.py</code> / <code>fit_odds.py</code> still map it to the removed Center Beacon Scramble.</p>
+</div>
+
+<h2>Run table</h2>
+<div class="card scroll"><table id="runs"></table></div>
+
+<h2>What changed in the code</h2>
+<div class="card"><ul>
+<li><code>tools/onnx_to_checkpoint.py</code>: normaliser count pinned (<code>--norm-count</code>, default 1e12) and optimiser lr reset (<code>--lr</code>). Before: the template's count (1,536) let the statistics re-fit to reset poses within ~10 iterations: 100/100 brain → 0/30 with frozen weights.</li>
+<li><code>symmetry.critic_warmup_runner(n)</code>: first n iterations run PPO normally, then restore the actor, so the critic fits and Adam's moments fill before the policy moves. Freezing alone collapsed episodes 1000 → 30 steps at the unfreeze.</li>
+<li><code>mdp.SpinAthleteCommandCfg</code> / <code>with_spin</code>, <code>mdp.spin_drift</code>; tasks <code>Matt-Rung2-Ramp-Spin / -SpinHold / -SpinBump</code>, <code>Zombie-Rung2-Wobble-Warm / -Warm2</code>. No existing task cfg changed.</li>
+<li><code>tools/turntable_gate.py</code> + <code>watch_gate.py --gates turntable</code>; <code>plain_init.py --lr</code>.</li>
+</ul></div>
+<div class="tip" id="tip"></div>
+</main>
+<script>
+const D = {"runs": {"m2spin_v1": [{"it": 75, "g1": 30, "falls": 0, "tt": 4.33, "tt_raw": "4.33/8 min 4 (4,4,5,4,5,4)"}, {"it": 100, "g1": 30, "falls": 0, "tt": 4.0, "tt_raw": "4.00/8 min 3 (4,4,3,5,5,3)"}, {"it": 150, "g1": 30, "falls": 0, "tt": 4.17, "tt_raw": "4.17/8 min 2 (4,3,2,4,7,5)"}, {"it": 200, "g1": 30, "falls": 0, "tt": 5.17, "tt_raw": "5.17/8 min 4 (5,5,6,4,7,4)"}, {"it": 250, "g1": 30, "falls": 0, "tt": 3.83, "tt_raw": "3.83/8 min 0 (5,5,5,0,5,3)"}, {"it": 300, "g1": 28, "falls": 0, "tt": 5.0, "tt_raw": "5.00/8 min 3 (6,5,7,3,4,5)"}, {"it": 350, "g1": 30, "falls": 0, "tt": 5.5, "tt_raw": "5.50/8 min 4 (7,5,5,4,6,6)"}, {"it": 399, "g1": 29, "falls": 0, "tt": 4.5, "tt_raw": "4.50/8 min 3 (4,3,5,5,6,4)"}], "m2hold_v1": [{"it": 50, "g1": 30, "falls": 0, "tt": 4.67, "tt_raw": "4.67/8 min 3 (5,4,3,4,7,5)"}, {"it": 100, "g1": 30, "falls": 0, "tt": 4.5, "tt_raw": "4.50/8 min 3 (6,4,3,5,5,4)"}, {"it": 150, "g1": 30, "falls": 0, "tt": 4.0, "tt_raw": "4.00/8 min 1 (5,3,5,1,5,5)"}, {"it": 200, "g1": 30, "falls": 0, "tt": 3.83, "tt_raw": "3.83/8 min 3 (5,4,5,3,3,3)"}, {"it": 250, "g1": 30, "falls": 0, "tt": 3.83, "tt_raw": "3.83/8 min 2 (5,2,4,2,6,4)"}, {"it": 300, "g1": 30, "falls": 0, "tt": 3.5, "tt_raw": "3.50/8 min 2 (7,2,4,2,4,2)"}, {"it": 350, "g1": 29, "falls": 0, "tt": 4.0, "tt_raw": "4.00/8 min 3 (5,3,4,3,5,4)"}, {"it": 399, "g1": 29, "falls": 0, "tt": 4.0, "tt_raw": "4.00/8 min 3 (4,3,3,4,5,5)"}], "m2bump_v1": [{"it": 50, "g1": 30, "falls": 0, "tt": 5.0, "tt_raw": "5.00/8 min 3 (6,5,5,4,6,6,6,6,5,4,4,3)"}, {"it": 100, "g1": 28, "falls": 0, "tt": 4.92, "tt_raw": "4.92/8 min 3 (5,7,4,5,4,6,4,6,6,3,6,3)"}, {"it": 150, "g1": 27, "falls": 0, "tt": 4.75, "tt_raw": "4.75/8 min 3 (4,4,7,3,3,6,5,4,5,4,6,6)"}, {"it": 200, "g1": 26, "falls": 0, "tt": 4.0, "tt_raw": "4.00/8 min 2 (5,6,3,4,3,5,4,3,2,4,4,5)"}], "z2warm_v1": [{"it": 75, "g1": 22, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 100, "g1": 25, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 150, "g1": 10, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 200, "g1": 7, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 250, "g1": 9, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 300, "g1": 6, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 350, "g1": 6, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 399, "g1": 4, "falls": 0, "tt": null, "tt_raw": ""}], "z2warm_v2": [{"it": 50, "g1": 26, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 100, "g1": 21, "falls": 0, "tt": null, "tt_raw": ""}], "z2warm_v3": [{"it": 25, "g1": 25, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 50, "g1": 24, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 75, "g1": 24, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 100, "g1": 21, "falls": 0, "tt": null, "tt_raw": ""}, {"it": 150, "g1": 17, "falls": 0, "tt": null, "tt_raw": ""}], "z2warm_v4": []}, "meta": {"m2spin_v1": {"body": "matt", "label": "Spin (15 % in-place spins)", "init": "m2ramp_ss_v1 it 200 (ONNX rebuild)"}, "m2hold_v1": {"body": "matt", "label": "SpinHold (+ spot-drift term)", "init": "m2spin_v1 it 399"}, "m2bump_v1": {"body": "matt", "label": "SpinBump (+ crowd bumps)", "init": "m2spin_v1 it 350"}, "z2warm_v1": {"body": "zombie", "label": "Warm (deployed recipe + bands)", "init": "zombie_rung2.onnx (rebuild)"}, "z2warm_v2": {"body": "zombie", "label": "Warm2 (sprint to 2.99 m/s, slow crab, spins)", "init": "z2warm_v1 it 100"}, "z2warm_v3": {"body": "zombie", "label": "Warm2, lr reset 1e-4", "init": "z2warm_v2 it 50"}, "z2warm_v4": {"body": "zombie", "label": "Warm2, action std floor 0.15", "init": "z2warm_v2 it 50"}}};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const tip = document.getElementById('tip');
+function chart(el, legEl, series, refs, yMax, yLabel, fmt) {
+  const W = Math.min(el.clientWidth || 900, 1000), H = 300, m = {l: 44, r: 16, t: 12, b: 34};
+  const xs = series.flatMap(s => s.pts.map(p => p[0])), xMax = Math.max(400, ...xs);
+  const X = v => m.l + v / xMax * (W - m.l - m.r), Y = v => H - m.b - v / yMax * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${yLabel} by iteration">`;
+  for (let v = 0; v <= yMax; v += yMax / 4) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+  for (let v = 0; v <= xMax; v += 100) s += `<text x="${X(v)}" y="${H - 12}" text-anchor="middle">${v}</text>`;
+  s += `<text x="${W - m.r}" y="${H - 1}" text-anchor="end">iteration</text>`;
+  refs.forEach(r => s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(r.v)}" y2="${Y(r.v)}" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${W - m.r - 4}" y="${Y(r.v) - 5}" text-anchor="end">${r.name}</text>`);
+  series.forEach(se => {
+    if (!se.pts.length) return;
+    s += `<polyline fill="none" stroke="${se.color}" stroke-width="2" points="${se.pts.map(p => X(p[0]) + ',' + Y(p[1])).join(' ')}"/>`;
+    se.pts.forEach(p => s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4" fill="${se.color}" stroke="var(--surface-1)" stroke-width="2"/><circle cx="${X(p[0])}" cy="${Y(p[1])}" r="12" fill="transparent" data-t="${se.name} · it ${p[0]}: ${fmt(p)}"/>`);
+  });
+  el.innerHTML = s + '</svg>';
+  legEl.innerHTML = series.map(se => `<span><i style="background:${se.color}"></i>${se.name}</span>`).join('') + refs.map(r => `<span><i class="ref"></i>${r.name}</span>`).join('');
+  el.querySelectorAll('[data-t]').forEach(c => {
+    c.addEventListener('mousemove', e => { tip.textContent = c.dataset.t; tip.style.display = 'block'; tip.style.left = e.clientX + 12 + 'px'; tip.style.top = e.clientY + 12 + 'px'; });
+    c.addEventListener('mouseleave', () => tip.style.display = 'none');
+  });
+}
+function draw() {
+  const col = ['--series-1', '--series-2', '--series-3', '--series-4'].map(css);
+  const mk = (runs, key) => runs.map((r, i) => ({name: r, color: col[i], pts: (D.runs[r] || []).filter(x => x[key] != null).map(x => [x.it, x[key], x])}));
+  chart(document.getElementById('chart-matt'), document.getElementById('leg-matt'), mk(['m2spin_v1', 'm2hold_v1', 'm2bump_v1'], 'tt'),
+    [{name: 'r2_v8 deployed 7.12', v: 7.12}, {name: 'held candidate 4.00', v: 4.0}], 8, 'finishers of 8', p => `${p[1].toFixed(2)} of 8 · G1 ${p[2].g1}/30`);
+  chart(document.getElementById('chart-zombie'), document.getElementById('leg-zombie'), mk(['z2warm_v1', 'z2warm_v2', 'z2warm_v3', 'z2warm_v4'], 'g1'),
+    [{name: 'deployed 23/30', v: 23}], 30, 'G1 seeds passed', p => `${p[1]}/30 · falls ${p[2].falls}`);
+  const t = document.getElementById('runs');
+  let h = '<tr><th>run</th><th>recipe</th><th>warm start</th><th>gates (it: G1 / turntable)</th><th>best</th></tr>';
+  for (const [r, m] of Object.entries(D.meta)) {
+    const rs = D.runs[r] || [];
+    const best = rs.length ? rs.reduce((a, b) => (m.body === 'matt' ? (b.tt ?? 0) > (a.tt ?? 0) : (b.g1 ?? 0) > (a.g1 ?? 0)) ? b : a) : null;
+    h += `<tr><td><code>${r}</code></td><td>${m.label}</td><td>${m.init}</td><td>${rs.map(x => `${x.it}: ${x.g1 ?? '–'}${x.tt != null ? ' / ' + x.tt.toFixed(2) : ''}`).join(' · ')}</td><td>${best ? `it ${best.it}: ${m.body === 'matt' ? best.tt.toFixed(2) + ' of 8' : best.g1 + '/30'}` : '–'}</td></tr>`;
+  }
+  t.innerHTML = h;
+}
+draw();
+addEventListener('resize', draw);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>

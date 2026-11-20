@@ -146,3 +146,36 @@ class SymmetricRunner(_runner_base()):
             "mirror_loss_coeff": 0.5,
         }
         super().__init__(env, train_cfg, log_dir, device)
+
+
+def critic_warmup_runner(freeze_its: int):
+    """SymmetricRunner for warm starts rebuilt from an ONNX brain (tools/onnx_to_checkpoint.py: new or widened critic,
+    EMPTY Adam state). For the first `freeze_its` iterations of a run the actor (MLP + action std) is held where it is
+    while the critic fits the returns AND Adam fills its moment estimates for every actor weight: PPO's update runs
+    as usual, then the actor's weights are put back. Counts from the loaded checkpoint's iteration, so a queue resume
+    past the warm-up trains normally.
+    2026-11-19: freezing alone (requires_grad off) is not enough — at the unfreeze Adam's first steps are about +-lr
+    for every weight whatever its gradient's signal-to-noise (bias-corrected m / sqrt(v) = sign(g)), and m2spin_v1 went
+    from 1000-step episodes to 30 within three iterations at lr 3e-4."""
+
+    class CriticWarmupRunner(SymmetricRunner):
+        def __init__(self, env, train_cfg: dict, log_dir: str | None = None, device: str = "cpu") -> None:
+            super().__init__(env, train_cfg, log_dir, device)
+            update = self.alg.update
+
+            def gated_update():
+                if self.current_learning_iteration >= freeze_its:
+                    return update()
+                params = list(self.alg.actor.parameters())
+                saved = [p.detach().clone() for p in params]
+                try:
+                    return update()
+                finally:
+                    with torch.no_grad():
+                        for p, s in zip(params, saved):
+                            p.copy_(s)
+
+            self.alg.update = gated_update
+
+    CriticWarmupRunner.__name__ = CriticWarmupRunner.__qualname__ = f"CriticWarmupRunner{freeze_its}"
+    return CriticWarmupRunner
