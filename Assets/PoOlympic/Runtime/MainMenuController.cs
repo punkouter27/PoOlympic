@@ -10,8 +10,10 @@ namespace PoOlympic
     /// <summary>
     /// Main menu (UI Toolkit, Assets/PoOlympic/UI/MainMenu.uxml) — one viewport, nothing scrolls (UI consolidation
     /// 2026-09-29):
-    ///   HudAnchors frame  TL POOLYMPICS + the lineup / gauntlet status · TC FPS · TR menu → the bottom sheet (Actions:
-    ///                     lineup presets, demo · Settings) · BL debug · BR version; bottom centre: the last gauntlet result
+    ///   HudAnchors frame  TL LINEUP + the lineup / gauntlet status · TC FPS · TR menu → the bottom sheet (Actions:
+    ///                     lineup presets, demo · Settings) · BL debug (Tab overlay); bottom centre: the last gauntlet result
+    ///                     (the game name and version are drawn by the web page around the canvas)
+    ///   landscape         wider than tall: the column widens and the event grid gets twice the columns
     ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 16 entrant slots
     ///   entrants          2 rows of 8: the field of 16 every event is run with (the roster's characters, repeated
     ///                     as needed); tap a slot = the next athlete in it. Row 1 runs as heat 1, row 2 as heat 2.
@@ -48,7 +50,7 @@ namespace PoOlympic
         [Tooltip("Event tiles per row of the grid.")]
         public int columns = 3;
         [Tooltip("Seconds without a tap / key before demo mode starts on its own (0 = never).")]
-        public float idleDemoSeconds = 45f;
+        public float idleDemoSeconds = 30f;
         float _lastInput;
 
         readonly string[] _entrants = new string[EventCompetition.EntrantCount];
@@ -84,8 +86,20 @@ namespace PoOlympic
             // the UIDocument rebuilds its tree when its assets reload: repopulate when our elements are gone
             if (_slotsRoot == null || _slotsRoot.panel == null || _slotsRoot.childCount == 0) Populate();
             if (_anchors == null) return;
+            if (Wide != _wide) { Populate(); return; }      // orientation changed: the grid is rebuilt for it
             _anchors.Tick();
             FitSafeArea();
+        }
+
+        bool _wide;
+        /// <summary>Landscape panel (wider than tall by 20 %+).</summary>
+        bool Wide
+        {
+            get
+            {
+                var full = _root?.panel?.visualTree.layout ?? Rect.zero;
+                return !float.IsNaN(full.width) && full.height > 1f && full.width > full.height * 1.2f;
+            }
         }
 
         /// <summary>Demo mode after idleDemoSeconds without a tap, click, key or gamepad button.</summary>
@@ -148,8 +162,12 @@ namespace PoOlympic
             _orderBadges.Clear();
             _marks.Clear();
 
-            _anchors = new HudAnchors(top, bottom, overlay, overlay, "POOLYMPICS", "", "v" + Application.version);
+            _wide = Wide;
+            _root.EnableInClassList("menu-root--wide", _wide);
+            _anchors?.DebugPanel.RemoveFromHierarchy();         // it lives in the detail box, which Populate keeps
+            _anchors = new HudAnchors(top, bottom, overlay, _detail ?? overlay, "LINEUP", "", "v" + Application.version);
             _anchors.SetMenu(MenuItems);
+            _anchors.StageHint = () => _selected == null || string.IsNullOrEmpty(_selected.brain) ? "" : $"{_selected.brain} (selected event's brain)";
             // one field of 16 for every event. Kept from the last visit to the menu; else a fresh draw: each row
             // of 8 holds every character at least once, the other slots are repeats.
             var field = _savedEntrants != null && _savedEntrants.Length == _entrants.Length &&
@@ -191,7 +209,7 @@ namespace PoOlympic
                 _slots.Add((tile, name));
             }
 
-            int cols = Mathf.Max(1, columns);
+            int cols = Mathf.Max(1, _wide ? columns * 2 : columns);
             VisualElement row = null;
             for (int i = 0; i < events.Count || i % cols != 0; i++)
             {

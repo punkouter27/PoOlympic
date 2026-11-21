@@ -21,8 +21,12 @@ namespace PoOlympic.Tests
         const string MenuUxml = "Assets/PoOlympic/UI/MainMenu.uxml";
         const string HudUss = "Assets/PoOlympic/UI/BroadcastHud.uss";
         const int TestEvent = 97;                     // records written by the result are cleared in TearDown
-        /// <summary>104 less one device pixel: stacked buttons snap to the pixel grid (103.1 at 2048 px / 1920 units).</summary>
-        const float MinButton = 103f;
+        /// <summary>104 less one device pixel: stacked buttons snap to the pixel grid (103.1 at 2048 px / 1920 units; a
+        /// browser canvas 736 px tall has 2.6 units per pixel).</summary>
+        static float MinButton => 104f - Mathf.Max(1f, _unitsPerPixel);
+        /// <summary>The menu / primary buttons: 104 less half a unit, or one device pixel where a pixel is larger.</summary>
+        static float MinTopButton => 104f - Mathf.Max(0.5f, _unitsPerPixel);
+        static float _unitsPerPixel = 1f;
 
         /// <summary>name, pixels, safe area (normalised, y up): a 16:9 phone, the Pixel 9 Pro (status bar + camera
         /// cut-out on top, gesture bar below), a small 16:9 phone, tall 20:9 to 22:9 phones, and the wide ones: a
@@ -38,6 +42,11 @@ namespace PoOlympic.Tests
             new object[] { "1080x2640", 1080, 2640, new Rect(0f, 70f / 2640f, 1f, (2640f - 70f - 150f) / 2640f) },
             new object[] { "Fold1812x2176", 1812, 2176, new Rect(0f, 48f / 2176f, 1f, (2176f - 48f - 96f) / 2176f) },
             new object[] { "Tablet1536x2048", 1536, 2048, new Rect(0f, 0f, 1f, 1f) },
+            // the WebGL page in a landscape browser window (canvas below the page's 44 px bar and 20 px strip)
+            new object[] { "Landscape1600x836", 1600, 836, new Rect(0f, 0f, 1f, 1f) },
+            new object[] { "Landscape1920x1016", 1920, 1016, new Rect(0f, 0f, 1f, 1f) },
+            // portrait browser window (450 x 800 less the page chrome)
+            new object[] { "Browser450x736", 450, 736, new Rect(0f, 0f, 1f, 1f) },
         };
 
         readonly List<UnityEngine.Object> _trash = new();
@@ -80,6 +89,8 @@ namespace PoOlympic.Tests
             var validate = panel.GetType().GetMethod("ValidateLayout", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Assert.NotNull(validate, "panel.ValidateLayout not found (UI Toolkit internals changed)");
             validate.Invoke(panel, null);
+            var target = doc.panelSettings.targetTexture;
+            if (target != null && target.height > 0) _unitsPerPixel = panel.visualTree.layout.height / target.height;
         }
 
         static Rect SafeInPanel(UIDocument doc) => HudAnchors.SafeRectIn(doc.rootVisualElement.panel.visualTree.layout.size);
@@ -99,9 +110,8 @@ namespace PoOlympic.Tests
             Assert.Less(T(a.MenuButton).center.y, midY, $"{what}: menu not at the top");
             Assert.Less(T(a.DebugButton).center.x, midX, $"{what}: debug not on the left");
             Assert.Greater(T(a.DebugButton).center.y, midY, $"{what}: debug not at the bottom");
-            Assert.Greater(T(a.Version).center.x, midX, $"{what}: version not on the right");
-            Assert.Greater(T(a.Version).center.y, midY, $"{what}: version not at the bottom");
-            Assert.GreaterOrEqual(a.MenuButton.resolvedStyle.height, 103.5f, $"{what}: menu button under 104");
+            Assert.IsFalse(a.TopBar.Contains(a.Version) || a.BottomBar.Contains(a.Version), $"{what}: version drawn in a HUD bar (the page shows it)");
+            Assert.GreaterOrEqual(a.MenuButton.resolvedStyle.height, MinTopButton, $"{what}: menu button under 104");
         }
 
         // ------------------------------------------------------------------------------------------ main menu
@@ -286,7 +296,7 @@ namespace PoOlympic.Tests
             Assert.IsNull(hud.Frame.Q(className: "bh-card"), "result card overlay is back");
             var primary = hud.Anchors.BottomCentre.Q<Button>(className: "bh-btn-primary");
             Assert.IsTrue(HudLayoutAudit.Shown(primary), "no primary action at the result");
-            Assert.GreaterOrEqual(primary.resolvedStyle.height, 103.5f);
+            Assert.GreaterOrEqual(primary.resolvedStyle.height, MinTopButton);
 
             // single event: one heat only — the board's restart is held and the match card comes up (OK → main menu)
             var match = hud.Frame.Q(className: "bh-match");

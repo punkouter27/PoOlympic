@@ -135,6 +135,29 @@ namespace PoOlympic
         /// <summary>Brain inference time per control tick (ms, smoothed over ~20 ticks): the debug readout.</summary>
         public float BrainMs { get; private set; }
         public int NanInfCount { get; private set; }
+        /// <summary>Tab overlay: reward of this episode so far (alive bonus + the RewardPenalties terms: torque², pelvis
+        /// angular velocity², action rate; per second as in training). Reset with the athlete. Read-only: no physics.</summary>
+        public float EpisodeReward { get; private set; }
+        /// <summary>Tab overlay: the curriculum stage of the brain driving now: its rung / skill (brain asset name
+        /// without the body), "get-up" while the recovery brain drives.</summary>
+        public string CurriculumStage
+        {
+            get
+            {
+                if (Recovering) return "get-up" + (recoverBrain != null ? $" ({recoverBrain.name})" : "");
+                if (holdDefaultPose || brain == null) return "hold pose";
+                string stage = string.Join("_", System.Array.FindAll(brain.name.Split('_'),
+                    t => System.Array.IndexOf(MeetLineup.Roster, t.ToUpperInvariant()) < 0 && t != "mattbio"));
+                return stage.Length == 0 || stage == brain.name ? brain.name : $"{stage} ({brain.name})";
+            }
+        }
+        static readonly List<PolicyRunner> _live = new();
+        /// <summary>Enabled runners (Tab overlay: mean inference latency).</summary>
+        public static IReadOnlyList<PolicyRunner> Live => _live;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetLive() => _live.Clear();
+        void OnEnable() { if (!_live.Contains(this)) _live.Add(this); }
+        void OnDisable() => _live.Remove(this);
         public int ActiveSeed { get; private set; } = 42;
         public void ResetTelemetry() => NanInfCount = 0;
 
@@ -403,6 +426,7 @@ namespace PoOlympic
                 Array.Copy(Binding.DefaultPos, _ctrlPrev, _ctrlPrev.Length);
                 Array.Clear(_lastAction, 0, _lastAction.Length);
                 _phase = 0;
+                EpisodeReward = 0f;
             }
             if (_substep % Contract.decimation == 0) ControlStep(m, d);
             // latency trait: a new ctrl reaches the actuators `latencySubsteps` physics steps after its control tick
@@ -495,6 +519,7 @@ namespace PoOlympic
                     if (!float.IsFinite(_actionRaw[i])) { NanInfCount++; _actionRaw[i] = 0f; }
                 }
             }
+            if (!relax && !holdDefaultPose) AccumulateReward(d);
             Array.Copy(_actionRaw, _lastAction, _lastAction.Length);
             if (ActionLog.Active)
             {
@@ -507,6 +532,18 @@ namespace PoOlympic
                 CriticEvaluations++;
             }
             if (_rec != null && _recFrames < recordTicks) RecordTail();
+        }
+
+        /// <summary>Episode-reward readout (reads mjData only): one control tick of alive + penalties.</summary>
+        void AccumulateReward(MujocoLib.mjData_* d)
+        {
+            var w = RewardPenalties.Current;
+            double torque = 0, rate = 0, ang = 0;
+            for (int i = 0; i < Binding.ActuatorIds.Length; i++) { double f = d->actuator_force[Binding.ActuatorIds[i]]; torque += f * f; }
+            for (int i = 0; i < _actionRaw.Length; i++) { double da = _actionRaw[i] - _lastAction[i]; rate += da * da; }
+            for (int i = 3; i < 6; i++) { double v = d->qvel[Binding.RootDofAdr + i]; ang += v * v; }
+            double dt = Contract.timestep * Contract.decimation;
+            EpisodeReward += (float)(dt * (w.aliveBonus + w.torqueL2 * torque + w.actionRateL2 * rate + w.bodyAngVelL2 * ang));
         }
 
         // ---------------------------------------------------------------- recording (G5 closed-loop comparison)

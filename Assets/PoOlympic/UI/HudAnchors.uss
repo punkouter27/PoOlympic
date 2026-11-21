@@ -83,9 +83,11 @@
 .ha-debug-btn--shapes > .ha-dbg-bar { background-color: var(--po-gold); }
 .ha-debug-btn--shapes.ha-icon-btn--on > .ha-dbg-bar { background-color: var(--po-ink); }
 
-/* BR: version */
+/* version: in the sheet's head (the page around the canvas shows it too) */
 .ha-version {
     flex-shrink: 0;
+    align-self: center;
+    margin: 0 var(--po-pad);
     font-size: var(--po-text);
     color: var(--po-muted);
     -unity-text-align: middle-right;
@@ -180,8 +182,10 @@
     font-size: var(--po-text);
     -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf");
     white-space: normal;
-    color: var(--po-debug);
-    background-color: var(--po-shade-70);
+    color: var(--po-fg);
+    background-color: var(--po-dock);
+    border-width: var(--po-rule);
+    border-color: var(--po-cyan);
     border-radius: var(--po-radius);
     display: none;
 }

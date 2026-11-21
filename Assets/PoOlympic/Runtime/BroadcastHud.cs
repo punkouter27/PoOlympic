@@ -155,6 +155,11 @@ namespace PoOlympic
             // anchors: TL title · TC fps · TR clock + menu · BL debug · BR version
             _anchors = new HudAnchors(_dockTop, _dockBottom, _frame, _hole, title, subtitle, version.Split('·')[0].Trim());
             _anchors.Version.tooltip = version;
+            _anchors.Focus = () =>
+            {
+                var who = _storyFor != null ? _storyFor : Director != null ? Director.Subject : null;
+                return (_storyName != null ? _storyName.text : "", who);
+            };
             var clockBox = Add(_anchors.Extra, "bh-clockbox");
             _clock = AddLabel(clockBox, "bh-clock", "0.00 s");
             _info = AddLabel(clockBox, "bh-info", "");
@@ -351,6 +356,8 @@ namespace PoOlympic
         {
             if (_frame == null) return;
             HandleHotkeys();
+            // demo (attract) mode: only the event title, the DEMO caption and the clock stay; the picture gets the rest
+            _frame.EnableInClassList("bh-demo", DemoMode.Active);
             _anchors.Tick();
             FitToScreen();
             if (_replay.Playing && !_replay.Step()) StopReplay();

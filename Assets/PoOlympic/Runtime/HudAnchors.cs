@@ -9,7 +9,8 @@ namespace PoOlympic
     /// <summary>
     /// The fixed 5-slot frame shared by every portrait screen (UI consolidation idea 1, 2026-09-29):
     ///   TL title chip (title + one-line subtitle) · TC FPS pill · TR menu button (`Extra` is a slot left of it, e.g.
-    ///   the race clock) · BL debug button (performance readout, growing up from the corner) · BR version.
+    ///   the race clock) · BL debug button (the Tab overlay, growing up from the corner) · BR free (the game name and
+    ///   version are drawn by the web page around the canvas, not by the HUD; the version is in the sheet's head).
     ///   `BottomCentre` is free for the owner (ticker, primary action, last result).
     /// One modal (2026-10-11): a bottom sheet docked above the bottom bar (thumb reach) with two tabs — Actions (the
     /// owner's items) and Settings (16 chips, one page) — opened by the TR button or a swipe up from the bottom bar,
@@ -31,6 +32,10 @@ namespace PoOlympic
         bool _eraseArmed;
         /// <summary>Extra lines for the debug readout (BroadcastHud: the athlete on camera); null / "" = none.</summary>
         public Func<string> DebugExtra;
+        /// <summary>Tab overlay: the athlete whose episode reward and curriculum stage it shows (label + runner).</summary>
+        public Func<(string label, PolicyRunner runner)> Focus;
+        /// <summary>Tab overlay without an athlete (main menu): the curriculum stage to show, e.g. the selected event's brain.</summary>
+        public Func<string> StageHint;
         Func<IEnumerable<(string label, Action act)>> _items = () => Array.Empty<(string, Action)>();
         float _acc, _frames, _debugNext, _debugDown = -1f;
         float _fps = float.NaN;
@@ -103,8 +108,9 @@ namespace PoOlympic
             BottomBar.Add(DebugButton);
             BottomCentre = Add(BottomBar, "ha-bottom-centre");
             string stamp = string.IsNullOrEmpty(version) || version.StartsWith("v0") ? BuildStamp : version;
-            Version = AddLabel(BottomBar, "ha-version", stamp);
-            Version.tooltip = $"{version} · {BuildStamp}";
+            if (!stamp.StartsWith("v")) stamp = "v" + stamp;
+            Version = new Label(stamp) { tooltip = $"{version} · {BuildStamp}" };   // shown in the sheet's head, not a HUD corner
+            Version.AddToClassList("ha-version");
             SwipeUpOpens(BottomBar);
 
             _scrim = Add(overlay, "ha-scrim", BleedClass);
@@ -116,6 +122,7 @@ namespace PoOlympic
                 int tab = i;
                 _tabs.Add(Tab(head, Tabs[i], () => ShowTab(tab)));
             }
+            head.Add(Version);
             Tab(head, "Close", CloseSheet).AddToClassList("ha-tab-done");
             _body = Add(_sheet, "ha-sheet-body");
             _veil = Add(overlay, "ha-veil", BleedClass);
@@ -293,13 +300,29 @@ namespace PoOlympic
             DebugButton.EnableInClassList("ha-icon-btn--on", on);
             DebugButton.EnableInClassList("ha-debug-btn--shapes", GameSettings.ColliderView);
             if (!on || Time.unscaledTime < _debugNext) return;
-            _debugNext = Time.unscaledTime + 1f;
+            _debugNext = Time.unscaledTime + 0.5f;
             var n = SafeArea();
             string screen = $"{Screen.width}×{Screen.height} · safe {n.width * 100f:0}×{n.height * 100f:0}%";
             string extra = DebugExtra?.Invoke();
-            DebugPanel.text = (PerfOverlay.Instance != null && !string.IsNullOrEmpty(PerfOverlay.Line)
+            DebugPanel.text = OverlayLines() + "\n" + (PerfOverlay.Instance != null && !string.IsNullOrEmpty(PerfOverlay.Line)
                 ? PerfOverlay.Line + " · " + screen
-                : $"{(float.IsNaN(_fps) ? "—" : _fps.ToString("0"))} fps · {screen}") + (string.IsNullOrEmpty(extra) ? "" : "\n" + extra);
+                : screen) + (string.IsNullOrEmpty(extra) ? "" : "\n" + extra);
+        }
+
+        /// <summary>The Tab overlay's four readings (Po game standard C12): FPS, episode reward, inference latency
+        /// (rolling mean of every running brain), curriculum stage.</summary>
+        string OverlayLines()
+        {
+            float ms = 0f;
+            int brains = 0;
+            foreach (var r in PolicyRunner.Live)
+                if (r != null && r.isActiveAndEnabled && r.Initialized && !r.holdDefaultPose) { ms += r.BrainMs; brains++; }
+            var (label, runner) = Focus?.Invoke() ?? default;
+            string fps = float.IsNaN(_fps) ? "—" : _fps.ToString("0");
+            string reward = runner != null ? $"{(string.IsNullOrEmpty(label) ? runner.athletePrefix.TrimEnd('_') : label)}  {runner.EpisodeReward:+0.0;-0.0;0.0}" : "— (no athlete on camera)";
+            string stage = runner != null ? runner.CurriculumStage : (StageHint?.Invoke() is { Length: > 0 } hint ? hint : "—");
+            string latency = brains > 0 ? $"{ms / brains:0.00} ms avg ({brains} brain{(brains > 1 ? "s" : "")})" : "— (no brain running)";
+            return $"FPS  {fps}\nEpisode reward  {reward}\nInference  {latency}\nCurriculum stage  {stage}";
         }
 
         /// <summary>GUI-space rectangle (pixels, y down) for the IMGUI dev HUDs (testbeds, the stadium hub): the camera's

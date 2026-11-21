@@ -24,7 +24,7 @@ namespace PoOlympic.Tests
         [Test]
         public void SteerYawRateMatchesPython()
         {
-            var c = Contract.Parse(File.ReadAllText(Path.Combine(Application.dataPath, "..", "parity", "contract.json")));
+            var c = Contract.Parse(File.ReadAllText(Path.Combine(Application.dataPath, "PoOlympic", "Models", "contract.json")));
             Assert.That(c.steering, Is.Not.Null, "contract.json has no steering block — re-export the contract");
             foreach (var k in Cases)
                 Assert.That(c.SteerYawRate(k[0], k[1], k[2], k[3], k[4], k[5]), Is.EqualTo(k[6]).Within(1e-12), $"case {string.Join(", ", k)}");

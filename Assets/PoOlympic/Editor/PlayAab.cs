@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -21,7 +22,9 @@ namespace PoOlympic.Editor
     {
         /// PERMANENT once the first bundle is uploaded: Play keys the app on it.
         public const string APP_ID = "com.punkoutersoftware.poolympic";
-        const string KEYSTORE = "C:/Users/punko/OneDrive/VAULT/_CODE/poolympic-upload.jks";
+        /// The upload keystore (and its .pass beside it): POOLYMPIC_KEYSTORE, else OneDrive/VAULT/_CODE in the user's home.
+        static string KEYSTORE => Environment.GetEnvironmentVariable("POOLYMPIC_KEYSTORE") is { Length: > 0 } k ? k
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "VAULT", "_CODE", "poolympic-upload.jks");
         const string ALIAS = "poolympic-upload";
         const string OUTPUT = "Builds/Android/PoOlympic.aab";
 

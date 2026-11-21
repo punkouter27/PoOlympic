@@ -87,7 +87,7 @@
       if (c.expect === "json") {
         const j = await r.json();
         if (c.jsonKey && !(c.jsonKey in j)) return show(el, "Unhealthy", ms, `answer has no "${c.jsonKey}"`);
-        if (c.jsonKey) detail += ` · ${c.jsonKey} = ${JSON.stringify(j[c.jsonKey]).slice(0, 120)}`;
+        if (c.jsonKey) detail += ` · ${c.jsonKey} = ${JSON.stringify(j[c.jsonKey]).slice(0, 80)}`;
       } else if (c.expect) {
         const text = await r.text();
         if (!text.includes(c.expect)) return show(el, "Unhealthy", ms, `answer does not contain "${c.expect}"`);

@@ -250,3 +250,6 @@
 .bh-slip-odds { width: 110px; font-size: var(--po-text-h); -unity-text-align: middle-right; color: var(--po-gold); -unity-font: url("project://database/Assets/PoOlympic/UI/Fonts/Inter-SemiBold.ttf"); }
 .bh-slip-bar { flex-direction: row; align-items: center; flex-wrap: wrap; margin-top: var(--po-s10); }
 .bh-slip-timer { font-size: var(--po-text); color: var(--po-soft); margin-top: var(--po-s10); }
+
+/* demo (attract) mode: everything but the title chip, the DEMO caption and the clock is hidden */
+.bh-demo .bh-standings, .bh-demo .bh-dock-bottom, .bh-demo .ha-fps, .bh-demo .bh-info { display: none; }

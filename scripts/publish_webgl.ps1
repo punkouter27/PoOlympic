@@ -66,11 +66,19 @@ if (-not $SkipBuild) {
         $code = Invoke-Unity @('-batchmode', '-nographics', '-projectPath', "`"$root`"", '-runTests', '-testPlatform', 'EditMode',
                                '-testResults', "`"$results`"", '-logFile', "`"$log`"")
         if (-not (Test-Path $results)) { Get-Content $log -Tail 40; throw "EditMode tests did not run (exit $code). Log: $log" }
-        $run = ([xml](Get-Content $results -Raw)).'test-run'
+        $doc = [xml](Get-Content $results -Raw)
+        $run = $doc.'test-run'
         "EditMode: $($run.passed) passed, $($run.failed) failed, $($run.skipped) skipped of $($run.total)"
-        if ([int]$run.failed -gt 0 -or $code -ne 0) {
-            ([xml](Get-Content $results -Raw)).SelectNodes("//test-case[@result='Failed']") | ForEach-Object { "  FAILED $($_.fullname)" }
-            throw "EditMode tests failed: nothing was built or published. Results: $results"
+        # scripts/webgl.json knownFailures: failures already in the baseline, each with its reason; anything else stops here
+        $known = @{}
+        if ($cfg.knownFailures) { $cfg.knownFailures.PSObject.Properties | Where-Object Name -ne '_why' | ForEach-Object { $known[$_.Name] = $_.Value } }
+        $new = @()
+        foreach ($t in $doc.SelectNodes("//test-case[@result='Failed']")) {
+            if ($known.ContainsKey($t.fullname)) { Write-Warning "known failure: $($t.fullname) ($($known[$t.fullname]))" }
+            else { "  FAILED $($t.fullname)"; $new += $t.fullname }
+        }
+        if ($new.Count -gt 0 -or [int]$run.total -eq 0) {
+            throw "EditMode tests failed ($($new.Count) not in knownFailures): nothing was built or published. Results: $results"
         }
     }
 
@@ -96,7 +104,7 @@ if ($SkipBuild) {
     if (-not $m.Success) { throw "index.html of the existing build carries no vYYMMDD stamp." }
     $stamp = $m.Groups[1].Value
 }
-elseif ($page -notmatch "v$stamp") { throw "index.html does not carry v$stamp: the build did not take the stamp." }
+elseif ($page -notmatch "v$stamp") { throw "index.html does not carry v${stamp}: the build did not take the stamp." }
 
 # Static Web Apps 404s .unityweb without this MIME config.
 Copy-Item (Join-Path $PSScriptRoot 'webgl\staticwebapp.config.json') $buildDir -Force

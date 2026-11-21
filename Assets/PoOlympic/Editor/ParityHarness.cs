@@ -57,6 +57,9 @@ namespace PoOlympic.Editor
         public static void SyncArtifacts()
         {
             var models = Path.Combine(ProjectRoot, ModelsFolder);
+            // parity/ is the local, git-ignored working folder of the training tools; without it (a fresh clone) the
+            // committed copies under Models are what Unity runs and there is nothing to sync
+            if (!File.Exists(Path.Combine(ProjectRoot, "parity", "contract.json"))) return;
             Directory.CreateDirectory(Path.Combine(models, "Brains"));
             File.Copy(Path.Combine(ProjectRoot, "parity", "contract.json"), Path.Combine(models, "contract.json"), true);
             foreach (var f in Directory.GetFiles(Path.Combine(ProjectRoot, "parity"), "contract_*.json"))   // other bodies
@@ -65,14 +68,15 @@ namespace PoOlympic.Editor
             // ones already imported; training candidates (<run>_itNNN) stay in parity/brains (2026-10-14: 181 of 213 unused)
             var brains = Path.Combine(ProjectRoot, "parity", "brains");
             var want = new HashSet<string>();
-            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.Combine(brains, "manifest.json")), "\"file\": \"([^\"]+)\\.onnx\""))
-                want.Add(m.Groups[1].Value);
+            if (File.Exists(Path.Combine(brains, "manifest.json")))
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.Combine(brains, "manifest.json")), "\"file\": \"([^\"]+)\\.onnx\""))
+                    want.Add(m.Groups[1].Value);
             foreach (var cs in Directory.GetFiles(Path.Combine(Application.dataPath, "PoOlympic"), "*.cs", SearchOption.AllDirectories))
                 foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(cs), "\"([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)\\.onnx\""))
                     want.Add(m.Groups[1].Value);
             foreach (var f in Directory.GetFiles(Path.Combine(models, "Brains"), "*.onnx"))
                 want.Add(Path.GetFileNameWithoutExtension(f));
-            foreach (var f in Directory.GetFiles(brains))
+            foreach (var f in Directory.Exists(brains) ? Directory.GetFiles(brains) : Array.Empty<string>())
             {
                 var stem = Path.GetFileName(f).Split(new[] { ".critic.onnx", ".onnx" }, StringSplitOptions.None)[0];
                 if (want.Contains(stem)) File.Copy(f, Path.Combine(models, "Brains", Path.GetFileName(f)), true);

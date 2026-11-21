@@ -9,13 +9,16 @@ namespace PoOlympic.Editor
 {
     /// <summary>
     /// The game in a browser: a WebGL player in Builds/WebGL, served from the Azure Static Web App
-    /// "poolympic" (resource group PoOlympic) by Tools/deploy_webgl.ps1. Menu Tools/PoOlympic/Build WebGL (browser), or headless:
+    /// "poolympic" (resource group PoOlympic) by scripts/publish_webgl.ps1 (GitHub release → workflow) or
+    /// scripts/deploy_webgl.ps1. Menu Tools/PoOlympic/Build WebGL (browser), or headless:
     ///   Unity.exe -batchmode -quit -projectPath . -buildTarget WebGL -executeMethod PoOlympic.Editor.WebGLBuild.Build
     /// The outcome is the "WEBGL BUILD RESULT:" log line (and the exit code in batch mode).
     ///
     /// Gzip with the decompression fallback: Static Web Apps does not send the Content-Encoding
     /// header a compressed Unity build otherwise needs, so the loader unpacks the files itself.
-    /// The canvas is 540 x 960.
+    /// The page (Assets/WebGLTemplates/Po) sizes the canvas to the window below its top bar, any aspect; the
+    /// 540 x 960 default only matters before the page's first resize. The version (PlayerSettings.bundleVersion, the
+    /// page's PRODUCT_VERSION) is BuildStampPreprocessor.Stamp, set here before the build so the page gets it too.
     /// The MCP bridge's UNITY_MCP_* defines are stripped for the build, as for Android, so its
     /// runtime (and the NuGet closure behind it) stays out of the player.
     ///
@@ -41,6 +44,7 @@ namespace PoOlympic.Editor
             PlayerSettings.defaultWebScreenHeight = 960;
             PinMujocoToWebGL();
             PlayerSettings.WebGL.template = "PROJECT:Po";
+            PlayerSettings.bundleVersion = BuildStampPreprocessor.Stamp;
 
             string defines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.WebGL);
             PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.WebGL,

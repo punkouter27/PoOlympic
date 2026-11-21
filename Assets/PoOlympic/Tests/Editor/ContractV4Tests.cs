@@ -51,7 +51,7 @@ namespace PoOlympic.Tests
         [Test]
         public void V4TestBrainSidecarIsVersion4()
         {
-            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "parity", "brains", "random_brain_v4.onnx.json"));
+            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "PoOlympic", "Models", "Brains", "random_brain_v4.onnx.json"));
             var sc = JsonUtility.FromJson<BrainSidecar>(File.ReadAllText(path));
             Assert.AreEqual("4", sc.contract_version);
         }

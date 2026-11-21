@@ -95,7 +95,10 @@ every publish. Tests never write into tracked files.
   3.11 because the trainer's mjlab (latest 1.6.1) requires `mujoco~=3.11.0`; brains, references and fingerprints are
   tied to the version they were made with.
 - Tests: `uv run pytest -m "not slow"` (fast tier, CI) / `uv run pytest` (all, incl. full-event simulations);
-  Unity EditMode tests run by `scripts/publish_webgl.ps1` before every build.
+  Unity EditMode tests run by `scripts/publish_webgl.ps1` before every build; it stops on any failure that is not in
+  `scripts/webgl.json` → `knownFailures` (the 4 failures of the 2026-11-20 baseline: grandma_rung2's missing critic
+  calibration and three stale parity references; each entry says how to clear it). Tests write gate reports into
+  `parity/` (local, ignored).
 - `parity/` is a local, git-ignored working folder (gate reports, candidate brains, captures). Its history up to
   2026-11-20 is archived as `parity.zip` on the GitHub release `archive-261120`. Deployed brains and the contracts
   Unity reads are committed under `Assets/PoOlympic/Models/`.

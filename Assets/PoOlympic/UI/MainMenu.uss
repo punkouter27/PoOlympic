@@ -15,6 +15,10 @@
     flex-grow: 1;
     width: 100%;
     max-width: 1080px;
+}
+/* landscape: a wider column (MainMenuController doubles the event grid's columns) */
+.menu-root--wide > .menu-panel {
+    max-width: 2560px;
     padding: var(--po-pad) var(--po-gap) var(--po-pad-s) var(--po-gap);
 }
 .menu-anchor { flex-shrink: 0; }
@@ -205,3 +209,6 @@
 
 /* bottom bar centre: the last gauntlet result */
 .menu-last { flex-grow: 1; flex-shrink: 1; font-size: var(--po-text); color: var(--po-cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the Tab overlay sits in the event detail box (not over the action buttons) */
+.detail { position: relative; }

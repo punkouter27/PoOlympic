@@ -257,7 +257,7 @@ namespace PoOlympic.Editor
         public static string BuildAlpineRamp() => BuildTrackRace(14, TrackRaceEvent.Mode.Ramp, "ALPINE RAMP", RampScene, RampOr(RampMattBrain, DefaultRung2Brain));
 
         /// <summary>A body without a slope brain races with its flat-ground Rung 2 brain (it does not get far up a 15° ramp).</summary>
-        static string RampOr(string slopeBrain, string fallback) => File.Exists(Path.Combine("parity/brains", slopeBrain)) ? slopeBrain : fallback;
+        static string RampOr(string slopeBrain, string fallback) => File.Exists(Path.Combine("Assets/PoOlympic/Models/Brains", slopeBrain)) ? slopeBrain : fallback;
         // Event 27 (The Resurrection Dash): Rung 2 brains + each body's get-up brain (BroadcastFx.Install wires them)
         public const string ResurrectionScene = "Assets/PoOlympic/Scenes/Event_ResurrectionDash.unity";
 
