@@ -51,6 +51,9 @@ jobs:
           uv venv --python 3.11 .ci-venv
           uv pip install --python .ci-venv "mujoco==3.11.0" "mujoco-warp==3.11.0" "mjlab==1.6.0" onnx onnxruntime numpy pytest \
             torch --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+          # mjviser (an mjlab dependency) pulls mujoco-core 4.x, whose files share the mujoco/ package folder: put
+          # mujoco 3.11.0's own files back last so its bundled plugins find libmujoco.so.3.11.0
+          uv pip install --python .ci-venv --reinstall-package mujoco --no-deps "mujoco==3.11.0"
           uv pip install --python .ci-venv --no-deps -e .
           .ci-venv/bin/python -m pytest tests -q -m "not slow"
 
