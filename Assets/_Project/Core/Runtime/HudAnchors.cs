@@ -305,7 +305,7 @@ namespace PoOlympic
                 if (!float.IsNaN(ph)) BenchButton.style.bottom = Mathf.Max(0f, host.layout.height - barTop) + 16f + ph + 8f;
                 BenchButton.BringToFront();
             }
-            BenchButton.EnableInClassList("ha-bench--on", on);
+            BenchButton.EnableInClassList("ha-bench--on", on && SimBenchmark.Available);   // the menu has no world to step
             DebugButton.EnableInClassList("ha-icon-btn--on", on);
             SimBenchmark.Tick();
             DebugButton.EnableInClassList("ha-debug-btn--shapes", GameSettings.ColliderView);

@@ -22,6 +22,8 @@ namespace PoOlympic
         static double _stepping;
 
         public static bool Running => _data != null;
+        /// <summary>A MuJoCo world is loaded (an event): the overlay shows the button only then.</summary>
+        public static bool Available => MjScene.InstanceExists && MjScene.Instance.Model != null;
         /// <summary>The last result (or the running state), for the overlay; "" before the first run.</summary>
         public static string Result { get; private set; } = "";
         /// <summary>Physics steps per second of the last finished run (0 = none).</summary>
