@@ -104,7 +104,7 @@ namespace PoOlympic.Editor
             if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
             ParityHarness.SyncArtifacts();
             EditorSceneManager.OpenScene(ScenePathOf(body), OpenSceneMode.Single);
-            var r = UnityEngine.Object.FindFirstObjectByType<PolicyRunner>();
+            var r = UnityEngine.Object.FindAnyObjectByType<PolicyRunner>();
             r.brain = AssetDatabase.LoadAssetAtPath<ModelAsset>($"{ParityHarness.ModelsFolder}/Brains/{brainFile}")
                       ?? throw new System.IO.FileNotFoundException(brainFile);
             r.brainSidecar = AssetDatabase.LoadAssetAtPath<TextAsset>($"{ParityHarness.ModelsFolder}/Brains/{brainFile}.json");

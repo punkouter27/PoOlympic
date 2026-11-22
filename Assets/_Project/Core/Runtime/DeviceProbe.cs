@@ -34,7 +34,7 @@ namespace PoOlympic
             Add("os", SystemInfo.operatingSystem);
 
             // 1. parity recording (the scene's runner records recordTicks control ticks, then flushes)
-            var runner = FindFirstObjectByType<PolicyRunner>();
+            var runner = FindAnyObjectByType<PolicyRunner>();
             float t0 = Time.realtimeSinceStartup;
             while (runner != null && !runner.RecordingDone && Time.realtimeSinceStartup - t0 < 60f) yield return null;
             Add("parity_record", runner != null && runner.RecordingDone ? runner.RecordPath : "timeout");
@@ -61,7 +61,7 @@ namespace PoOlympic
             Add("frame_ms_p95", P(0.95f));
             Add("frame_ms_p99", P(0.99f));
             Add("frame_ms_max", dts[^1]);
-            var race = FindFirstObjectByType<TrackRaceEvent>();
+            var race = FindAnyObjectByType<TrackRaceEvent>();
             if (race != null) Add("heat_leader_x_m", race.LeaderX);
             _json.Append("\"done\":true}");
             var path = Path.Combine(Application.persistentDataPath, "device_probe.json");
@@ -72,7 +72,7 @@ namespace PoOlympic
         void OnLoaded(Scene s, LoadSceneMode mode)
         {
             SceneManager.sceneLoaded -= OnLoaded;
-            foreach (var hud in FindObjectsByType<BroadcastHud>(FindObjectsSortMode.None)) hud.offerBets = false;
+            foreach (var hud in FindObjectsByType<BroadcastHud>()) hud.offerBets = false;
         }
 
         static unsafe double BenchStep(int n)

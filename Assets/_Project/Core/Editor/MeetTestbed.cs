@@ -129,7 +129,7 @@ namespace PoOlympic.Editor
         /// <summary>Assign one brain to every lane (holdDefaultPose off).</summary>
         public static void SetBrain(string brainFile)
         {
-            foreach (var r in UnityEngine.Object.FindObjectsByType<PolicyRunner>(FindObjectsSortMode.None)) SetBrain(r, brainFile);
+            foreach (var r in UnityEngine.Object.FindObjectsByType<PolicyRunner>()) SetBrain(r, brainFile);
         }
 
         static void SetBrain(PolicyRunner r, string brainFile)
@@ -151,7 +151,7 @@ namespace PoOlympic.Editor
             var plan = JsonUtility.FromJson<Plan>(File.ReadAllText(Path.Combine(ProjectRoot, "parity", $"g6_plan_{name}.json")));
             bool mixed = Array.Exists(plan.lanes, l => !string.IsNullOrEmpty(l.body));
             EditorSceneManager.OpenScene(mixed ? MixedScenePath : ScenePath, OpenSceneMode.Single);
-            var runners = UnityEngine.Object.FindObjectsByType<PolicyRunner>(FindObjectsSortMode.None);
+            var runners = UnityEngine.Object.FindObjectsByType<PolicyRunner>();
             int ticks = 0;
             foreach (var pl in plan.lanes)
             {

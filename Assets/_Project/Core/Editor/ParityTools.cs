@@ -19,7 +19,7 @@ namespace PoOlympic.Editor
         {
             // The plug-in's MjScene singleton only registers itself in Awake (Play mode). In Edit mode we use a
             // temporary instance and remove it afterwards so it never gets saved into the scene.
-            foreach (var stale in Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var stale in Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include))
                 Object.DestroyImmediate(stale.gameObject);
             var scene = MjScene.Instance;
             scene.CreateScene();
@@ -98,7 +98,7 @@ namespace PoOlympic.Editor
         public static void StepUntilTick(int tick)
         {
             if (!Application.isPlaying) { Debug.LogWarning("[Parity] enter Play mode first"); return; }
-            var runner = Object.FindFirstObjectByType<PolicyRunner>();
+            var runner = Object.FindAnyObjectByType<PolicyRunner>();
             Time.captureDeltaTime = 0.02f;
             EditorApplication.isPaused = true;
             EditorApplication.CallbackFunction step = null;

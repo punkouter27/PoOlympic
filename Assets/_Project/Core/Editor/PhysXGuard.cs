@@ -82,7 +82,11 @@ namespace PoOlympic.Editor
                 Physics.simulationMode = SimulationMode.Script;
                 Debug.Log("[PhysXGuard] Physics.simulationMode forced to Script.");
             }
-            Physics.autoSyncTransforms = false;
+            // ProjectSettings/DynamicsManager.asset keeps m_AutoSyncTransforms: 0; the setter is obsolete in Unity 6.6
+            // (no replacement setting), so it is only reset when something turned it on.
+#pragma warning disable CS0618
+            if (Physics.autoSyncTransforms) Physics.autoSyncTransforms = false;
+#pragma warning restore CS0618
         }
 
         class BuildCheck : IPreprocessBuildWithReport

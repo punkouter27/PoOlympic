@@ -63,7 +63,7 @@ namespace PoOlympic
                 if ((x.Body1 != null && !x.Body1.gameObject.activeInHierarchy) || (x.Body2 != null && !x.Body2.gameObject.activeInHierarchy))
                     x.gameObject.SetActive(false);
 
-            foreach (var ev in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None).OfType<ILaneRoster>())
+            foreach (var ev in FindObjectsByType<MonoBehaviour>().OfType<ILaneRoster>())
                 ev.DropInactiveLanes();
 
             if (pool != null && (pool.runner == null || !pool.runner.gameObject.activeInHierarchy))

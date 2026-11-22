@@ -392,7 +392,7 @@ namespace PoOlympic.Editor
             var steel = art.FirstOrDefault(r => r.name.Contains("Post"))?.sharedMaterial;
             int hidden = 0, shown = 0;
             foreach (var r in art.Where(r => r.name.Contains("Ceiling") || r.name.Contains("Post"))) { r.enabled = false; hidden++; }
-            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include))
             {
                 if (!g.name.StartsWith("trench_") || !g.TryGetComponent<Renderer>(out var rend)) continue;
                 rend.enabled = true;
@@ -676,7 +676,7 @@ namespace PoOlympic.Editor
             var hazard = pads[0].sharedMaterial;
             foreach (var pad in pads) pad.enabled = false;
             int shown = 0;
-            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include))
             {
                 if (!(g.name == "shaker" || g.name.EndsWith("_shaker")) || !g.TryGetComponent<Renderer>(out var rend)) continue;
                 rend.enabled = true;
@@ -1011,7 +1011,7 @@ namespace PoOlympic.Editor
 
         static void ColorMjGeoms(Func<string, bool> match, Material mat)
         {
-            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include))
             {
                 if (!match(g.name) || !g.TryGetComponent<Renderer>(out var rend)) continue;
                 rend.enabled = true;

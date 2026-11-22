@@ -173,7 +173,7 @@ namespace PoOlympic.Tests
             var codes = MeetLineup.Roster.Select(MainMenuController.ShortName).ToArray();
             foreach (var t in entrants)
             {
-                Assert.GreaterOrEqual(t.layout.height, 103f, $"{phone}: entrant slot under 104 tall");   // --po-btn, snapped to the pixel grid
+                Assert.GreaterOrEqual(t.layout.height, MinButton, $"{phone}: entrant slot under 104 tall");   // --po-btn, snapped to the pixel grid (one device pixel of slack, like every other 104 check)
                 var labels = t.Query<Label>().ToList();
                 Assert.Contains(labels[1].text, codes, $"{phone}: entrant slot without a character");
                 foreach (var l in labels)

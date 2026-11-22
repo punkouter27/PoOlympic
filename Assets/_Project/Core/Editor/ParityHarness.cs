@@ -71,7 +71,7 @@ namespace PoOlympic.Editor
             if (File.Exists(Path.Combine(brains, "manifest.json")))
                 foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.Combine(brains, "manifest.json")), "\"file\": \"([^\"]+)\\.onnx\""))
                     want.Add(m.Groups[1].Value);
-            foreach (var cs in Directory.GetFiles(Path.Combine(Application.dataPath, "PoOlympic"), "*.cs", SearchOption.AllDirectories))
+            foreach (var cs in Directory.GetFiles(Path.Combine(Application.dataPath, "_Project"), "*.cs", SearchOption.AllDirectories))
                 foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(cs), "\"([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)\\.onnx\""))
                     want.Add(m.Groups[1].Value);
             foreach (var f in Directory.GetFiles(Path.Combine(models, "Brains"), "*.onnx"))
@@ -99,7 +99,7 @@ namespace PoOlympic.Editor
             if (reference.meta.fingerprint_sha256 != contract.fingerprint_sha256)
                 throw new InvalidOperationException("reference was recorded on a different model than the contract");
 
-            foreach (var stale in UnityEngine.Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var stale in UnityEngine.Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include))
                 UnityEngine.Object.DestroyImmediate(stale.gameObject);
             var scene = MjScene.Instance;
             scene.CreateScene();

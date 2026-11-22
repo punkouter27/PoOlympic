@@ -13,7 +13,7 @@ namespace PoOlympic.Tests
         public void FiredPoolCubeHitsAthleteThroughMuJoCo()
         {
             EditorSceneManager.OpenScene(ParityHarness.TestbedScene, OpenSceneMode.Single);
-            foreach (var s in Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var s in Object.FindObjectsByType<MjScene>(FindObjectsInactive.Include))
                 Object.DestroyImmediate(s.gameObject);
             var scene = MjScene.Instance;
             scene.CreateScene();

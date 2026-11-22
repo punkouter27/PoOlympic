@@ -58,11 +58,11 @@ namespace PoOlympic.Editor
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
             var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(EventScenes.IronPedestalScene);
-            var runner = UnityEngine.Object.FindFirstObjectByType<PolicyRunner>();
+            var runner = UnityEngine.Object.FindAnyObjectByType<PolicyRunner>();
             runner.useStandardParityScript = true;
             runner.recordName = ParityRecordName;
             runner.recordTicks = 250;
-            UnityEngine.Object.FindFirstObjectByType<IronPedestalEvent>().gameObject.SetActive(false);
+            UnityEngine.Object.FindAnyObjectByType<IronPedestalEvent>().gameObject.SetActive(false);
             var hud = GameObject.Find("EventHUD");
             if (hud != null) hud.SetActive(false);
             new GameObject("DeviceProbe").AddComponent<DeviceProbe>();

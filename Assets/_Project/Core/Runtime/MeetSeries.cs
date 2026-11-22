@@ -232,7 +232,7 @@ namespace PoOlympic
             if (SceneManager.GetActiveScene().name == MeetLineup.MenuScene) return;
 
             float now = Time.unscaledTime, inScene = now - _sceneStart;
-            if (_hud == null) _hud = FindFirstObjectByType<BroadcastHud>();
+            if (_hud == null) _hud = FindAnyObjectByType<BroadcastHud>();
             var board = _hud != null ? _hud.Board : null;
             if (board == null) { if (inScene > DemoRunner.NoBoardSeconds) MeetSeries.Advance("no event board"); return; }
             if (_phase != board.BoardState) { _phase = board.BoardState; _phaseStart = now; }

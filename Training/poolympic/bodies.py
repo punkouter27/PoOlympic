@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]  # Training/
 ASSETS = ROOT / "assets"
 DERIVED = ASSETS / "derived"
 PARITY = ROOT.parent / "parity"  # local, git-ignored working folder (gate reports, candidate brains, references)
-UNITY_MODELS = ROOT.parent / "Assets" / "_Project" / "RL_Models"  # committed: the contracts + deployed brains Unity runs
+# committed: the contracts + deployed brains Unity runs
+UNITY_MODELS = ROOT.parent / "Assets" / "_Project" / "RL_Models"
 
 
 @dataclass(frozen=True)
