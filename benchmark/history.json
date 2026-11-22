@@ -1,0 +1,81 @@
+{
+ "schema": 1,
+ "runs": [
+  {
+   "when": "2026-11-21T17:00:29-05:00",
+   "ok": true,
+   "error": null,
+   "machine": {
+    "hostname": "WIN-C2ANEVBHN6Q",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX (24 threads)",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "vram_gb": 11.9,
+    "ram_gb": 31.4,
+    "gpu_driver": "621.24",
+    "os": "Windows 11 (10.0.26300)"
+   },
+   "load_before": {
+    "cpu_pct": 29,
+    "ram_used_gb": 29.0,
+    "gpu_pct": 24.0,
+    "vram_used_gb": 4.0,
+    "gpu_temp_c": 86.41,
+    "sm_clock_mhz": 1305.0,
+    "on_battery": false,
+    "gpu_processes": [
+     "Code.exe",
+     "DCv2.exe",
+     "EOSOverlayRenderer-Win64-Shipping.exe",
+     "EpicGamesLauncher.exe",
+     "explorer.exe",
+     "msedge.exe"
+    ]
+   },
+   "load_during": {
+    "cpu_pct": 30.1,
+    "ram_used_gb": 29.8,
+    "gpu_pct": 78.7,
+    "vram_used_gb": 5.5,
+    "gpu_temp_c": 87.81,
+    "sm_clock_mhz": 948.1,
+    "on_battery": false,
+    "samples": 11
+   },
+   "busy": true,
+   "workload_id": "b392c5",
+   "workload": {
+    "repo": "PoOlympic",
+    "trainer": "mjlab 1.6.0 + rsl_rl 5.4.2",
+    "script": "mjlab train (training/.venv)",
+    "args": "PoOlympic-Zombie-Rung2-Wobble-Warm2 --log-root runs/_benchmark --agent.run-name benchmark --agent.max-iterations 100000 --agent.save-interval 100000",
+    "body": "zombie",
+    "init": "scratch (queue job warm-starts from a local checkpoint; same per-Step work)",
+    "num_envs": 4096,
+    "horizon": 24,
+    "net": [
+     512,
+     256,
+     128
+    ],
+    "config_hash": "b8631e60dc"
+   },
+   "result": {
+    "step_time_ms": 183.819,
+    "sim_ms": 141.748,
+    "learn_ms": 42.07,
+    "env_steps_per_s": 22283,
+    "steps_measured": 72,
+    "measured_s": 13.23,
+    "startup_s": 48.5
+   },
+   "git_commit": "5ebeb14",
+   "versions": {
+    "python": "3.11.9",
+    "torch": "2.14.0+cu130",
+    "mujoco_warp": "3.11.0",
+    "warp": "1.17.0"
+   },
+   "workload_changes": []
+  }
+ ]
+}
