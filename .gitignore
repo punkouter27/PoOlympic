@@ -61,7 +61,8 @@ parity/actions/
 /*.csproj
 
 # parity/: local working folder of the training / gate tools (reports, candidate brains, reference trajectories,
-# captures). Not versioned since 2026-11-20; its history is parity.zip on the release archive-261120.
+# captures). New files ignored since 2026-11-20; files tracked before that (brains, references) still are.
+# There is no archive-261120 release (checked 2026-11-22).
 /parity/
 # CI's CPU venv for the fast pytest tier
 Training/.ci-venv/

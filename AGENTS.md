@@ -123,6 +123,21 @@ every publish. Tests never write into tracked files.
   release that older notes mention does not exist (checked 2026-11-22). Deployed brains and the contracts Unity
   reads are committed under `Assets/_Project/RL_Models/`.
 
+#### Deliberate deviations
+
+| Deviation | Why | Commit sha / date | How to undo |
+|---|---|---|---|
+| Layout moved to `Assets/_Project/...` + `/Training`, overriding the owner's `0cc9ab6` layout (`Assets/PoOlympic`, lowercase `training/`) | the v3 layout rule is newer; whole-folder `git mv`, GUIDs kept | `c92ac7c` 2026-11-22 | `git revert c92ac7c` |
+| `Assets/Local/MjImports`, `Plugins`, `WebGLTemplates`, `Art/{Raw,Exports}`, `Samples`, `link.xml` stay outside `_Project`; generated MJCF and brain sidecars still say `training/...` in comments | importer/Unity paths; sidecars kept byte-identical | `c92ac7c` 2026-11-22 | — |
+| Unity build and tests run locally only; CI runs the Python checks and deploys the locally built release | Unity cannot be licensed in CI (owner design) | `763364e` 2026-11-22 | — |
+| CS0618 warnings in vendored `Packages/org.mujoco` (game code has 0) | third-party code | 2026-11-22 | patch the vendored plugin |
+| Gaze is render-only (Head bone look) | the athletes' MJCF has no neck joint; a neck DOF changes the brains' contracts | `763364e` 2026-11-22 | add a neck DOF + new contract version |
+| The build stamps `PlayerSettings.bundleVersion` into `ProjectSettings.asset`; revert it after a local build and commit only `BuildStamp.txt` | owner design | — | — |
+| `parity/` brains and references tracked before 2026-11-20 stay tracked | owner decision pending (publish a real archive and untrack, or keep) | 2026-11-22 | — |
+
+**Hosting:** Azure Static Web App `poolympic`, Free tier. Never run test suites against the live site; live checks =
+at most 6 page loads + /diag + X-Commit.
+
 ### 1.2 House rules
 
 Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity or Unreal.
@@ -209,8 +224,7 @@ Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity
   move or delete a run written to in the last 24 h, and close the editor for runs over 30 min.
 - Tests never write tracked files: the parity gates write `parity/` reports (ignored), Unity results go to `Temp/` or
   `Builds/` (ignored). A clean `git status` after a test run is part of the check.
-- The live site is a free-tier Static Web App: check it with a handful of page loads (home, /diag); run full test
-  suites locally, never against the live site.
+- The live site is a free-tier Static Web App: see **Hosting** in section 1.1 for the live-check budget.
 - Deploys: only through a `webgl-*` release (`scripts/publish_webgl.ps1`) at a pushed commit; the workflow stamps that
   commit as X-Commit. Releases are not deleted by default (`-Keep N` opts into pruning).
 - Brains and MJCF are shared contracts between Unity and the trainer: a change to `Training/assets/*.xml`,
@@ -218,7 +232,8 @@ Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity
 
 ## 3. Verify the repo (exact commands)
 
-From the repo root, Unity editor closed (PowerShell; `$U = "C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Unity.exe"`):
+The one command sequence below verifies the repo (last full run 2026-11-22: pytest fast tier 55 passed locally, 52 +
+3 skipped in CI; EditMode 117 passed, 11 skipped; PlayMode 3/3). From the repo root, Unity editor closed (PowerShell; `$U = "C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Unity.exe"`):
 
 ```powershell
 git lfs pull
