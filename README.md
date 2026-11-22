@@ -6,12 +6,12 @@ Engine). No animation and no PhysX.
 
 - Play: https://icy-field-055e0430f.6.azurestaticapps.net · status: https://icy-field-055e0430f.6.azurestaticapps.net/diag
 - Unity 6000.6.9f1 (exact), URP, UI Toolkit, MuJoCo 3.11.0 (`Packages/org.mujoco`, embedded), WebGL + Android.
-- Training: `training/` (uv project, Python 3.11, MuJoCo Warp + mjlab), see `docs/DESIGN.md` and `docs/tasks.md`.
+- Training: `Training/` (uv project, Python 3.11, MuJoCo Warp + mjlab), see `docs/DESIGN.md` and `docs/tasks.md`.
 
 ## Run locally
 - Fresh clone: `git lfs pull`, open the folder in Unity 6000.6.9f1, scene `Assets/_Project/Scenes/MainMenu.unity`.
 - Python: `cd Training; uv sync; uv run pytest tests -q -m "not slow"`.
-- `Tab` (or the bottom-left debug button) shows FPS, episode reward, inference latency and curriculum stage; after
+- `Tab` (or the bottom-left debug button) shows FPS, episode reward, inference latency, curriculum stage and a training-speed benchmark button; after
   30 s without input the game runs itself (demo mode).
 
 ## Deploy

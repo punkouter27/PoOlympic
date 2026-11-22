@@ -16,7 +16,8 @@ namespace PoOlympic
     /// </summary>
     public static class DemoMode
     {
-        public const float ResultSeconds = 6f;
+        /// <summary>Seconds a demo result stays up (ShowcaseSettings).</summary>
+        public static float ResultSeconds => ShowcaseSettings.Current.demoResultSeconds;
         public static bool Active { get; private set; }
         /// <summary>This series' lineup theme ("Mixed", "All MATT", "4 v 4", …) for the HUD caption.</summary>
         public static string Theme { get; private set; } = "";
@@ -253,7 +254,7 @@ namespace PoOlympic
             if (inScene > GraceSeconds && AnyInput()) { DemoMode.Stop(); return; }
             if (SceneManager.GetActiveScene().name == MeetLineup.MenuScene) return;   // on the way back
 
-            if (_hud == null) _hud = FindFirstObjectByType<BroadcastHud>();
+            if (_hud == null) _hud = FindAnyObjectByType<BroadcastHud>();
             var board = _hud != null ? _hud.Board : null;
             if (board == null) { if (inScene > NoBoardSeconds) DemoMode.Advance("no event board"); return; }
             if (_phase != board.BoardState) { _phase = board.BoardState; _phaseStart = now; }

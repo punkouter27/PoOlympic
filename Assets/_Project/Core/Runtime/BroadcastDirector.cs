@@ -146,7 +146,7 @@ namespace PoOlympic
         BoardPhase _last = BoardPhase.Ready;
         float _orbit;
         Vector3 _pos, _look;
-        bool _init, _cut;
+        bool _init;
         Shot _shotNow = Shot.Establishing;
         float _shotHeld, _hotClock, _hotLeft = -99f;
         PolicyRunner _hotRunner, _closeRunner;
@@ -210,8 +210,22 @@ namespace PoOlympic
             return sm.sqrMagnitude > 0.01f ? sm.normalized : Vector3.right;
         }
 
+        /// <summary>The camera tunables of the ShowcaseSettings asset (one place for every event scene).</summary>
+        public void ApplySettings(ShowcaseSettings s)
+        {
+            shotSeconds = s.shotSeconds;
+            followSharpness = s.followSharpness;
+            orbitSpeed = s.orbitSpeed;
+            closeupSeconds = s.closeupSeconds;
+            contextSeconds = s.contextSeconds;
+            shotBlendSeconds = s.shotBlendSeconds;
+            pacingScale = s.pacingScale;
+            handheldAmplitude = s.handheldAmplitude;
+        }
+
         void Start()
         {
+            ApplySettings(ShowcaseSettings.Current);
             var cam = GetComponent<BroadcastCamera>();
             if (cam != null) cam.target = null;         // this director owns the framing
             _brain = GetComponent<CinemachineBrain>();
@@ -257,7 +271,7 @@ namespace PoOlympic
         {
             if (leaderClose != null) _closeFov = leaderClose.Lens.FieldOfView;
             if (hot != null) _hotFov = hot.Lens.FieldOfView;
-            _volume = FindObjectsByType<Volume>(FindObjectsSortMode.None).FirstOrDefault(v => v.isGlobal && v.sharedProfile != null);
+            _volume = FindObjectsByType<Volume>().FirstOrDefault(v => v.isGlobal && v.sharedProfile != null);
             if (_volume == null) return;
             var p = _volume.profile;
             if (!p.TryGet(out _dof)) _dof = p.Add<DepthOfField>(false);
@@ -593,7 +607,7 @@ namespace PoOlympic
                     want = look + f * 5.5f - left * 3.2f + Vector3.up * 1.4f;
                     break;
                 case BoardPhase.Live when kind == Kind.Race:
-                    if (_shotClock > shotSeconds) { _shotClock = 0; _shot = (_shot + 1) % 3; _cut = true; }
+                    if (_shotClock > shotSeconds) { _shotClock = 0; _shot = (_shot + 1) % 3; }
                     want = _shot switch
                     {
                         1 => focus + f * 9f + Vector3.up * 1.6f - left * 2.0f,          // head-on, looking back at the pack
@@ -613,7 +627,6 @@ namespace PoOlympic
             want.y = Mathf.Min(want.y, maxCameraHeight);
             float k = 1f - Mathf.Exp(-followSharpness * Time.unscaledDeltaTime);
             bool cut = !_init;                     // calm camera: shot changes glide too (was a hard cut per shot)
-            _cut = false;
             k = Mathf.Min(k, 1f - Mathf.Exp(-1.2f * Time.unscaledDeltaTime));
             _pos = cut ? want : Vector3.Lerp(_pos, want, k);
             _look = cut ? look : Vector3.Lerp(_look, look, k);

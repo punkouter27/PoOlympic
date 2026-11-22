@@ -3,7 +3,22 @@
   "staticWebApp": "poolympic",
   "resourceGroup": "PoOlympic",
   "subscription": "14d963a2-badc-4a1f-9900-553bf01f8de2",
+  "_diagChecks": "What /diag probes live from the visitor's browser (scripts/publish_webgl.ps1 writes diag.html from scripts/webgl/diag.html). kind: page (this build's page), commit (X-Commit header), webgl2, off (switched off on purpose: neutral 'Off', not counted in the banner); otherwise url is fetched with latency (expect json/jsonKey or a text it must contain). One HEAD check per Build/ file is added by the script.",
   "diagChecks": [
+    {
+      "group": "api",
+      "label": "Game page (this build)",
+      "purpose": "The page that hosts the player: loads loader.js and carries this build's version",
+      "url": "./",
+      "kind": "page"
+    },
+    {
+      "group": "api",
+      "label": "Deployed commit (X-Commit header)",
+      "purpose": "The commit the workflow deployed, stamped into every response",
+      "url": "./",
+      "kind": "commit"
+    },
     {
       "group": "api",
       "label": "Weather (Open-Meteo)",
@@ -20,17 +35,10 @@
     },
     {
       "group": "service",
-      "label": "Game page (Static Web App)",
-      "purpose": "The page that hosts the player",
-      "url": "/index.html",
-      "expect": "loader.js"
+      "label": "AI commentator (Anthropic API)",
+      "purpose": "Runtime/AiCommentator.cs: needs the player's own API key from an environment variable or file, which a browser build never has",
+      "kind": "off",
+      "offReason": "Off in the browser build on purpose (no key); the commentator uses its built-in lines"
     }
-  ],
-  "knownFailures": {
-    "_why": "EditMode failures already present in the 2026-11-20 baseline (before any of that day's changes). They need the owner's training pipeline (re-recorded parity references / a refit confidence model), not a code change. scripts/publish_webgl.ps1 lists them and still publishes; any OTHER failure stops the publish. Remove an entry once it passes.",
-    "PoOlympic.Tests.BroadcastFxTests.EveryEventBrainHasACalibratedCritic": "grandma_rung2 has no entry in Models/confidence_model.json: run Training/tools/fit_confidence.py --groups stand_g,rung2_g",
-    "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"grandma_rung2\")": "G3 action mismatch from tick 174: the reference was recorded with an older grandma_rung2 brain (G2 obs equal); re-record with tools/record_reference.py",
-    "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"grandma_rung2_walk\")": "same as grandma_rung2 (stale reference)",
-    "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"kim_rung2\")": "G3 action mismatch from tick 153: stale reference for the current kim_rung2 brain"
-  }
+  ]
 }

@@ -26,6 +26,8 @@ namespace PoOlympic
         public readonly VisualElement TopBar, BottomBar, Extra, BottomCentre;
         public readonly Label Title, Sub, Fps, Version, DebugPanel;
         public readonly Button MenuButton, DebugButton;
+        /// <summary>Tab overlay: "Benchmark training speed" (SimBenchmark), inside the readout panel.</summary>
+        public readonly Button BenchButton;
         readonly VisualElement _scrim, _sheet, _body, _veil;
         readonly List<Button> _tabs = new();
         int _tab;
@@ -129,6 +131,9 @@ namespace PoOlympic
             AddLabel(_veil, "ha-veil-text", "Loading…");
             DebugPanel = AddLabel(debugHost, "ha-debug", "");
             DebugPanel.pickingMode = PickingMode.Ignore;
+            BenchButton = new Button(() => { SimBenchmark.Start(); _debugNext = 0f; }) { text = "Benchmark training speed", tooltip = "Steps this event's MuJoCo world as fast as this device can for a few seconds" };
+            BenchButton.AddToClassList("ha-bench");
+            debugHost.Add(BenchButton);       // a sibling: a child would turn the panel's text off for layout
             Live.Add(this);
         }
 
@@ -296,8 +301,13 @@ namespace PoOlympic
             {
                 float barTop = BottomBar.ChangeCoordinatesTo(host, Vector2.zero).y;
                 DebugPanel.style.bottom = Mathf.Max(0f, host.layout.height - barTop) + 16f;
+                float ph = DebugPanel.layout.height;
+                if (!float.IsNaN(ph)) BenchButton.style.bottom = Mathf.Max(0f, host.layout.height - barTop) + 16f + ph + 8f;
+                BenchButton.BringToFront();
             }
+            BenchButton.EnableInClassList("ha-bench--on", on);
             DebugButton.EnableInClassList("ha-icon-btn--on", on);
+            SimBenchmark.Tick();
             DebugButton.EnableInClassList("ha-debug-btn--shapes", GameSettings.ColliderView);
             if (!on || Time.unscaledTime < _debugNext) return;
             _debugNext = Time.unscaledTime + 0.5f;
@@ -322,7 +332,11 @@ namespace PoOlympic
             string reward = runner != null ? $"{(string.IsNullOrEmpty(label) ? runner.athletePrefix.TrimEnd('_') : label)}  {runner.EpisodeReward:+0.0;-0.0;0.0}" : "— (no athlete on camera)";
             string stage = runner != null ? runner.CurriculumStage : (StageHint?.Invoke() is { Length: > 0 } hint ? hint : "—");
             string latency = brains > 0 ? $"{ms / brains:0.00} ms avg ({brains} brain{(brains > 1 ? "s" : "")})" : "— (no brain running)";
-            return $"FPS  {fps}\nEpisode reward  {reward}\nInference  {latency}\nCurriculum stage  {stage}";
+            string penalties = runner != null
+                ? "\nPenalties  " + string.Join("  ", PolicyRunner.PenaltyNames.Select((n, i) => $"{n} {runner.PenaltyTotals[i]:0.00}"))
+                : "";
+            string bench = string.IsNullOrEmpty(SimBenchmark.Result) ? "" : "\n" + SimBenchmark.Result;
+            return $"FPS  {fps}\nEpisode reward  {reward}\nInference  {latency}\nCurriculum stage  {stage}" + penalties + bench;
         }
 
         /// <summary>GUI-space rectangle (pixels, y down) for the IMGUI dev HUDs (testbeds, the stadium hub): the camera's

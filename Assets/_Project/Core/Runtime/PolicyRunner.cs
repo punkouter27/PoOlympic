@@ -136,8 +136,14 @@ namespace PoOlympic
         public float BrainMs { get; private set; }
         public int NanInfCount { get; private set; }
         /// <summary>Tab overlay: reward of this episode so far (alive bonus + the RewardPenalties terms: torque², pelvis
-        /// angular velocity², action rate; per second as in training). Reset with the athlete. Read-only: no physics.</summary>
+        /// angular velocity², action rate, foot slip, joint velocity²; per second as in training). Reset with the athlete.
+        /// Read-only: no physics.</summary>
         public float EpisodeReward { get; private set; }
+        /// <summary>Each penalty term's share of EpisodeReward this episode (≤ 0; a 0 weight gives 0), in the order of
+        /// PenaltyNames — the readout and the PlayMode test that every term is charged.</summary>
+        public readonly float[] PenaltyTotals = new float[5];
+        public static readonly string[] PenaltyNames = { "torque", "ang vel", "action rate", "foot slip", "joint vel" };
+        int[] _footBodies;                         // foot_l, foot_r body ids of this athlete (foot-slip term)
         /// <summary>Tab overlay: the curriculum stage of the brain driving now: its rung / skill (brain asset name
         /// without the body), "get-up" while the recovery brain drives.</summary>
         public string CurriculumStage
@@ -427,6 +433,7 @@ namespace PoOlympic
                 Array.Clear(_lastAction, 0, _lastAction.Length);
                 _phase = 0;
                 EpisodeReward = 0f;
+                Array.Clear(PenaltyTotals, 0, PenaltyTotals.Length);
             }
             if (_substep % Contract.decimation == 0) ControlStep(m, d);
             // latency trait: a new ctrl reaches the actuators `latencySubsteps` physics steps after its control tick
@@ -519,7 +526,7 @@ namespace PoOlympic
                     if (!float.IsFinite(_actionRaw[i])) { NanInfCount++; _actionRaw[i] = 0f; }
                 }
             }
-            if (!relax && !holdDefaultPose) AccumulateReward(d);
+            if (!relax && !holdDefaultPose) AccumulateReward(m, d);
             Array.Copy(_actionRaw, _lastAction, _lastAction.Length);
             if (ActionLog.Active)
             {
@@ -534,16 +541,44 @@ namespace PoOlympic
             if (_rec != null && _recFrames < recordTicks) RecordTail();
         }
 
-        /// <summary>Episode-reward readout (reads mjData only): one control tick of alive + penalties.</summary>
-        void AccumulateReward(MujocoLib.mjData_* d)
+        /// <summary>Episode-reward readout (reads mjData only): one control tick of alive + penalties, each term as in
+        /// Training/poolympic/tasks (mjlab joint_torques_l2, body_angular_velocity_penalty, action_rate_l2, mdp.foot_slip =
+        /// Σ foot planar speed² while the foot touches something, joint_vel_l2).</summary>
+        void AccumulateReward(MujocoLib.mjModel_* m, MujocoLib.mjData_* d)
         {
             var w = RewardPenalties.Current;
-            double torque = 0, rate = 0, ang = 0;
+            double torque = 0, rate = 0, ang = 0, slip = 0, jvel = 0;
             for (int i = 0; i < Binding.ActuatorIds.Length; i++) { double f = d->actuator_force[Binding.ActuatorIds[i]]; torque += f * f; }
             for (int i = 0; i < _actionRaw.Length; i++) { double da = _actionRaw[i] - _lastAction[i]; rate += da * da; }
             for (int i = 3; i < 6; i++) { double v = d->qvel[Binding.RootDofAdr + i]; ang += v * v; }
+            for (int i = 0; i < Binding.JointDofAdr.Length; i++) { double v = d->qvel[Binding.JointDofAdr[i]]; jvel += v * v; }
+            if (_footBodies == null)
+            {
+                var bodies = AthleteBinding.NameIndex(m, (int)MujocoLib.mjtObj.mjOBJ_BODY, (int)m->nbody);
+                _footBodies = new[] { bodies.TryGetValue(athletePrefix + "foot_l", out var l) ? l : -1, bodies.TryGetValue(athletePrefix + "foot_r", out var r) ? r : -1 };
+            }
+            var vel = stackalloc double[6];
+            foreach (int b in _footBodies)
+            {
+                if (b < 0 || !Touches(m, d, b)) continue;
+                MujocoLib.mj_objectVelocity(m, d, (int)MujocoLib.mjtObj.mjOBJ_BODY, b, vel, 0);   // [ang(3), lin(3)], world frame
+                slip += vel[3] * vel[3] + vel[4] * vel[4];                                          // MuJoCo z is up: x, y planar
+            }
             double dt = Contract.timestep * Contract.decimation;
-            EpisodeReward += (float)(dt * (w.aliveBonus + w.torqueL2 * torque + w.actionRateL2 * rate + w.bodyAngVelL2 * ang));
+            double[] terms = { w.torqueL2 * torque, w.bodyAngVelL2 * ang, w.actionRateL2 * rate, w.footSlip * slip, w.jointVelL2 * jvel };
+            double sum = w.aliveBonus;
+            for (int i = 0; i < terms.Length; i++) { PenaltyTotals[i] += (float)(dt * terms[i]); sum += terms[i]; }
+            EpisodeReward += (float)(dt * sum);
+        }
+
+        static bool Touches(MujocoLib.mjModel_* m, MujocoLib.mjData_* d, int body)
+        {
+            for (int i = 0; i < d->ncon; i++)
+            {
+                var c = d->contact[i];
+                if (m->geom_bodyid[c.geom1] == body || m->geom_bodyid[c.geom2] == body) return true;
+            }
+            return false;
         }
 
         // ---------------------------------------------------------------- recording (G5 closed-loop comparison)

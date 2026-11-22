@@ -1,9 +1,12 @@
 name: Deploy WebGL
 
 # PoOlympic's one workflow.
-#   push to master      -> Python checks: ruff check, ruff format --check, the fast pytest tier (CPU).
-#   release webgl-*     -> deploy that release's webgl.zip to the Azure Static Web App, then check the live page and /diag.
-#   workflow_dispatch   -> re-deploy a webgl-* release (empty tag = the newest).
+#   every push to master, pull request, release and manual run -> Python checks: ruff check, ruff format --check, the
+#                         fast pytest tier (CPU).
+#   release webgl-*     -> after the Python checks: deploy that release's webgl.zip to the Azure Static Web App with the
+#                         release's commit stamped into every response as X-Commit, then check that the live page is this
+#                         build (X-Commit = that commit, its vYYMMDD) and that /diag answers with the same stamp.
+#   workflow_dispatch   -> the same for an existing webgl-* release (empty tag = the newest).
 #
 # The WebGL player is built LOCALLY with the exact pinned Unity (Unity cannot be licensed in CI) by
 # scripts/publish_webgl.ps1, which runs the EditMode tests first and publishes the zip as a webgl-* release.
@@ -12,6 +15,7 @@ name: Deploy WebGL
 on:
   push:
     branches: [master]
+  pull_request:
   release:
     types: [published]
   workflow_dispatch:
@@ -29,7 +33,6 @@ concurrency:
 
 jobs:
   python:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -52,6 +55,7 @@ jobs:
           .ci-venv/bin/python -m pytest tests -q -m "not slow"
 
   deploy:
+    needs: python
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'webgl-'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -72,6 +76,12 @@ jobs:
           test -f site/index.html || { echo "webgl.zip of $TAG has no index.html at its root"; exit 1; }
           test -f site/diag.html || { echo "webgl.zip of $TAG has no diag.html"; exit 1; }
           test -f site/staticwebapp.config.json || { echo "webgl.zip of $TAG has no staticwebapp.config.json (.unityweb would 404)"; exit 1; }
+          # The commit the build was made from (the release is tagged at it) goes into every response as X-Commit.
+          SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          test -n "$SHA" || { echo "Cannot resolve $TAG to a commit"; exit 1; }
+          jq --arg sha "$SHA" '.globalHeaders = ((.globalHeaders // {}) + {"X-Commit": $sha})' site/staticwebapp.config.json > swa.json
+          mv swa.json site/staticwebapp.config.json
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
 
       - name: Deploy to Azure Static Web App
         id: deploy
@@ -83,21 +93,24 @@ jobs:
           skip_app_build: true
           skip_api_build: true
 
-      # The page is live, is this build (same vYYMMDD as the zip), and /diag answers with the same stamp.
-      - name: Check the live page and /diag
+      # The page is live and is this build (X-Commit = the release's commit, same vYYMMDD as the zip), and /diag answers
+      # with the same stamp.
+      - name: Check the live page, X-Commit and /diag
         env:
           URL: ${{ steps.deploy.outputs.static_web_app_url }}
         run: |
           STAMP=$(grep -o 'class="po-version">v[0-9]\{6\}' site/index.html | grep -o '[0-9]\{6\}')
-          echo "Expecting v$STAMP"
+          echo "Expecting v$STAMP at X-Commit $SHA"
           for i in $(seq 1 20); do
+            live=$(curl -fsS -o /dev/null -D - --max-time 30 "$URL/" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-commit"{print $2}')
             page=$(curl -fsS --max-time 30 "$URL/" || true)
-            if echo "$page" | grep -q 'loader.js' && echo "$page" | grep -q "v$STAMP"; then
+            if [ "$live" = "$SHA" ] && echo "$page" | grep -q 'loader.js' && echo "$page" | grep -q "v$STAMP"; then
               diag=$(curl -fsS --max-time 30 "$URL/diag" || true)
               if echo "$diag" | grep -q '<title>System status</title>' && echo "$diag" | grep -q "v$STAMP"; then
-                echo "Live: $URL (v$STAMP) and $URL/diag"; exit 0
+                echo "Live: $URL at X-Commit $live (v$STAMP) and $URL/diag"; exit 0
               fi
             fi
+            echo "waiting: X-Commit '$live', want $SHA"
             sleep 15
           done
-          echo "$URL did not serve v$STAMP with a matching /diag"; exit 1
+          echo "$URL did not serve this build (X-Commit $SHA, v$STAMP) with a matching /diag"; exit 1

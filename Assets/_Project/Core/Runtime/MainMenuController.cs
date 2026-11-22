@@ -49,8 +49,8 @@ namespace PoOlympic
         public List<MenuEvent> events = new();
         [Tooltip("Event tiles per row of the grid.")]
         public int columns = 3;
-        [Tooltip("Seconds without a tap / key before demo mode starts on its own (0 = never).")]
-        public float idleDemoSeconds = 30f;
+        /// <summary>Seconds without a tap / key before demo mode starts on its own (0 = never): ShowcaseSettings asset.</summary>
+        public static float IdleDemoSeconds => ShowcaseSettings.Current.idleDemoSeconds;
         float _lastInput;
 
         readonly string[] _entrants = new string[EventCompetition.EntrantCount];
@@ -102,11 +102,11 @@ namespace PoOlympic
             }
         }
 
-        /// <summary>Demo mode after idleDemoSeconds without a tap, click, key or gamepad button.</summary>
+        /// <summary>Demo mode after IdleDemoSeconds without a tap, click, key or gamepad button.</summary>
         void IdleDemo()
         {
             if (DemoRunner.AnyInput(held: true)) _lastInput = Time.unscaledTime;
-            else if (idleDemoSeconds > 0f && !DemoMode.Active && !MeetSeries.Active && Time.unscaledTime - _lastInput > idleDemoSeconds) StartDemo();
+            else if (IdleDemoSeconds > 0f && !DemoMode.Active && !MeetSeries.Active && Time.unscaledTime - _lastInput > IdleDemoSeconds) StartDemo();
         }
 
         /// <summary>Endless gauntlet of every playable event with random lineups (DemoMode); scenes with a fixed
@@ -282,7 +282,7 @@ namespace PoOlympic
                 RefreshSlots();
             });
             yield return ("Run all events (16 entrants, plays by itself)", RunAll);
-            yield return ($"Demo mode (starts by itself after {idleDemoSeconds:0} s idle)", StartDemo);
+            yield return ($"Demo mode (starts by itself after {IdleDemoSeconds:0} s idle)", StartDemo);
             if (DemoSeason.SeriesPlayed > 0) yield return ("Demo season: reset", () => { DemoSeason.Reset(); UpdateStatus(); });
         }
 

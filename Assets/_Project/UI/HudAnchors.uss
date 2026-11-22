@@ -190,3 +190,19 @@
     display: none;
 }
 .ha-debug--on { display: flex; }
+
+/* Tab overlay: "Benchmark training speed" (SimBenchmark), just above the readout panel (HudAnchors.Tick places it) */
+.ha-bench {
+    position: absolute;
+    right: var(--po-gap);
+    height: var(--po-btn);
+    display: none;
+    padding: 0 var(--po-s14);
+    font-size: var(--po-text);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    color: var(--po-ink);
+    background-color: var(--po-cyan);
+    border-width: 0;
+    border-radius: var(--po-radius);
+}
+.ha-bench--on { display: flex; }

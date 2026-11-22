@@ -28,9 +28,12 @@
   .label { font-weight: 600; } .purpose, .detail { color: var(--muted); font-size: 13px; grid-column: 1 / -1; word-break: break-word; }
   .right { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
   .pill { padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #0b0f17; background: var(--muted); }
-  .pill.Healthy { background: var(--ok); } .pill.Degraded { background: var(--warn); } .pill.Unhealthy { background: var(--bad); color: #fff; }
+  .pill.Off { background: var(--line); color: var(--muted); }
+  .pill.Healthy { background: var(--ok); } .pill.Degraded { background: var(--warn); } .pill.Unhealthy { background: #b91c1c; color: #fff; }
   .ms { color: var(--muted); font-size: 12px; min-width: 56px; text-align: right; }
   footer { position: fixed; right: 10px; bottom: 4px; font-size: 12px; color: var(--muted); }
+  /* on a phone the stamp follows the content instead of floating over the last rows */
+  @media (max-width: 600px) { footer { position: static; text-align: right; padding: 0 16px 12px; } main { padding-bottom: 8px; } }
 </style>
 </head>
 <body>
@@ -70,6 +73,8 @@
   async function probe(c) {
     const el = row(c);
     const t0 = performance.now();
+    // No URL = a dependency switched off on purpose: neutral "Off", not counted in the banner.
+    if (c.kind === "off" || (!c.url && c.kind !== "webgl2")) return show(el, "Off", null, c.offReason || "Switched off on purpose");
     try {
       if (c.kind === "webgl2") {
         const gl = document.createElement("canvas").getContext("webgl2");
@@ -79,11 +84,22 @@
       }
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 15000);
-      const r = await fetch(c.url, { method: c.method || "GET", cache: "no-store", signal: ctl.signal });
+      const r = await fetch(c.url, { method: c.kind === "commit" ? "HEAD" : (c.method || "GET"), cache: "no-store", signal: ctl.signal });
       clearTimeout(timer);
       const ms = performance.now() - t0;
       if (!r.ok) return show(el, "Unhealthy", ms, `HTTP ${r.status} from ${c.url}`);
       let detail = `HTTP ${r.status}`;
+      if (c.kind === "commit") {
+        const sha = r.headers.get("x-commit");
+        if (!sha) return show(el, "Unhealthy", ms, "no X-Commit header on the page (not deployed by the workflow?)");
+        return show(el, ms > SLOW_MS ? "Degraded" : "Healthy", ms, `X-Commit ${sha.slice(0, 7)}`);
+      }
+      if (c.kind === "page") {
+        const text = await r.text();
+        if (!text.includes("loader.js")) return show(el, "Unhealthy", ms, "the page does not load the Unity player");
+        if (!text.includes("v{{VERSION}}")) return show(el, "Unhealthy", ms, "the page is another build than v{{VERSION}}");
+        return show(el, ms > SLOW_MS ? "Degraded" : "Healthy", ms, `${detail} · this build (v{{VERSION}})`);
+      }
       if (c.expect === "json") {
         const j = await r.json();
         if (c.jsonKey && !(c.jsonKey in j)) return show(el, "Unhealthy", ms, `answer has no "${c.jsonKey}"`);
@@ -106,10 +122,13 @@
     const results = await Promise.all(CHECKS.map(probe));
     const bad = CHECKS.filter((c, i) => results[i] === "Unhealthy").map(c => c.label);
     const slow = results.filter(s => s === "Degraded").length;
+    const off = results.filter(s => s === "Off").length;
+    const live = results.length - off;
+    const offNote = off ? ` · ${off} off on purpose` : "";
     const b = document.getElementById("banner");
-    if (bad.length) { b.textContent = "Not working: " + bad.join(", "); b.className = "banner bad"; }
-    else if (slow) { b.textContent = `Working, with ${slow} thing${slow > 1 ? "s" : ""} degraded`; b.className = "banner warn"; }
-    else { b.textContent = "Everything is working"; b.className = "banner ok"; }
+    if (bad.length) { b.textContent = "Not working: " + bad.join(", ") + offNote; b.className = "banner bad"; }
+    else if (slow) { b.textContent = `Working, with ${slow} of ${live} live checks degraded` + offNote; b.className = "banner warn"; }
+    else { b.textContent = `Everything is working (${live} live checks)` + offNote; b.className = "banner ok"; }
     document.getElementById("checked").textContent =
       `Checked ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC from this browser in ${Math.round(performance.now() - t0)} ms.`;
   })();
