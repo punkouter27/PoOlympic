@@ -3,7 +3,7 @@ boxes — pool cube, slalom pole, trench post, crab rail. Run in Blender (5.x):
 
     blender --python SourceArt/Props/build_props.py        (or exec() it through MCP for Blender)
 
-Writes SourceArt/Props/event_props.blend and Assets/PoOlympic/Art/Props/EventProps.glb. Unity side:
+Writes SourceArt/Props/event_props.blend and Assets/_Project/Environments/Art/Props/EventProps.glb. Unity side:
 BroadcastFx.DressProps hangs each mesh under its MjGeom (visual only; the collision box is untouched).
 
 Rules: every prop is modelled in the MuJoCo geom frame (x forward, y left, z up, origin at the geom centre) at the
@@ -18,9 +18,9 @@ import bpy
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 BLEND = os.path.join(ROOT, "SourceArt", "Props", "event_props.blend")
-GLB = os.path.join(ROOT, "Assets", "PoOlympic", "Art", "Props", "EventProps.glb")
+GLB = os.path.join(ROOT, "Assets", "_Project", "Environments", "Art", "Props", "EventProps.glb")
 
-# MJCF half extents (training/assets/cube.xml, scene_slalom8.xml, scene_trench8.xml, scene_crab8.xml)
+# MJCF half extents (Training/assets/cube.xml, scene_slalom8.xml, scene_trench8.xml, scene_crab8.xml)
 SIZES = {"PoolCube": (0.1, 0.1, 0.1), "SlalomPole": (0.02, 0.02, 0.6), "TrenchPost": (0.025, 0.025, 0.36), "CrabRail": (0.02, 10.0, 0.02)}
 
 

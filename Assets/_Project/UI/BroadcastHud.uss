@@ -1,0 +1,255 @@
+/* D3 broadcast HUD (BroadcastHud.cs) — authored at 1080 px wide, scaled onto the safe area.
+   Consolidated portrait layout (2026-09-29): HudAnchors frame (TL title · TC FPS · TR clock + menu · BL debug ·
+   BR version), standings with the result in place, a one-row story strip; nothing scrolls, no result card.
+   Sizes / colours: Tokens.uss (no text under 28 px at 1080 wide ≈ 10 sp on a Pixel 9 Pro, buttons ≥ 104 px). */
+@import url("HudAnchors.uss");
+
+.bh-safe { position: absolute; background-color: var(--po-dock); }
+
+.bh-frame {
+    position: absolute;
+    flex-direction: column;
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-Regular.ttf");
+    color: var(--po-fg);
+}
+
+/* ---------- docks: the camera renders only into .bh-hole (BroadcastCamera.SetViewport) ---------- */
+.bh-dock-top {
+    flex-shrink: 0;
+    padding: var(--po-pad) var(--po-s24) var(--po-s10) var(--po-s24);
+    background-color: var(--po-dock);
+    border-bottom-width: var(--po-rule);
+    border-bottom-color: var(--po-gold);
+}
+.bh-hole { flex-grow: 1; justify-content: center; }
+.bh-dock-bottom {
+    flex-shrink: 0;
+    padding: var(--po-s10) var(--po-s24) var(--po-pad) var(--po-s24);
+    background-color: var(--po-dock);
+    border-top-width: var(--po-rule);
+    border-top-color: var(--po-cyan);
+}
+
+/* ---------- TR: clock beside the menu button ---------- */
+.bh-clockbox {
+    flex-shrink: 1;
+    min-width: 0;
+    margin-right: var(--po-s14);
+    align-items: flex-end;
+}
+.bh-clock {
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    font-size: var(--po-text-xl);
+    color: var(--po-gold);
+    white-space: nowrap;
+}
+.bh-info {
+    font-size: var(--po-text);
+    color: var(--po-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 330px;
+}
+
+/* ---------- standings (no header row: place · chip · lane · result speak for themselves) ---------- */
+.bh-standings {
+    margin-top: var(--po-pad-s);
+    padding: var(--po-s4) var(--po-pad-s);
+    background-color: var(--po-scrim-soft);
+    border-radius: var(--po-radius);
+}
+.bh-row {
+    flex-direction: row;
+    align-items: center;
+    height: 48px;
+    padding: 0 var(--po-s6);
+    border-radius: var(--po-radius-s);
+}
+.bh-row > Label { font-size: var(--po-text-em); }
+.bh-c-place { width: 48px; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-c-chip {
+    width: 42px;
+    height: 38px;
+    margin-right: var(--po-pad);
+    -unity-text-align: middle-center;
+    font-size: var(--po-text);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    border-radius: var(--po-radius-s);
+}
+.bh-chip-matt { background-color: var(--po-matt); color: var(--po-white); }
+.bh-chip-zombie { background-color: var(--po-zombie); color: var(--po-on-zombie); }
+.bh-chip-grandma { background-color: var(--po-grandma); color: var(--po-white); }
+.bh-chip-kim { background-color: var(--po-kim); color: var(--po-on-kim); }
+.bh-c-name { width: 92px; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-c-result { flex-grow: 1; flex-shrink: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-row > .bh-c-badge {
+    font-size: var(--po-text);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    padding: 0 var(--po-s10);
+    margin-left: var(--po-pad-s);
+    border-radius: var(--po-radius-s);
+    color: var(--po-ink);
+    background-color: var(--po-cyan);
+}
+.bh-row > .bh-badge-wr { background-color: var(--po-green); }
+.bh-c-odds { width: 110px; -unity-text-align: middle-right; color: var(--po-gold); }
+.bh-row > .bh-expand { color: var(--po-cyan); font-size: var(--po-text); }
+.bh-c-conf { width: 190px; flex-direction: row; align-items: center; }
+.bh-spark { width: 96px; height: 28px; margin-right: var(--po-pad-s); }
+.bh-conf-pct { width: 80px; font-size: var(--po-text); -unity-text-align: middle-right; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-row-hot { border-width: var(--po-line); border-color: var(--po-red); background-color: var(--po-tint-red); }
+.bh-row-first { background-color: var(--po-tint-gold); }
+.bh-row-bad > Label { color: var(--po-bad); }
+.bh-row-bet { border-width: var(--po-line); border-color: var(--po-cyan); }
+/* the athlete the spectator locked the camera on (tap a row) */
+.bh-row-lock { border-left-width: var(--po-bar); border-left-color: var(--po-cyan); background-color: var(--po-tint-cyan); }
+/* StatusBars: balance over effort, no text */
+.bh-status { width: 56px; height: 34px; margin-left: var(--po-pad-s); flex-shrink: 0; }
+/* result: medals in place of the old podium card */
+.bh-row-gold { border-left-width: var(--po-bar); border-left-color: var(--po-medal-gold); background-color: var(--po-medal-gold-tint); }
+.bh-row-silver { border-left-width: var(--po-bar); border-left-color: var(--po-medal-silver); background-color: var(--po-medal-silver-tint); }
+.bh-row-bronze { border-left-width: var(--po-bar); border-left-color: var(--po-medal-bronze); background-color: var(--po-medal-bronze-tint); }
+
+/* ---------- result lines under the rows ---------- */
+.bh-result {
+    margin-top: var(--po-s6);
+    padding-top: var(--po-s6);
+    border-top-width: var(--po-hair);
+    border-top-color: var(--po-hairline);
+}
+.bh-wr { flex-direction: row; align-items: center; height: 46px; padding: 0 var(--po-s6); }
+.bh-wr-title {
+    font-size: var(--po-text);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    padding: 0 var(--po-s10);
+    margin-right: var(--po-pad);
+    border-radius: var(--po-radius-s);
+    color: var(--po-ink);
+    background-color: var(--po-gold);
+}
+.bh-wr-mark { font-size: var(--po-text-em); margin-right: var(--po-pad); white-space: nowrap; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-wr-who { flex-grow: 1; flex-shrink: 1; font-size: var(--po-text); color: var(--po-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bh-wr-tag { font-size: var(--po-text-em); color: var(--po-green); white-space: nowrap; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); transform-origin: right center; }
+.bh-bests { flex-direction: row; flex-wrap: wrap; padding: 0 var(--po-s6); }
+.bh-best { flex-direction: row; align-items: center; height: 44px; margin-right: var(--po-gap); }
+.bh-best-cap { font-size: var(--po-text); color: var(--po-muted); margin-right: var(--po-pad-s); letter-spacing: 1px; }
+.bh-best-val { font-size: var(--po-text); white-space: nowrap; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-card-line { font-size: var(--po-text); color: var(--po-soft); padding: 0 var(--po-s6); margin-top: var(--po-s4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bh-card-good { font-size: var(--po-text-em); color: var(--po-green); padding: 0 var(--po-s6); margin-top: var(--po-s4); -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+
+/* ---------- banner (countdown / GO / the winner for a moment) ---------- */
+.bh-banner {
+    -unity-text-align: middle-center;
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    font-size: var(--po-text-hero);
+    color: var(--po-white);
+    -unity-text-outline-width: 3px;
+    -unity-text-outline-color: var(--po-shade-80);
+}
+
+/* ---------- story strip: the athlete on camera (stats card + tiles merged into one row) ---------- */
+.bh-story {
+    flex-direction: row;
+    align-items: center;
+    height: 64px;
+    margin-bottom: var(--po-pad-s);
+    padding: 0 var(--po-s14);
+    background-color: var(--po-panel);
+    border-left-width: var(--po-bar);
+    border-left-color: var(--po-cyan);
+    border-radius: var(--po-radius);
+}
+.bh-story > .bh-c-chip { margin-right: var(--po-s10); }
+.bh-story-name { font-size: var(--po-text-m); margin-right: var(--po-pad); -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); white-space: nowrap; }
+.bh-story-tag {
+    font-size: var(--po-text);
+    padding: var(--po-s2) var(--po-s10);
+    border-radius: var(--po-radius-s);
+    white-space: nowrap;
+    color: var(--po-ink);
+    background-color: var(--po-cyan);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+}
+.bh-story-tag-hot { background-color: var(--po-red); }
+.bh-story-gap { flex-grow: 1; }
+.bh-story-val { font-size: var(--po-text-m); margin-left: var(--po-s24); white-space: nowrap; -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-story-conf { flex-direction: row; align-items: center; }
+.bh-story-spark { width: 90px; height: 28px; margin-left: var(--po-s10); }
+
+/* ---------- bottom bar centre: ticker, or the primary action at the result ---------- */
+.bh-ticker {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    font-size: var(--po-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--po-fg);
+}
+.bh-coins { font-size: var(--po-text); color: var(--po-cyan); margin-right: var(--po-s14); white-space: nowrap; }
+.bh-btn-small, .bh-btn {
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    color: var(--po-ink);
+    background-color: var(--po-gold);
+    border-width: 0;
+    border-radius: var(--po-radius);
+    -unity-text-align: middle-center;
+}
+.bh-btn-small { font-size: var(--po-text-m); height: var(--po-btn); min-width: 250px; padding: 0 var(--po-s32); margin: 0 0 0 var(--po-s14); flex-shrink: 0; }
+.bh-btn-primary { background-color: var(--po-green); border-width: var(--po-bold); border-color: var(--po-white); }
+.bh-btn { font-size: var(--po-text-m); height: 84px; padding: 0 var(--po-s32); margin: var(--po-s10) var(--po-s14) 0 0; }
+.bh-btn-small:hover, .bh-btn:hover { background-color: var(--po-gold-soft); }
+.bh-btn-primary:hover { background-color: var(--po-green-soft); }
+
+/* ---------- overlay: betting slip (optional) ---------- */
+.bh-overlay {
+    position: absolute;
+    left: 50px;
+    right: 50px;
+    top: 22%;
+    padding: var(--po-s32) var(--po-s32);
+    background-color: var(--po-scrim);
+    border-width: var(--po-rule);
+    border-color: var(--po-gold);
+    border-radius: var(--po-radius-l);
+}
+.bh-overlay-title {
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    font-size: var(--po-text-xxl);
+    color: var(--po-gold);
+    letter-spacing: 3px;
+}
+.bh-overlay-sub {
+    font-size: var(--po-text);
+    color: var(--po-soft);
+    margin-bottom: var(--po-gap);
+    white-space: normal;
+}
+/* match card (single event, after the medal ceremony): tabs (.ha-tab) Places · Telemetry · Replay, OK below */
+.bh-match-tabs { flex-direction: row; margin-bottom: var(--po-pad-s); }
+.bh-match-grid { flex-direction: row; flex-wrap: wrap; }
+.bh-match-grid > .bh-row { width: 50%; }
+.bh-match-bar { flex-direction: row; justify-content: flex-end; margin-top: var(--po-s24); }
+.bh-match-bar > .bh-btn-small { margin: 0 0 0 var(--po-s14); }
+.bh-slip-row {
+    flex-direction: row;
+    align-items: center;
+    height: 70px;
+    margin: var(--po-s4) 0;
+    padding: 0 var(--po-gap);
+    background-color: var(--po-card);
+    border-width: 0;
+    border-radius: var(--po-radius);
+    color: var(--po-fg);
+}
+.bh-slip-row:hover { background-color: var(--po-card-hover); }
+.bh-slip-name { width: 90px; font-size: var(--po-text-em); -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-slip-traits { flex-grow: 1; font-size: var(--po-text); color: var(--po-soft); }
+.bh-slip-odds { width: 110px; font-size: var(--po-text-h); -unity-text-align: middle-right; color: var(--po-gold); -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); }
+.bh-slip-bar { flex-direction: row; align-items: center; flex-wrap: wrap; margin-top: var(--po-s10); }
+.bh-slip-timer { font-size: var(--po-text); color: var(--po-soft); margin-top: var(--po-s10); }
+
+/* demo (attract) mode: everything but the title chip, the DEMO caption and the clock is hidden */
+.bh-demo .bh-standings, .bh-demo .bh-dock-bottom, .bh-demo .ha-fps, .bh-demo .bh-info { display: none; }

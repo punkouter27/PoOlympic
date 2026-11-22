@@ -395,7 +395,7 @@ if not globals().get("POLISH_NO_RUN"):
     run()
 
 
-def export_stadium(path=r"C:\Users\punko\Downloads\PoOlympic\Assets\PoOlympic\Art\Stadium\Stadium.glb"):
+def export_stadium(path=r"C:\Users\punko\Downloads\PoOlympic\Assets\_Project\Environments\Art\Stadium\Stadium.glb"):
     """Export the Stadium collection as Unity imports it: tangents, both UV sets, modifiers applied, vertex colours,
     JPEG textures, no lights / cameras / animation — then rename the glTF scene back to "Scene". A collection export
     names it after the collection, and glTFast derives the imported root's file ID from that name: a different name

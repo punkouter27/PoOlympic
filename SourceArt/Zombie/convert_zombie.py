@@ -1,4 +1,4 @@
-"""ZOMBIE — AccuRig FBX -> clean T-pose GLB for the physics-body pipeline (training/tools/extract_skeleton.py).
+"""ZOMBIE — AccuRig FBX -> clean T-pose GLB for the physics-body pipeline (Training/tools/extract_skeleton.py).
 
 Run inside Blender (MCP or Text Editor) on an EMPTY file (it builds its own scene; never on stadium.blend):
     exec(open(r"<repo>/SourceArt/Zombie/convert_zombie.py").read())

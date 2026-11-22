@@ -27,7 +27,7 @@ BLOCK_W = N * LW             # 9.76 m
 STATION_PITCH = 3.0
 PEDESTAL = (1.0, 1.0, 0.5)
 # Crowd events (2026-09-30, user: "more interaction and collisions between the 8 players"): the athletes of these venues
-# stand / run close enough to collide (training/tools/build_mjcf.py crowd bits; spacings tuned on CPU heats, see
+# stand / run close enough to collide (Training/tools/build_mjcf.py crowd bits; spacings tuned on CPU heats, see
 # rl_optimization_log.md). The physical stage pieces are read back from venues.json by build_mjcf.
 BEAM_PITCH, BEAM_END = 0.7, 0.5       # 01 Iron Pedestal: 8 athletes shoulder to shoulder on ONE 1 m deep iron beam
 FLOOR_PITCH, FLOOR_EDGE = 0.8, 0.8    # 05 Gust Gauntlet: 2 x 4 grid on ONE shaker floor (edge margin as the old 1.6 m pads)
@@ -38,7 +38,7 @@ SPIN_R = SPIN_PITCH / (2 * math.sin(math.pi / 8))
 BREAK_X = 15.0                        # 19 Terminal Velocity: green lane-break line 15 m after the start
 # Decal layers above the infield (z = 0). >= 1 cm apart: at 30-60 m a 24-bit depth buffer resolves only a few mm, so the
 # old 1-5 mm offsets z-fought ("flicker").
-Z_PAD, Z_BORDER, Z_SURFACE, Z_LINE, Z_MARK, Z_LABEL = 0.02, 0.032, 0.03, 0.042, 0.052, 0.064   # = training/tools/build_mjcf.py PEDESTAL_HALF*2, PEDESTAL_H
+Z_PAD, Z_BORDER, Z_SURFACE, Z_LINE, Z_MARK, Z_LABEL = 0.02, 0.032, 0.03, 0.042, 0.052, 0.064   # = Training/tools/build_mjcf.py PEDESTAL_HALF*2, PEDESTAL_H
 
 PHASE_COL = {1: (0.07, 0.15, 0.36), 2: (0.04, 0.28, 0.29), 3: (0.24, 0.11, 0.34),
              4: (0.33, 0.08, 0.10), 5: (0.24, 0.26, 0.08), 6: (0.11, 0.11, 0.12)}
@@ -345,7 +345,7 @@ def build_lane_event(num):
                 for k, y in enumerate(ys):
                     box(f"{tag}_Hurdle_{i}_{k}", hx, y, 0.45, 0.05, 1.0, 0.05, M["Line_White"])
         elif num == 23:  # trench crawl: 12 m ceiling, underside 0.72 m, overhanging the lanes by 0.8 m, posts 1.2 m outside
-            # (= training/tools/build_mjcf.py trench_props: the physical trench; posts on the lane lines snag crawlers)
+            # (= Training/tools/build_mjcf.py trench_props: the physical trench; posts on the lane lines snag crawlers)
             box(f"{tag}_Ceiling", lo + 8.0, cy, 0.74, 12.0, BLOCK_W + 1.6, 0.04, M["Roof_Under"])
             for j, y in enumerate((cy - BLOCK_W / 2 - 1.2, cy + BLOCK_W / 2 + 1.2)):
                 for p in range(4):

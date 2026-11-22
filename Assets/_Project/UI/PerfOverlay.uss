@@ -1,0 +1,17 @@
+/* PerfOverlay.cs: one telemetry line in the bottom-left (debug) corner, readable over any background. Only used on
+   screens without a HudAnchors frame; with one, the frame's debug slot shows the line instead. */
+@import url("Tokens.uss");
+
+.perf-line {
+    position: absolute;
+    left: var(--po-gap);
+    bottom: var(--po-gap);
+    max-width: 78%;
+    padding: var(--po-s6) var(--po-pad);
+    font-size: var(--po-text);
+    -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf");
+    white-space: normal;
+    color: var(--po-debug);
+    background-color: var(--po-shade-62);
+    border-radius: var(--po-radius);
+}

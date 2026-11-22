@@ -9,8 +9,8 @@ Engine). No animation and no PhysX.
 - Training: `training/` (uv project, Python 3.11, MuJoCo Warp + mjlab), see `docs/DESIGN.md` and `docs/tasks.md`.
 
 ## Run locally
-- Fresh clone: `git lfs pull`, open the folder in Unity 6000.6.9f1, scene `Assets/PoOlympic/Scenes/MainMenu.unity`.
-- Python: `cd training; uv sync; uv run pytest tests -q -m "not slow"`.
+- Fresh clone: `git lfs pull`, open the folder in Unity 6000.6.9f1, scene `Assets/_Project/Scenes/MainMenu.unity`.
+- Python: `cd Training; uv sync; uv run pytest tests -q -m "not slow"`.
 - `Tab` (or the bottom-left debug button) shows FPS, episode reward, inference latency and curriculum stage; after
   30 s without input the game runs itself (demo mode).
 

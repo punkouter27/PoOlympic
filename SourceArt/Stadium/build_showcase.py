@@ -117,11 +117,11 @@ def image(name, rgb, colorspace="sRGB"):
     return img
 
 
-UNITY_CROWD = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "PoOlympic", "Art", "Stadium", "Crowd"))
+UNITY_CROWD = os.path.normpath(os.path.join(HERE, "..", "..", "Assets", "_Project", "Environments", "Art", "Stadium", "Crowd"))
 
 
 def unity_png(name, rgb):
-    """Write an sRGB(A) PNG straight into the Unity project (Assets/PoOlympic/Art/Stadium/Crowd/<name>.png)."""
+    """Write an sRGB(A) PNG straight into the Unity project (Assets/_Project/Environments/Art/Stadium/Crowd/<name>.png)."""
     os.makedirs(UNITY_CROWD, exist_ok=True)
     h, w = rgb.shape[:2]
     old = bpy.data.images.get("tmp_unity_png")
@@ -673,7 +673,7 @@ def run():
     return rep
 
 
-def export_stadium(path=r"C:\Users\punko\Downloads\PoOlympic\Assets\PoOlympic\Art\Stadium\Stadium.glb"):
+def export_stadium(path=r"C:\Users\punko\Downloads\PoOlympic\Assets\_Project\Environments\Art\Stadium\Stadium.glb"):
     """Same export as build_polish.export_stadium (glTF scene renamed "Scene" — see there)."""
     import json, struct
     bpy.ops.export_scene.gltf(filepath=path, collection="Stadium", export_format="GLB", export_tangents=True,

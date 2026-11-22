@@ -6,12 +6,12 @@ requires-python = ">=3.10"
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.8"]
 
-# Python lives in training/ (its own uv project: training/pyproject.toml). This root file only holds the
+# Python lives in Training/ (its own uv project: Training/pyproject.toml). This root file only holds the
 # repo-wide ruff and pytest settings, so `ruff check .`, `ruff format --check .` and `pytest` work from the root.
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-extend-exclude = ["Library", "Temp", "Logs", "Builds", "Assets", "Packages", "parity", "SourceArt", "training/runs", "training/.venv"]
+extend-exclude = ["Library", "Temp", "Logs", "Builds", "Assets", "Packages", "parity", "SourceArt", "Training/runs", "Training/.venv"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
@@ -22,8 +22,8 @@ ignore = ["E741", "E731"]
 known-first-party = ["poolympic"]
 
 [tool.pytest.ini_options]
-pythonpath = ["training", "training/tests"]
-testpaths = ["training/tests"]
+pythonpath = ["Training", "Training/tests"]
+testpaths = ["Training/tests"]
 # Tiers: `-m "not slow"` is the fast tier (CI on every push, CPU only, minutes); the slow tier simulates full
 # events with the shipped brains (CPU MuJoCo, ~15+ min) and runs locally before deploying a brain.
 markers = ["slow: full-event simulations with the shipped brains (local tier, not run in CI)"]

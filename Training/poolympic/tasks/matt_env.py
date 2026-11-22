@@ -1,0 +1,1015 @@
+"""MATT athlete environments (DESIGN.md §2/§3/§5) on mjlab 1.6 + MuJoCo Warp.
+
+Physics = Training/assets/matt.xml (the same MJCF Unity imports) with its own <position> actuators (XmlActuator),
+ground plane with the scene's exact contact bits/friction, and a 4-cube pool per env. Every choice that affects
+the deployed policy's input/output is tied to poolympic/contract.py.
+"""
+
+from __future__ import annotations
+
+import math
+
+import mujoco
+from mjlab.actuator import XmlActuatorCfg
+from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
+from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs import mdp as envs_mdp
+from mjlab.envs.mdp import dr
+from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
+from mjlab.rl import RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
+from mjlab.scene import SceneCfg
+from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.sim import MujocoCfg, SimulationCfg
+from mjlab.tasks.velocity import mdp as vel_mdp
+from mjlab.terrains import TerrainEntityCfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.utils.spec_config import CollisionCfg
+from mjlab.viewer import ViewerConfig
+
+from .. import contract as C
+from ..bodies import FALL_PELVIS_Z, FALL_TILT_DEG, JOINT_VEL_LIMIT, MATT_ROOT_Z
+from ..penalties import WEIGHTS as PENALTY
+from . import mdp
+
+# MATT or a MATT variant (bodies.BODIES["mattbio"]: same rig, same contract, own MJCF)
+MATT_XML = C.BODY.robot_xml if C.BODY.family == "matt" else C.ROOT / "assets" / "matt.xml"
+CUBE_XML = C.ROOT / "assets" / "cube.xml"
+N_CUBES = 4
+DEFAULT_ROOT_Z = MATT_ROOT_Z  # scene_matt.xml keyframe "default"
+CUBE_NAMES = tuple(f"cube{i}" for i in range(N_CUBES))
+FOOT_BODIES = ("foot_l", "toe_l", "foot_r", "toe_r")
+ALL_BITS = 0xFFFF
+
+
+def body_entity_cfg(robot_xml, root_z: float) -> EntityCfg:
+    """An athlete entity from its MJCF, standing in the contract's default pose (every body: MATT, zombie, GRANDMA, KIM)."""
+    return EntityCfg(
+        spec_fn=lambda: mujoco.MjSpec.from_file(str(robot_xml)),
+        init_state=EntityCfg.InitialStateCfg(
+            pos=(0.0, 0.0, root_z),
+            joint_pos={n: v for n, v in zip(mdp.CONTRACT_ACTUATORS, mdp.CONTRACT_DEFAULTS)} | {"toe_.*": 0.0},
+            joint_vel={".*": 0.0},
+        ),
+        articulation=EntityArticulationInfoCfg(
+            # Use MATT's own <position kp kv forcerange> actuators — identical to what Unity's MuJoCo steps.
+            actuators=(
+                XmlActuatorCfg(target_names_expr=(".*",), delay_min_lag=0, delay_max_lag=4, delay_update_period=4000),
+            ),
+            soft_joint_pos_limit_factor=0.95,
+        ),
+    )
+
+
+def matt_entity_cfg() -> EntityCfg:
+    return body_entity_cfg(MATT_XML, DEFAULT_ROOT_Z)
+
+
+# ---- shared by the Froude-scaled bodies (zombie_env, grandma_env / kim_env) -----------------------------------------
+def scene_root_z(scene_xml) -> float:
+    """Standing pelvis height of a body: its scene's "default" keyframe."""
+    return float(mujoco.MjModel.from_xml_path(str(scene_xml)).key("default").qpos[2])
+
+
+def body_fall_z(root_z: float) -> float:
+    """MATT's fall rule at the same fraction of the body's standing pelvis height."""
+    return FALL_PELVIS_Z * root_z / DEFAULT_ROOT_Z
+
+
+def check_body(name: str) -> None:
+    if C.BODY.name != name:
+        raise RuntimeError(f"{name} tasks need POOLYMPIC_BODY={name} (contract/mdp load the active body's scene)")
+
+
+def scale_xy_range(r: dict, k: float) -> dict:
+    return {a: (lo * k, hi * k) for a, (lo, hi) in r.items()}
+
+
+def scaled_envelope(env: dict, ss: float, ws: float) -> dict:
+    """A MATT command envelope in another body's units (speeds x ss, yaw rates x ws)."""
+    return {
+        "lin_vel_x": (env["lin_vel_x"][0] * ss, env["lin_vel_x"][1] * ss),
+        "lin_vel_y": (env["lin_vel_y"][0] * ss, env["lin_vel_y"][1] * ss),
+        "ang_vel_z": (env["ang_vel_z"][0] * ws, env["ang_vel_z"][1] * ws),
+    }
+
+
+def scale_to_body(cfg: ManagerBasedRlEnvCfg, body, entity: EntityCfg, root_z: float) -> ManagerBasedRlEnvCfg:
+    """Swap a MATT env cfg onto another body and scale its size-dependent numbers (lengths x λ, speeds x √λ, rates
+    / √λ, torque penalty per relative effort); buffers sized for full self-collision. Style rewards: the caller."""
+    lam, ss, ws = body.length_scale, body.speed_scale, 1.0 / body.time_scale
+    cfg.scene.entities["robot"] = entity
+    cfg.terminations["pelvis_low"].params["minimum_height"] = body_fall_z(root_z)
+    ev = cfg.events
+    ev["reset_base"].params["pose_range"]["x"] = (-0.05 * lam, 0.05 * lam)
+    ev["reset_base"].params["pose_range"]["y"] = (-0.05 * lam, 0.05 * lam)
+    ev["reset_base"].params["velocity_range"] = scale_xy_range(ev["reset_base"].params["velocity_range"], ss)
+    ev["push_robot"].params["velocity_range"] = scale_xy_range(ev["push_robot"].params["velocity_range"], ss)
+    ev["drop_cube"].params.update(
+        {"height_above_shoulder": 1.5 * lam, "shoulder_above_pelvis": 0.55 * lam, "xy_jitter": 0.15 * lam}
+    )
+    rw = cfg.rewards
+    if "height" in rw:
+        rw["height"].params.update({"target": root_z, "std": rw["height"].params["std"] * lam})
+    if "near_origin" in rw:
+        rw["near_origin"].params["std"] *= lam
+    if "still_lin" in rw:
+        rw["still_lin"].params["std"] *= ss
+    rw["joint_vel_limit"].params["limit"] = JOINT_VEL_LIMIT * ws
+    rw["torques"].weight = rw["torques"].weight / body.torque_scale**2  # same penalty for the same relative effort
+    cfg.sim.nconmax, cfg.sim.njmax = 160, 800  # full self-collision: more contacts per env
+    cfg.viewer.distance = 3.5 * lam
+    return cfg
+
+
+def cube_entity_cfg(i: int) -> EntityCfg:
+    return EntityCfg(
+        spec_fn=lambda: mujoco.MjSpec.from_file(str(CUBE_XML)),
+        init_state=EntityCfg.InitialStateCfg(pos=(50.0 + 2.0 * i, 0.0, 0.1)),
+    )
+
+
+def matt_rung0_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 0 — stand + shove/cube recovery (Iron Pedestal, Gust Gauntlet)."""
+    scene = SceneCfg(
+        num_envs=1,
+        env_spacing=3.0,
+        terrain=TerrainEntityCfg(
+            terrain_type="plane",
+            # the scene's ground exactly: contacts every lane's bits, friction (1, 0.005, 0.0001)
+            collisions=(
+                CollisionCfg(
+                    geom_names_expr=("terrain",),
+                    contype=ALL_BITS,
+                    conaffinity=ALL_BITS,
+                    condim=3,
+                    priority=0,
+                    friction=(1.0, 0.005, 0.0001),
+                ),
+            ),
+        ),
+        entities={"robot": matt_entity_cfg(), **{n: cube_entity_cfg(i) for i, n in enumerate(CUBE_NAMES)}},
+        sensors=(
+            ContactSensorCfg(
+                name="nonfoot_ground",
+                primary=ContactMatch(mode="body", pattern=r".*", entity="robot", exclude=FOOT_BODIES),
+                secondary=ContactMatch(mode="body", pattern="terrain"),
+                fields=("found",),
+                reduce="none",
+                num_slots=1,
+            ),
+        ),
+    )
+
+    def term(func, noise=None, **params):
+        return ObservationTermCfg(func=func, params=params, noise=noise)
+
+    # Contract order (poolympic/contract.py OBS_LAYOUT) — do not reorder.
+    actor_terms = {
+        "base_lin_vel_heading": term(mdp.obs_base_lin_vel_heading, Unoise(n_min=-0.1, n_max=0.1)),
+        "base_ang_vel_local": term(mdp.obs_base_ang_vel_local, Unoise(n_min=-0.2, n_max=0.2)),
+        "projected_gravity": term(mdp.obs_projected_gravity, Unoise(n_min=-0.05, n_max=0.05)),
+        "base_height": term(mdp.obs_base_height, Unoise(n_min=-0.02, n_max=0.02)),
+        "command": term(mdp.obs_command),
+        "gait_phase_sincos": term(mdp.obs_gait_phase),
+        "joint_pos_rel": term(mdp.obs_joint_pos_rel, Unoise(n_min=-0.01, n_max=0.01)),
+        "joint_vel_scaled": term(mdp.obs_joint_vel_scaled, Unoise(n_min=-0.05, n_max=0.05)),
+        "last_action": term(mdp.obs_last_action),
+    }
+    critic_terms = {k: ObservationTermCfg(func=v.func, params=v.params) for k, v in actor_terms.items()}
+
+    observations = {
+        "actor": ObservationGroupCfg(terms=actor_terms, concatenate_terms=True, enable_corruption=not play),
+        "critic": ObservationGroupCfg(terms=critic_terms, concatenate_terms=True, enable_corruption=False),
+    }
+
+    actions = {
+        "joint_pos": JointPositionActionCfg(
+            entity_name="robot",
+            actuator_names=tuple(f"^{n}$" for n in mdp.CONTRACT_ACTUATORS),
+            preserve_order=True,  # contract actuator order == ONNX output order
+            scale=C.ACTION_SCALE,
+            use_default_offset=True,
+            # identical to the ONNX graph: clip(default + 0.25·a, joint range)
+            clip={
+                f"^{n}$": (lo, hi)
+                for n, lo, hi in zip(mdp.CONTRACT_ACTUATORS, mdp.CONTRACT_RANGE_LO, mdp.CONTRACT_RANGE_HI)
+            },
+        )
+    }
+
+    commands = {
+        "athlete": mdp.AthleteCommandCfg(
+            entity_name="robot",
+            resampling_time_range=(1e9, 1e9),
+            rel_standing_envs=1.0,
+            rel_heading_envs=0.0,
+            heading_command=False,
+            ranges=mdp.AthleteCommandCfg.Ranges(lin_vel_x=(0.0, 0.0), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)),
+        )
+    }
+
+    events = {
+        "reset_scene_to_default": EventTermCfg(func=envs_mdp.reset_scene_to_default, mode="reset"),
+        "reset_base": EventTermCfg(
+            func=envs_mdp.reset_root_state_uniform,
+            mode="reset",
+            params={
+                "pose_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "yaw": (-math.pi, math.pi)},
+                "velocity_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+            },
+        ),
+        "reset_joints": EventTermCfg(
+            func=envs_mdp.reset_joints_by_offset,
+            mode="reset",
+            params={
+                "position_range": (-0.05, 0.05),
+                "velocity_range": (-0.1, 0.1),
+                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            },
+        ),
+        # robustness curriculum (DESIGN §1): shoves + dropped cubes + DR
+        "push_robot": EventTermCfg(
+            func=envs_mdp.push_by_setting_velocity,
+            mode="interval",
+            interval_range_s=(3.0, 5.0),
+            params={"velocity_range": {"x": (-0.6, 0.6), "y": (-0.6, 0.6)}},
+        ),
+        "drop_cube": EventTermCfg(
+            func=mdp.drop_cube_on_athlete,
+            mode="interval",
+            interval_range_s=(3.0, 5.0),
+            params={"cube_names": CUBE_NAMES, "height_above_shoulder": 1.5},
+        ),
+        "dr_mass": EventTermCfg(
+            func=dr.body_mass,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=(".*",)),
+                "ranges": (0.85, 1.15),
+                "operation": "scale",
+            },
+        ),
+        "dr_foot_friction": EventTermCfg(
+            func=dr.geom_friction,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", geom_names=(r"(foot|toe)_[lr]_geom0",)),
+                "ranges": (0.8, 1.2),
+                "operation": "scale",
+                "shared_random": True,
+            },
+        ),
+        "dr_pd_gains": EventTermCfg(
+            func=dr.pd_gains,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", actuator_names=(".*",)),
+                "kp_range": (0.85, 1.15),
+                "kd_range": (0.85, 1.15),
+                "operation": "scale",
+            },
+        ),
+        "dr_strength": EventTermCfg(  # per-lane "athlete trait": strength scale
+            func=dr.effort_limits,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", actuator_names=(".*",)),
+                "effort_limit_range": (0.85, 1.15),
+                "operation": "scale",
+            },
+        ),
+    }
+
+    torso = SceneEntityCfg("robot", body_names=("torso",))
+    rewards = {
+        "upright": RewardTermCfg(func=mdp.torso_upright, weight=1.0, params={"std": math.radians(20)}),
+        "height": RewardTermCfg(
+            func=mdp.base_height_tracking, weight=1.0, params={"target": DEFAULT_ROOT_Z, "std": 0.1}
+        ),
+        "still_lin": RewardTermCfg(
+            func=vel_mdp.track_linear_velocity, weight=1.0, params={"command_name": "athlete", "std": 0.5}
+        ),
+        "still_ang": RewardTermCfg(
+            func=vel_mdp.track_angular_velocity, weight=0.5, params={"command_name": "athlete", "std": math.sqrt(0.5)}
+        ),
+        "near_origin": RewardTermCfg(func=mdp.stay_near_origin, weight=0.5, params={"std": 0.3}),
+        "posture": RewardTermCfg(
+            func=envs_mdp.posture,
+            weight=0.5,
+            params={"std": {".*": 0.35}, "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
+        ),
+        "torso_ang_vel": RewardTermCfg(
+            func=vel_mdp.body_angular_velocity_penalty, weight=PENALTY["body_ang_vel_l2"], params={"asset_cfg": torso}
+        ),
+        "action_rate": RewardTermCfg(func=envs_mdp.action_rate_l2, weight=PENALTY["action_rate_l2"]),
+        "joint_limits": RewardTermCfg(func=envs_mdp.joint_pos_limits, weight=-1.0),
+        "torques": RewardTermCfg(func=envs_mdp.joint_torques_l2, weight=PENALTY["torque_l2"]),
+        "joint_vel_limit": RewardTermCfg(
+            func=mdp.joint_vel_limit_excess, weight=-0.5, params={"limit": JOINT_VEL_LIMIT}
+        ),
+        "terminated": RewardTermCfg(func=envs_mdp.is_terminated, weight=-200.0),
+    }
+    if PENALTY[
+        "joint_vel_l2"
+    ]:  # 0 for every shipped task (config/reward_penalties.json): no term, cfg hashes unchanged
+        rewards["joint_vel"] = RewardTermCfg(func=envs_mdp.joint_vel_l2, weight=PENALTY["joint_vel_l2"])
+
+    terminations = {
+        "time_out": TerminationTermCfg(func=envs_mdp.time_out, time_out=True),
+        "pelvis_low": TerminationTermCfg(func=mdp.pelvis_below, params={"minimum_height": FALL_PELVIS_Z}),
+        "torso_tilt": TerminationTermCfg(func=mdp.torso_tilt_exceeds, params={"limit_deg": FALL_TILT_DEG}),
+        "nonfoot_contact": TerminationTermCfg(
+            func=mdp.nonfoot_ground_contact, params={"sensor_name": "nonfoot_ground"}
+        ),
+    }
+
+    cfg = ManagerBasedRlEnvCfg(
+        decimation=C.DECIMATION,
+        episode_length_s=20.0,
+        scene=scene,
+        observations=observations,
+        actions=actions,
+        commands=commands,
+        events=events,
+        rewards=rewards,
+        terminations=terminations,
+        viewer=ViewerConfig(
+            origin_type=ViewerConfig.OriginType.ASSET_BODY,
+            entity_name="robot",
+            body_name="pelvis",
+            distance=3.5,
+            elevation=-5.0,
+            azimuth=90.0,
+        ),
+        sim=SimulationCfg(
+            nconmax=96,
+            njmax=500,
+            mujoco=MujocoCfg(
+                timestep=0.005,
+                integrator="implicitfast",
+                cone="pyramidal",
+                jacobian="auto",
+                solver="newton",
+                iterations=20,
+                tolerance=1e-8,
+                ls_iterations=50,
+                ls_tolerance=0.01,
+                impratio=1.0,
+                gravity=(0.0, 0.0, -9.81),
+                disableflags=("multiccd",),
+            ),
+        ),
+    )
+    if play:
+        cfg.episode_length_s = int(1e9)
+        for k in ("dr_mass", "dr_foot_friction", "dr_pd_gains", "dr_strength"):
+            cfg.events.pop(k, None)
+    return cfg
+
+
+def matt_getup_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """R3 get-up (Event 27, The Resurrection Dash: start flat on the back, rise, then sprint): Rung 0 with every episode
+    starting supine (pitch -90° ± 11°, roll ± 17°, any yaw; standing joint pose) and no fall terminations (only the
+    10 s time-out). Rewards with a gradient from the floor up — linear pelvis-height progress, linear uprightness, a
+    per-step bonus once standing tall — on top of Rung 0's height / upright kernels and effort penalties. No shoves or
+    cube drops. Same contract (obs/actions), so the brain runs in Unity like any other."""
+    cfg = matt_rung0_env_cfg(play=play)
+    cfg.episode_length_s = 10.0
+    ev = cfg.events
+    ev.pop("push_robot")
+    ev.pop("drop_cube")
+    ev["reset_base"].params["pose_range"] = {
+        "x": (-0.05, 0.05),
+        "y": (-0.05, 0.05),
+        "z": (0.2 - DEFAULT_ROOT_Z, 0.25 - DEFAULT_ROOT_Z),
+        "roll": (-0.3, 0.3),
+        "pitch": (-math.pi / 2 - 0.2, -math.pi / 2 + 0.2),
+        "yaw": (-math.pi, math.pi),
+    }
+    ev["reset_base"].params["velocity_range"] = {}
+    for k in ("pelvis_low", "torso_tilt", "nonfoot_contact"):
+        cfg.terminations.pop(k)
+    rw = cfg.rewards
+    rw["near_origin"].params["std"] = 1.0  # getting up moves the pelvis
+    rw["height_progress"] = RewardTermCfg(func=mdp.height_progress, weight=2.0, params={"target": DEFAULT_ROOT_Z})
+    rw["upright_linear"] = RewardTermCfg(func=mdp.upright_linear, weight=1.0)
+    rw["standing_tall"] = RewardTermCfg(
+        func=mdp.standing_tall, weight=2.0, params={"min_height": 0.85, "max_tilt_deg": 20.0}
+    )
+    return cfg
+
+
+def matt_getup2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """getup_v2: getup_v1 lay still for 600 its (action std 0.5 -> 0.04, no reward moved) — Rung 0's stillness terms
+    (still_lin / still_ang / near_origin / posture toward the standing pose) pay ~3.6 per step for lying motionless.
+    Drop them, weight the get-up terms up, and start half the episodes prone (a push-up is the easier way into a
+    crouch; rolling over is allowed)."""
+    cfg = matt_getup_env_cfg(play=play)
+    for k in ("still_lin", "still_ang", "near_origin", "posture"):
+        cfg.rewards.pop(k)
+    cfg.rewards["height_progress"].weight = 3.0
+    cfg.rewards["upright_linear"].weight = 2.0
+    cfg.rewards["standing_tall"].weight = 3.0
+    cfg.events["reset_base"] = EventTermCfg(
+        func=mdp.reset_lying, mode="reset", params={"prone_fraction": 0.5, "z": (0.2, 0.25)}
+    )
+    return cfg
+
+
+def matt_getup3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """getup_v3: getup_v2 + a fading upward torso force (mdp.getup_assist: U(0, max) × body weight per episode, max
+    60 % -> 0 over the first 1500 its). getup_v2 still lay flat at it 200 (action std 0.5 -> 0.18)."""
+    cfg = matt_getup2_env_cfg(play=play)
+    if not play:
+        cfg.events["getup_assist"] = EventTermCfg(
+            func=mdp.getup_assist,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=("torso",)),
+                "max_fraction": 0.6,
+                "decay_steps": 1500 * 24,
+            },
+        )
+    return cfg
+
+
+def matt_getup4_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """getup_v4 (from getup_v3 it 500): v3 learned to sit up (torso upright, upright_linear 1.95 / 2) but settled
+    sitting — pelvis on the floor, action std 0.5 -> 0.17. Uprightness is saturated: weight 2 -> 0.5; rising pays
+    most (height_progress 3 -> 6)."""
+    cfg = matt_getup3_env_cfg(play=play)
+    cfg.rewards["upright_linear"].weight = 0.5
+    cfg.rewards["height_progress"].weight = 6.0
+    return cfg
+
+
+def matt_getup5_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """getup_v5 (from getup_v4 it 600): v4 raised the pelvis to ~0.5 m on all fours with the torso flat (height
+    progress 0.51, uprightness 0.5) — the next stepping stone. Height and uprightness now pay only together
+    (rise = height × upright², w 8; the separate terms go); standing_tall 3 -> 5."""
+    cfg = matt_getup4_env_cfg(play=play)
+    for k in ("height_progress", "upright_linear"):
+        cfg.rewards.pop(k)
+    cfg.rewards["rise"] = RewardTermCfg(func=mdp.rise, weight=8.0, params={"target": DEFAULT_ROOT_Z})
+    cfg.rewards["standing_tall"].weight = 5.0
+    return cfg
+
+
+# ---- recipe v5 (STAGED 2026-09-29, not yet trained) ---------------------------------------------------------------
+# Throughput (tools/bench_env.py, parity/bench/bench.jsonl; Rung 2 recipe driven by r2_v8, stepping only): the eager torch
+# managers, not MuJoCo, dominate a step (physics ~36 %), so more envs per step and a lighter world pay most:
+#   4096 envs 80k steps/s · 8192 envs 109k · 1 pool cube 105k · 8192 + 1 cube + sized buffers 118-134k (1.5-1.7x).
+# ls_iterations 10 gave nothing (78k) -> the solver options stay identical to scene_matt.xml / Unity.
+V5_ENVS = 8192
+V5_MINI_BATCHES = 8  # 8192 x 24 samples in 8 mini-batches = the same 24.6k-sample mini-batch as 4096 / 4
+
+
+def fast_sim(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+    """Training copy only (CPU MuJoCo / Unity keep scene_matt.xml's 4-cube pool; G0 is unaffected):
+    - ONE pool cube per env: drops come every 3-8 s and a fall takes ~0.7 s, so one cube is always free; the three parked
+      cubes cost 12 resting contacts + 18 dofs per world for nothing (peak contacts/world 18 -> 6, nefc 117 -> 69).
+    - contact / constraint buffers sized to the measured peaks with margin (nconmax 96 -> 64, njmax 500 -> 256; peak
+      nefc 117-132 with 4 cubes, 69-76 with 1). Not for lying tasks (get-up, crawl): whole-body ground contact."""
+    keep = CUBE_NAMES[:1]
+    for n in CUBE_NAMES[1:]:
+        cfg.scene.entities.pop(n, None)
+    if "drop_cube" in cfg.events:
+        cfg.events["drop_cube"].params["cube_names"] = keep
+    cfg.sim.nconmax = 64
+    cfg.sim.njmax = 256
+    cfg.scene.num_envs = V5_ENVS
+    return cfg
+
+
+BODY_WEIGHT_N = C.BODY.total_mass * 9.81
+
+
+def add_bio_rewards(cfg: ManagerBasedRlEnvCfg, power_w: float = -2e-4, impact_w: float = -1.0) -> ManagerBasedRlEnvCfg:
+    """Human-likeness terms (reward side only — contract, MJCF and ONNX unchanged, so parity gates are unaffected):
+    mechanical power Σ|τ·q̇| (rung2.onnx: 3 W standing ≈ 0, 290 W walking -0.06, 1.1 kW sprinting -0.22; energy minimisation is what makes gaits
+    look natural), Hill torque-velocity envelope (guard: rung2.onnx violates it on 0.03 % of frames today) and
+    foot impact above 3 BW per foot (guard: rung2.onnx p95 1.9 BW running). Measure with tools/bio_probe.py."""
+    cfg.rewards["mech_power"] = RewardTermCfg(func=mdp.mechanical_power, weight=power_w)
+    cfg.rewards["hill"] = RewardTermCfg(func=mdp.torque_speed_excess, weight=-0.5)
+    if any(getattr(s, "name", None) == mdp.FOOT_SENSOR for s in cfg.scene.sensors):
+        cfg.rewards["foot_impact"] = RewardTermCfg(
+            func=mdp.foot_impact, weight=impact_w, params={"body_weight_n": BODY_WEIGHT_N}
+        )
+    return cfg
+
+
+def matt_rung2_v5_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 2 recipe v5 = the final r2_v8 recipe (Sym5) + fast_sim + bio rewards. Warm start: r2_v8 it 600 (plain; same
+    contract, obs and actions). On POOLYMPIC_BODY=mattbio it trains the self-colliding, bio-torque MATT."""
+    cfg = add_bio_rewards(fast_sim(matt_rung2_sym5_env_cfg(play=play)))
+    return cfg
+
+
+def matt_rung0_v5_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 0 recipe v5 (Iron Pedestal brain for mattbio): r0_v2 recipe + fast_sim + bio rewards. Warm start r0_v2 it 1000."""
+    return add_bio_rewards(fast_sim(matt_rung0_env_cfg(play=play)))
+
+
+def matt_rung2_flight_v5_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Event 13 flight brain, recipe v5: r2f_v3 recipe + fast_sim + bio rewards. bio_probe: r2f_v3 lands at up to 3.4 BW
+    per foot (rung2.onnx 2.6) and clips an arm 1.6 cm into the hip while standing — the impact guard (> 3 BW) and the
+    self-colliding body address both. Warm start r2f_v3 it 100."""
+    return add_bio_rewards(fast_sim(matt_rung2_flight3_env_cfg(play=play)))
+
+
+def matt_ppo_v5_cfg(experiment: str, max_iterations: int) -> RslRlOnPolicyRunnerCfg:
+    """matt_ppo_cfg for 8192 envs: 8 mini-batches keep the mini-batch at 24.6k samples. One iteration now carries 2x
+    the samples, so gates / max_iterations can be ~half of a 4096-env run for the same data."""
+    cfg = matt_ppo_cfg(experiment, max_iterations)
+    cfg.algorithm.num_mini_batches = V5_MINI_BATCHES
+    cfg.save_interval = 50
+    return cfg
+
+
+def matt_ppo_cfg(experiment: str, max_iterations: int) -> RslRlOnPolicyRunnerCfg:
+    return RslRlOnPolicyRunnerCfg(
+        actor=RslRlModelCfg(
+            hidden_dims=(512, 256, 128),
+            activation="elu",
+            obs_normalization=True,
+            distribution_cfg={"class_name": "GaussianDistribution", "init_std": 0.8, "std_type": "scalar"},
+        ),
+        critic=RslRlModelCfg(hidden_dims=(512, 256, 128), activation="elu", obs_normalization=True),
+        algorithm=RslRlPpoAlgorithmCfg(
+            value_loss_coef=1.0,
+            use_clipped_value_loss=True,
+            clip_param=0.2,
+            entropy_coef=0.005,
+            num_learning_epochs=5,
+            num_mini_batches=4,
+            learning_rate=1.0e-3,
+            schedule="adaptive",
+            gamma=0.99,
+            lam=0.95,
+            desired_kl=0.01,
+            max_grad_norm=1.0,
+        ),
+        experiment_name=experiment,
+        logger="tensorboard",
+        save_interval=100,
+        num_steps_per_env=24,
+        max_iterations=max_iterations,
+    )
+
+
+def feet_sensor_cfg() -> ContactSensorCfg:
+    """Ground contact + net ground reaction of each foot subtree (foot + toe), order (foot_l, foot_r)."""
+    return ContactSensorCfg(
+        name=mdp.FOOT_SENSOR,
+        primary=ContactMatch(mode="subtree", pattern=r"^(foot_l|foot_r)$", entity="robot"),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found", "force"),
+        reduce="netforce",
+        num_slots=1,
+        track_air_time=True,
+    )
+
+
+def matt_rung1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 1 — forward walk/run at a commanded speed with heading hold (30m Dash, Terminal Velocity)."""
+    cfg = matt_rung0_env_cfg(play=play)
+    cfg.scene.sensors = cfg.scene.sensors + (feet_sensor_cfg(),)
+    cmd = cfg.commands["athlete"]
+    cmd.resampling_time_range = (5.0, 10.0)
+    cmd.rel_standing_envs = 0.1
+    cmd.heading_command = True
+    cmd.rel_heading_envs = 1.0
+    cmd.heading_control_stiffness = 0.5
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=(0.3, 1.0), lin_vel_y=(0.0, 0.0), ang_vel_z=(-0.5, 0.5), heading=(-math.pi, math.pi)
+    )
+
+    cfg.events["push_robot"].params["velocity_range"] = {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}
+    cfg.events["drop_cube"].interval_range_s = (5.0, 8.0)
+
+    for k in ("near_origin", "still_lin", "still_ang", "posture", "height"):
+        cfg.rewards.pop(k)
+    cfg.rewards.update(
+        {
+            "track_lin": RewardTermCfg(
+                func=vel_mdp.track_linear_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5}
+            ),
+            # wide kernel: a policy standing still at a 1-2 m/s command still sees a gradient towards moving
+            # (std 0.5 alone gives exp(-6) there — r1_v1 collapsed into standing)
+            "track_lin_coarse": RewardTermCfg(
+                func=vel_mdp.track_linear_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0}
+            ),
+            "track_ang": RewardTermCfg(
+                func=vel_mdp.track_angular_velocity,
+                weight=1.0,
+                params={"command_name": "athlete", "std": math.sqrt(0.5)},
+            ),
+            "height": RewardTermCfg(
+                func=mdp.base_height_tracking, weight=0.5, params={"target": DEFAULT_ROOT_Z, "std": 0.15}
+            ),
+            "posture": RewardTermCfg(
+                func=vel_mdp.variable_posture,
+                weight=0.5,
+                params={
+                    "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+                    "command_name": "athlete",
+                    "std_standing": {".*": 0.2},
+                    "std_walking": {".*": 0.5},
+                    "std_running": {".*": 0.8},
+                    "walking_threshold": 0.1,
+                    "running_threshold": 1.8,
+                },
+            ),
+            "phase_contact": RewardTermCfg(func=mdp.phase_contact, weight=0.5),
+            "air_time": RewardTermCfg(
+                func=vel_mdp.feet_air_time,
+                weight=0.5,
+                params={
+                    "sensor_name": mdp.FOOT_SENSOR,
+                    "threshold_min": 0.1,
+                    "threshold_max": 0.6,
+                    "command_name": "athlete",
+                    "command_threshold": 0.3,
+                },
+            ),
+            "foot_slip": RewardTermCfg(func=mdp.foot_slip, weight=PENALTY["foot_slip"]),
+        }
+    )
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel,
+            params={
+                "command_name": "athlete",
+                "velocity_stages": [
+                    {"step": 0, "lin_vel_x": (0.3, 1.0)},
+                    {"step": 600 * 24, "lin_vel_x": (0.5, 2.0)},
+                    {"step": 1200 * 24, "lin_vel_x": (0.5, 3.0)},
+                    {"step": 2000 * 24, "lin_vel_x": (0.5, 4.0)},
+                ],
+            },
+        ),
+    }
+    if play:
+        cmd.ranges.lin_vel_x = (0.5, 4.0)
+    return cfg
+
+
+# Rung 2 command envelope (DESIGN §1/§5). wz reaches 2.5 so the 360° Turntable bar (< 3 s ⇒ wz ≥ 2.1) is in-distribution.
+RUNG2_STAGES = [
+    {"step": 0, "lin_vel_x": (-1.0, 3.0), "lin_vel_y": (-0.5, 0.5), "ang_vel_z": (-1.0, 1.0)},
+    {"step": 500 * 24, "lin_vel_x": (-1.5, 3.5), "lin_vel_y": (-1.0, 1.0), "ang_vel_z": (-2.0, 2.0)},
+    {"step": 1000 * 24, "lin_vel_x": (-1.5, 4.0), "lin_vel_y": (-1.0, 1.0), "ang_vel_z": (-2.5, 2.5)},
+]
+
+
+def matt_rung2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 2 — omnidirectional + yaw (Inverted Sprint, Crab Shuffle, Slalom, 360 Turntable, Emergency Brake).
+    Warm-started from the Rung 1 brain (tools/warm_start.py re-seeds the command normalizer)."""
+    cfg = matt_rung1_env_cfg(play=play)
+    cmd = cfg.commands["athlete"]
+    cmd.heading_command = False  # direct yaw-rate commands; races steer with contract.steer_yaw_rate
+    cmd.rel_heading_envs = 0.0
+    cmd.rel_standing_envs = 0.15  # zero-command stops (Emergency Brake) at every resample
+    cmd.resampling_time_range = (3.0, 8.0)  # more transitions: brakes, reversals, turn-in / turn-out
+    s0 = RUNG2_STAGES[0]
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=s0["lin_vel_x"], lin_vel_y=s0["lin_vel_y"], ang_vel_z=s0["ang_vel_z"], heading=None
+    )
+    # yaw tracking is a primary objective now: tighter kernel (Rung 1: std √0.5 was nearly flat for small yaw-rate
+    # errors → heading bias) + a wide one for the fast turntable.
+    # r2_v2 (r2_v1 yaw decayed after wz ±2 entered): fine w 1.5 → 2.0; coarse w 0.5 → 1.0, std 1.5 → 1.0 so a 1 rad/s
+    # miss still pays and improving it pays more; posture 0.5 → 0.25 so hips / trunk may rotate for fast pivots.
+    cfg.rewards["track_ang"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.5}
+    )
+    cfg.rewards["track_ang_coarse"] = RewardTermCfg(
+        func=vel_mdp.track_angular_velocity, weight=1.0, params={"command_name": "athlete", "std": 1.0}
+    )
+    cfg.rewards["posture"].weight = 0.25
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": RUNG2_STAGES}
+        ),
+    }
+    if play:
+        last = RUNG2_STAGES[-1]
+        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+            last["lin_vel_x"],
+            last["lin_vel_y"],
+            last["ang_vel_z"],
+        )
+    return cfg
+
+
+def matt_pedestal_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Iron Pedestal fine-tune (Event 1 heat): Rung 0 + stepping off the 1 m x 1 m pedestal ends the episode, feet-centred
+    reward, harder and more frequent gusts (the heat escalates 0.3 → ~1 m/s every 3 s). Warm start: r0_v2 it 1000."""
+    cfg = matt_rung0_env_cfg(play=play)
+    cfg.terminations["off_pedestal"] = TerminationTermCfg(func=mdp.feet_off_pedestal, params={"half": 0.5})
+    cfg.rewards["feet_centred"] = RewardTermCfg(func=mdp.feet_centred, weight=1.0, params={"std": 0.3})
+    cfg.events["push_robot"].params["velocity_range"] = {"x": (-0.8, 0.8), "y": (-0.8, 0.8)}
+    cfg.events["push_robot"].interval_range_s = (2.0, 4.0)
+    return cfg
+
+
+def matt_rung2_sym_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 2 fine-tune with left/right symmetry augmentation (r2_v3): r2_v2 rewards, full command envelope from the
+    start (the curriculum already ran in r2_v2). Warm start: r2_v2 it 1500. Runner: symmetry.SymmetricRunner."""
+    cfg = matt_rung2_env_cfg(play=play)
+    last = RUNG2_STAGES[-1]
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(last, step=0)]}
+        ),
+    }
+    cmd = cfg.commands["athlete"]
+    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+        last["lin_vel_x"],
+        last["lin_vel_y"],
+        last["ang_vel_z"],
+    )
+    return cfg
+
+
+def matt_pedestal2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Iron Pedestal v2 (ped_v1 failed: fixed ±0.8 m/s gusts gave no learning signal). Heat-shaped gusts (fixed
+    magnitude, random direction, every 3 s like the heat) whose magnitude adapts to success: 0.3 → up to 1.2 m/s."""
+    cfg = matt_pedestal_env_cfg(play=play)
+    cfg.events["push_robot"] = EventTermCfg(func=mdp.push_gust, mode="interval", interval_range_s=(2.5, 3.5))
+    cfg.curriculum = {
+        "gust": CurriculumTermCfg(
+            func=mdp.gust_curriculum, params={"start": 0.3, "step": 0.02, "max_level": 1.2, "up": 0.6, "down": 0.3}
+        ),
+    }
+    return cfg
+
+
+RUNG2_TRAIN_ENVELOPE = {"lin_vel_x": (-1.5, 4.0), "lin_vel_y": (-1.2, 1.2), "ang_vel_z": (-3.0, 3.0)}
+
+
+def matt_rung2_sym2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2_v5: r2_v4 (symmetric, contract v3) with the training envelope ~20 % wider than the G1 envelope in the hard
+    directions (wz ±3.0 so the 2.5 rad/s turntable is not at the edge; vy ±1.2 for ~1 m/s crabs) and more zero-command
+    stops (0.20) — the r2_v4 misses were exactly turntable-at-edge, crab ~0.9 m/s and holding still after shoves."""
+    cfg = matt_rung2_sym_env_cfg(play=play)
+    env = RUNG2_TRAIN_ENVELOPE
+    cfg.curriculum = {
+        "command_vel": CurriculumTermCfg(
+            func=vel_mdp.commands_vel, params={"command_name": "athlete", "velocity_stages": [dict(env, step=0)]}
+        ),
+    }
+    cmd = cfg.commands["athlete"]
+    cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.ang_vel_z = (
+        env["lin_vel_x"],
+        env["lin_vel_y"],
+        env["ang_vel_z"],
+    )
+    cmd.rel_standing_envs = 0.20
+    return cfg
+
+
+def matt_rung2_sym3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2_v6 candidate: r2_v5 + feasibility-aware commands (|wz| <= 4 m/s^2 / |v|). Every G1 command stays inside
+    (turns 1.5 m/s x 2 rad/s = 3 m/s^2, sprints 4 m/s x 0.5 = 2 m/s^2); 4 m/s x 3 rad/s style combos are clipped."""
+    cfg = matt_rung2_sym2_env_cfg(play=play)
+    cfg.commands["athlete"].max_lateral_accel = 4.0
+    return cfg
+
+
+def matt_rung2_sym4_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2_v7: r2_v6 + sharper linear tracking. r2_v6 it 1200 passed G1 10/10 but the 30-seed margin set 22/30: a steady
+    ~4-5 % speed undershoot (cmd 3.5 -> 3.35 m/s, 4.0 -> 3.78) — track_lin std 0.5 pays 91 % at a 0.15 m/s shortfall.
+    std 0.3 makes that shortfall cost ~22 %."""
+    cfg = matt_rung2_sym3_env_cfg(play=play)
+    cfg.rewards["track_lin"] = RewardTermCfg(
+        func=vel_mdp.track_linear_velocity, weight=2.0, params={"command_name": "athlete", "std": 0.3}
+    )
+    return cfg
+
+
+def matt_rung2_flight_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2f (Event 13, Steeplechase Jog: sustained aerial phases between strikes): the final Rung 2 recipe (r2_v8) plus a
+    flight reward (both feet airborne while commanded above 2.2 m/s) and 50 % sprint-band commands. rung2.onnx already
+    has short flights at speed (3.5 m/s: 19 % of the time, 25 ms mean, 60 ms max — contact chatter, not a stride);
+    a jog has ~100 ms per step. Separate brain for Event 13; the Rung 2 brain stays as it is."""
+    cfg = matt_rung2_sym5_env_cfg(play=play)
+    cfg.commands["athlete"].sprint_fraction = 0.5
+    cfg.rewards["flight"] = RewardTermCfg(
+        func=mdp.flight_phase, weight=1.0, params={"command_name": "athlete", "speed_threshold": 2.2}
+    )
+    return cfg
+
+
+def matt_rung2_flight2_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2f_v2: r2f_v1 (G1 10/10 kept, airborne 29 % at 3.5 m/s but 56 ms flights at 4.8/s — many hops) + a touchdown
+    reward for the flight's length above 40 ms (w 10: a 100 ms flight earns 0.6, a 50 ms hop 0.1); per-step airborne
+    reward halved."""
+    cfg = matt_rung2_flight_env_cfg(play=play)
+    cfg.rewards["flight"].weight = 0.5
+    cfg.rewards["flight_landing"] = RewardTermCfg(
+        func=mdp.flight_landing, weight=10.0, params={"command_name": "athlete", "speed_threshold": 2.2}
+    )
+    return cfg
+
+
+def matt_rung2_flight3_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2f_v3: r2f_v2 overshot into bounding (it 200: 190 ms flights at the 200 ms cap, airborne 65 %, 3.5 m/s -> 2.6 m/s,
+    G1 3/10). Touchdown reward capped at 120 ms (a jog's flight is ~100 ms), weight 10 -> 4."""
+    cfg = matt_rung2_flight2_env_cfg(play=play)
+    cfg.rewards["flight_landing"].weight = 4.0
+    cfg.rewards["flight_landing"].params["cap_s"] = 0.12
+    return cfg
+
+
+def matt_rung2_sym5_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """r2_v8: r2_v7 + 30 % of command resamples from the sprint band (vx 2.5-4.0, |wz| <= 0.6). r2_v6/v7 margin misses
+    are almost all 3.2-3.8 m/s sprints with a mild turn; uniform sampling put ~12 % of commands in that band, spread
+    over |wz| up to ±1.1."""
+    cfg = matt_rung2_sym4_env_cfg(play=play)
+    cfg.commands["athlete"].sprint_fraction = 0.3
+    return cfg
+
+
+# ====================================================================================================================
+# 2026-10-11 audit: opt-in recipe pieces. Only the task IDs registered that day use them (Rung0-Full, Rung2-Ramp,
+# Kim-Rung2-Bio); every earlier ID builds what it always built (tools/dump_task_cfgs.py --diff).
+# ====================================================================================================================
+def self_contact_sensor_cfg(num_slots: int = 4) -> ContactSensorCfg:
+    """The athlete against itself (mdp.self_contact_force): the num_slots strongest self-contacts, contact-frame force.
+    Not part of any registered task — add it with a small negative weight when a policy leans on self-contact."""
+    return ContactSensorCfg(
+        name=mdp.SELF_SENSOR,
+        primary=ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
+        secondary=ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
+        fields=("found", "force"),
+        reduce="maxforce",
+        num_slots=num_slots,
+    )
+
+
+def add_rung0_full(cfg: ManagerBasedRlEnvCfg, lam: float = 1.0) -> ManagerBasedRlEnvCfg:
+    """DESIGN §5 lists "CoM over support, no foot slip" for Rung 0; the Rung 0 recipes never had them. Adds the feet
+    sensor (as Rung 1), foot_slip (Rung 1's weight) and com_over_support (std 0.10 m x λ: half a foot length)."""
+    if not any(getattr(s, "name", None) == mdp.FOOT_SENSOR for s in cfg.scene.sensors):
+        cfg.scene.sensors = cfg.scene.sensors + (feet_sensor_cfg(),)
+    cfg.rewards["foot_slip"] = RewardTermCfg(func=mdp.foot_slip, weight=PENALTY["foot_slip"])
+    cfg.rewards["com_over_support"] = RewardTermCfg(func=mdp.com_over_support, weight=0.5, params={"std": 0.10 * lam})
+    return cfg
+
+
+def matt_rung0_full_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Rung 0 with every DESIGN §5 term. Warm start: r0_v2 (plain_init)."""
+    return add_rung0_full(matt_rung0_env_cfg(play=play))
+
+
+def add_shove_ramp(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+    """DESIGN §5 "intensity ramps when success > 80 %". The fixed-size shove box (±v per axis) becomes a shove of size
+    U(0, level) in a uniformly random direction; the level starts at the box's corner (√2 v: the largest shove the
+    recipe had) and moves by 3 % of v per PPO iteration — up while > 80 % of the ended episodes reached the time-out, down
+    while < 50 % did — to at most 2√2 v. Shoves are recorded for the privileged critic (mdp.priv_shove)."""
+    old = cfg.events["push_robot"]
+    v = max(abs(x) for r in old.params["velocity_range"].values() for x in r)
+    cfg.events["push_robot"] = EventTermCfg(
+        func=mdp.push_gust,
+        mode="interval",
+        interval_range_s=old.interval_range_s,
+        params={"min_fraction": 0.0, "record": True},
+    )
+    cfg.curriculum = dict(cfg.curriculum or {})
+    cfg.curriculum["shove_ramp"] = CurriculumTermCfg(
+        func=mdp.gust_curriculum,
+        params={
+            "start": math.sqrt(2) * v,
+            "step": 0.03 * v,
+            "max_level": 2 * math.sqrt(2) * v,
+            "up": 0.8,
+            "down": 0.5,
+            "steps_per_it": 24,
+        },
+    )
+    return cfg
+
+
+def add_solref_dr(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+    """DESIGN §4 "restitution via solref" (missing until now): foot / toe contact time constant x U(0.8, 1.25) and
+    damping ratio x U(0.7, 1.0) per env (below 1 = a little bounce). Training only, like the other DR terms."""
+    if "dr_foot_friction" in cfg.events:  # play configs have no DR
+        cfg.events["dr_foot_solref"] = EventTermCfg(
+            func=mdp.dr_geom_solref,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", geom_names=(r"(foot|toe)_[lr]_geom0",)),
+                "ranges": {0: (0.8, 1.25), 1: (0.7, 1.0)},
+                "operation": "scale",
+                "shared_random": True,
+            },
+        )
+    return cfg
+
+
+def add_privileged_critic(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+    """Asymmetric critic: the critic group (already noise-free) also sees what the actor cannot — ground reaction per
+    foot, this env's friction and mass scale, the shove just applied (mdp.PRIV_DIM values, mirrored by symmetry.py).
+    The actor group, the contract and the exported ONNX are untouched. Needs the feet sensor (Rung 1+)."""
+    t = cfg.observations["critic"].terms
+    t["priv_foot_force"] = ObservationTermCfg(func=mdp.priv_foot_force, params={"body_weight_n": BODY_WEIGHT_N})
+    t["priv_friction"] = ObservationTermCfg(func=mdp.priv_friction_scale, params={})
+    t["priv_mass"] = ObservationTermCfg(func=mdp.priv_mass_scale, params={})
+    t["priv_shove"] = ObservationTermCfg(func=mdp.priv_shove, params={})
+    return cfg
+
+
+def add_ramp_recipe(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+    """Rung2-Ramp = a body's production Rung 2 recipe + success-driven shove ramp + contact solref DR + privileged
+    critic. Warm start: the production checkpoint with 8 zero critic columns (tools/expand_obs.py --critic-zeros 8)."""
+    return add_privileged_critic(add_solref_dr(add_shove_ramp(cfg)))
+
+
+def matt_rung2_ramp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """MATT: r2_v8 (Sym5) + the ramp recipe. Warm start r2_v8 it 600."""
+    return add_ramp_recipe(matt_rung2_sym5_env_cfg(play=play))
+
+
+def add_bio_limits(cfg: ManagerBasedRlEnvCfg, init_level_max: float = 0.8) -> ManagerBasedRlEnvCfg:
+    """Contract v5 proposal: torque-speed limit + fatigue in the physics (mdp.bio_force_limits, poolympic/biomech.py)
+    and the per-group fatigue level as an observation block after the v3 terms (actor 84 -> 90). Training episodes
+    start with each group's level at U(0, init_level_max) (play: fresh). Call BEFORE add_privileged_critic (critic
+    order: v3, fatigue, privileged)."""
+    fresh = "dr_strength" not in cfg.events  # play configs: no DR
+    cfg.events["bio_limits"] = EventTermCfg(func=mdp.bio_force_limits, mode="step", params={})
+    cfg.events["bio_limits_reset"] = EventTermCfg(
+        func=mdp.bio_force_limits, mode="reset", params={"init_level_max": 0.0 if fresh else init_level_max}
+    )
+    for group in ("actor", "critic"):
+        cfg.observations[group].terms["fatigue"] = ObservationTermCfg(func=mdp.obs_fatigue, params={})
+    return cfg
+
+
+def add_crowd_bumps(
+    cfg: ManagerBasedRlEnvCfg,
+    mass_scale: float = 1.0,
+    force: float = 300.0,
+    play: bool | None = None,
+    cooldown_s: tuple[float, float] = (1.5, 4.0),
+) -> ManagerBasedRlEnvCfg:
+    """Crowd fine-tune (2026-10-12): the bumps of a race in a pack. The brains were trained alone (root velocity kicks
+    + a dropped cube); in the 8-athlete sprint a shoulder-to-shoulder runner floors them (tools/crowd_heats.py: 1.5-3.2
+    falls per heat with contact, 0 without). Measured athlete-athlete contacts in those heats (MATT): peak 170-500 N
+    (quartiles; 90 % under 1200 N) for 0.03-0.25 s, 3-36 N s, on the forearms (35 %), upper arms and chest. Here: a
+    constant force of up to +-300 N x mass_scale per axis for 0.03-0.25 s on each forearm and on the chest, each on its
+    own timer every 1.5-4 s (mjlab apply_body_impulse). No new observation or reward; play configs (no shoves) get none."""
+    if play if play is not None else "push_robot" not in cfg.events:  # crawl recipes have no shoves: the caller says
+        return cfg
+    f = force * mass_scale
+    for body in ("forearm_l", "forearm_r", "chest"):
+        cfg.events[f"bump_{body}"] = EventTermCfg(
+            func=envs_mdp.apply_body_impulse,
+            mode="step",
+            params={
+                "force_range": (-f, f),
+                "torque_range": (0.0, 0.0),
+                "duration_s": (0.03, 0.25),
+                "cooldown_s": cooldown_s,
+                "asset_cfg": SceneEntityCfg("robot", body_names=(body,)),
+            },
+        )
+    return cfg
+
+
+def add_slope(
+    cfg: ManagerBasedRlEnvCfg, slope_deg: float, climb: bool = False, top: float = 0.3
+) -> ManagerBasedRlEnvCfg:
+    """Rung 4 slope (event 14 The Alpine Ramp): a Rung 2 recipe on an endless ramp of `slope_deg`, uphill = +x. The ramp
+    is the flat training plane with gravity tilted by the slope angle — the same physics in the ramp's own frame, so
+    the terrain, the contact bits and every observation (height above the surface, tilt against its normal) stay as
+    they are and the event scene uses the same tilted gravity (Unity draws it tilted). Athletes start facing uphill
+    (±0.5 rad) and are asked for forward speeds up to half the flat envelope, small side steps and turns; the staged
+    command curriculum of the base recipe is dropped (it would restore the flat envelope).
+    climb (2026-10-14): KIM's Slope15 stood still on the ramp (no falls, 0 m/s at every command): forward commands
+    only 5-30 % of the flat top speed (MATT 0.2-1.2 m/s, about what he manages up 15 deg) and half the stand-still
+    commands, so that climbing pays. top: the climb's fastest forward command as a fraction of the flat top speed
+    (KIM's Slope15c still stalls at 15 deg for commands over ~0.5 m/s and creeps up at 0.26 m/s when asked for 0.5:
+    the slow variant Slope15s asks for 5-15 %)."""
+    a = math.radians(slope_deg)
+    cfg.sim.mujoco.gravity = (-9.81 * math.sin(a), 0.0, -9.81 * math.cos(a))
+    cfg.events["reset_base"].params["pose_range"]["yaw"] = (-0.5, 0.5)
+    cmd = cfg.commands["athlete"]
+    r = cmd.ranges
+    cmd.ranges = mdp.AthleteCommandCfg.Ranges(
+        lin_vel_x=(0.0, 0.5 * r.lin_vel_x[1]),
+        lin_vel_y=(0.4 * r.lin_vel_y[0], 0.4 * r.lin_vel_y[1]),
+        ang_vel_z=(0.4 * r.ang_vel_z[0], 0.4 * r.ang_vel_z[1]),
+        heading=None,
+    )
+    if climb:
+        cmd.ranges.lin_vel_x = (0.05 * r.lin_vel_x[1], top * r.lin_vel_x[1])
+        cmd.rel_standing_envs *= 0.5
+    if cfg.curriculum:
+        cfg.curriculum.pop("command_vel", None)
+    return cfg

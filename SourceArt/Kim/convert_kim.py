@@ -1,4 +1,4 @@
-"""KIM — rigged scan GLB -> clean T-pose GLB for the physics-body pipeline (training/tools/extract_skeleton.py).
+"""KIM — rigged scan GLB -> clean T-pose GLB for the physics-body pipeline (Training/tools/extract_skeleton.py).
 
 Run headless (the Store build of Blender only exposes the launcher):
     blender-launcher.exe -b -P SourceArt/Kim/convert_kim.py

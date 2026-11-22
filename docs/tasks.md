@@ -7,7 +7,7 @@ Legend: `[ ]` todo · `[x]` done · **GATE** = blocking check, work stops until 
 
 ```
 /                       Unity project (Assets, Packages, ProjectSettings)
-  Assets/PoOlympic/     Runtime/ (PolicyRunner, ObservationBuilder, MjCubePool, Shove, BoneBinder)
+  Assets/_Project/Core/ Runtime/ (PolicyRunner, ObservationBuilder, MjCubePool, Shove, BoneBinder)
                         Editor/  (PhysXGuard, fingerprint export, parity tests)
                         Models/  (matt.xml synced from training/, *.onnx)
                         Scenes/  (Testbed_ZeroBrain, Testbed_Rung1, ...)
@@ -35,7 +35,7 @@ Rules: every surface an athlete can touch is a MuJoCo geom generated into the MJ
     `pedestal_rung0_play`: drift 1.1e-6 @ 5 s, torque ratio 1.0000001, same outcome — **PASS**
   - [x] Iron Pedestal fine-tune (foot-on-pedestal term, trained on the pedestal geometry) for edge margin — tried twice
     (ped_v1, ped_v2; see D4), neither beat the Rung 0 brain → kept r0_v2_it1000
-- [x] **D2 Stadium (Blender MCP, Olympic realistic)** — `SourceArt/Stadium/stadium.blend` → `Assets/PoOlympic/Art/Stadium/Stadium.glb` (1.5 MB, ~28k tris, render-only): World-Athletics 400 m oval (84.39 m straights, R 36.5 m, 8 × 1.22 m lanes = meet layout), 20 m start extension, finish / 100 m lines; two-tier bowl with front-view crowd textures; roof canopy + floodlight ring; LED boards; 2 scoreboards. **Venues for every event category** with `VENUE_*` anchors (glTF nodes + `venues.json`): HomeStraight (8, 19, 9, 10, 22, hurdles) · CentreStage (1, 5) · Agility (11 slalom, 12 turntable) · Terrain (14–17, parkour) · Jumps (runways + pit) · Mats (27 get-up, crawl, flip) · Skills (carry, bench, kick + goal) · BackStraight. `EventScenes.PlaceStadium(venue, groundY)` snaps a venue onto the MuJoCo origin (verified: home anchor at Unity (−57.81, −0.50, −41.38)). Iron Pedestal scene now plays inside the stadium (`parity/d1/stadium_live.png`).
+- [x] **D2 Stadium (Blender MCP, Olympic realistic)** — `SourceArt/Stadium/stadium.blend` → `Assets/_Project/Environments/Art/Stadium/Stadium.glb` (1.5 MB, ~28k tris, render-only): World-Athletics 400 m oval (84.39 m straights, R 36.5 m, 8 × 1.22 m lanes = meet layout), 20 m start extension, finish / 100 m lines; two-tier bowl with front-view crowd textures; roof canopy + floodlight ring; LED boards; 2 scoreboards. **Venues for every event category** with `VENUE_*` anchors (glTF nodes + `venues.json`): HomeStraight (8, 19, 9, 10, 22, hurdles) · CentreStage (1, 5) · Agility (11 slalom, 12 turntable) · Terrain (14–17, parkour) · Jumps (runways + pit) · Mats (27 get-up, crawl, flip) · Skills (carry, bench, kick + goal) · BackStraight. `EventScenes.PlaceStadium(venue, groundY)` snaps a venue onto the MuJoCo origin (verified: home anchor at Unity (−57.81, −0.50, −41.38)). Iron Pedestal scene now plays inside the stadium (`parity/d1/stadium_live.png`).
   - [x] full 30-event list received (Phase E catalogue): every event maps onto an existing venue — no new venue type needed
   - [x] **one venue per event (30), each for 8 competitors** — reproducible builder `SourceArt/Stadium/build_venues.py` (+ `stadium_helpers.py`), run inside Blender. Five infield rows + track: centre row = stationary events (1 Iron Pedestal: 8 × 1 m × 1 m × 0.5 m iron pedestals in a row, 3 m pitch; 2, 3, 4, 5, 6, 7, 12, 18 as 2 × 4 station grids); rows ±13 / −26 / +26 = 8-lane blocks with props (rails, gates, 15° ramp, stairs, rubble, stepping stones, parkour wall/drop/hurdles, crawl ceiling, crates, benches, mats, goals, long-jump runways + pit); track = 8, 20, 22, 27 (home straight) + 19 (back straight). Phase-coloured pads, painted event names + lane numbers; no pad overlaps, all inside the kerb (checked). 240 competitor anchors `E##_L#` + `venues.json` (lane pos + yaw, MuJoCo axes) — the future source for the physical props in each event MJCF. GLB 3.9 MB, ~77k tris, 1555 objects (merge per event in D6).
   - [x] **Stadium Hub** `Stadium_Hub.unity` (*PoOlympic › Events › Build Stadium Hub*): all 30 events as `EventVenue` objects (catalogue `events_catalog.json` = user rules, phase, skill, brain + the 8 competitor anchors), `StadiumDirector` event picker (flies the camera to a venue, rules card, Play ▸ when the event scene exists); Build Settings = hub + built event scenes. Captures `parity/d2/hub_E*.png`.
@@ -66,7 +66,7 @@ Rules: every surface an athlete can touch is a MuJoCo geom generated into the MJ
   - athlete traits (contract `trait_ranges` / `obs_noise`): strength ×[0.85, 1.15] on force limits, latency 0–4 substeps (mjlab delay semantics), sensor noise ×[0, 1] of training noise — `PolicyRunner.SetTraits`, nominal = parity (EditMode 18/18)
   - rules (Python `poolympic/events/iron_pedestal.py` ≡ Unity `IronPedestalHeat`): 3 s rounds, gust 0.3 m/s + 0.05/round (own seeded direction per lane), cube every 3rd round, out = fall rule / stepped off (`AthleteJudge`), ranking by elimination time; tuned on CPU: heats 27–41 s (mean 35), first out ~17–26 s
   - Unity `Event_IronPedestal_Heat.unity` (*Build Event 1 — Iron Pedestal Heat*), `HeatHud` standings (status, out time, traits), winner banner; hub Event 1 ▸ opens the heat. Play-through: L1 wins after 31.6 s, 11 rounds (`parity/d4/heat_*.png`)
-  - [x] odds from traits (betting layer): `training/tools/fit_odds.py` — 600 CPU heats (60 per playable event, mixed
+  - [x] odds from traits (betting layer): `Training/tools/fit_odds.py` — 600 CPU heats (60 per playable event, mixed
     MATT/zombie lineups, random traits) → Plackett-Luce rating per event (zombie, strength, latency, noise) →
     `Models/odds_model.json`; Unity `Odds` (softmax, 10 % shrink to uniform, 10 % margin, odds 1.01-50). Favourite win
     rate: 23-83 % (uniform 12.5 %); Emergency Brake / Iron Pedestal ≈ uniform (traits do not predict the winner)
@@ -489,7 +489,7 @@ Log: `rl_optimization_log.md` 2026-10-11 "Training audit". Existing task IDs, bo
 - [x] Third pass (log 2026-10-11 23:30): servo calibration + observation-normaliser audit (no change needed; trunk is
   soft / under-damped on every body, zero-variance inputs are fed zeros by every caller), contact buffers measured for
   the self-colliding bodies, `-Fast` IDs (8192 envs, one cube, sized buffers) for the nine tasks above
-- [ ] Run the staged lines in `training/staged_queue.txt` (KIM: Rung2-Ramp-Fast, Rung0-Full-Fast; Rung2-Bio-Fast only
+- [ ] Run the staged lines in `Training/staged_queue.txt` (KIM: Rung2-Ramp-Fast, Rung0-Full-Fast; Rung2-Bio-Fast only
   after the contract v5 decision) — first run doubles as the 8192-env benchmark on a self-colliding body
 - [ ] New Rung 0 / get-up / crawl exports: `export_brain.py --clip-obs 5`
 
@@ -521,7 +521,7 @@ tab). Before / after: `parity/ui/audit35_before_after.html`.
 - [x] Clean-up: 1,670 intermediate brain files removed from `Models/Brains` and `parity/brains` (≈ 450 MB; kept every
   brain a scene, a script or the manifest names), template leftovers, duplicate root models, 23 unused packages /
   modules, `.utmp/` and `parity/actions/` ignored
-- [ ] `pwsh training/tools/prune_checkpoints.ps1 -Delete` — 101 files, 644 MB in `training/runs` (not recoverable, so
+- [ ] `pwsh Training/tools/prune_checkpoints.ps1 -Delete` — 101 files, 644 MB in `Training/runs` (not recoverable, so
   left for the user to run)
 - [ ] Tune by eye on a phone: follow-spot intensity (`spotIntensity` 40), scuff size / darkness, scrape threshold
 - [ ] Not done: URP decal projectors (ground marks cover it without a renderer feature), an event base class (the
@@ -600,9 +600,9 @@ get up → finish). Unity: `SpectacleTests`.
 ## Clean-up (2026-10-14) — the 10-option list, "do all"
 
 - [x] 1 Checkpoints: `prune_checkpoints.ps1 -Delete` — 503 `model_*.pt`, 2,760 MB (kept: newest, gate iterations, queue warm starts, every exported brain's checkpoint).
-- [x] 2 Runs / TensorBoard: 11 run folders nothing refers to (no exported brain, queue warm start or review page) + 62 finished warm-start `*_init` folders — 145 files, 504 MB, MOVED to `../PoOlympic_trash_2026-10-14` (deleting them was refused as irreversible; delete that folder by hand). `training/runs` 4.7 GB -> 1.4 GB.
-- [x] 3 Unity brains: `ParityHarness.SyncArtifacts` copies only brains the manifest or the C# names; `Assets/PoOlympic/Models/Brains` 213 -> 32 brains + 21 critics (724 files, 148 MB out of the project).
-- [x] 4 Parity: 165 unused candidate exports out of `parity/brains` (330 files, 136 MB; 43 MB left) and the unlinked play-through frames `parity/observe` (193 files, 227 MB). All recoverable from git history; gate checkpoints stay in `training/runs`.
+- [x] 2 Runs / TensorBoard: 11 run folders nothing refers to (no exported brain, queue warm start or review page) + 62 finished warm-start `*_init` folders — 145 files, 504 MB, MOVED to `../PoOlympic_trash_2026-10-14` (deleting them was refused as irreversible; delete that folder by hand). `Training/runs` 4.7 GB -> 1.4 GB.
+- [x] 3 Unity brains: `ParityHarness.SyncArtifacts` copies only brains the manifest or the C# names; `Assets/_Project/RL_Models/Brains` 213 -> 32 brains + 21 critics (724 files, 148 MB out of the project).
+- [x] 4 Parity: 165 unused candidate exports out of `parity/brains` (330 files, 136 MB; 43 MB left) and the unlinked play-through frames `parity/observe` (193 files, 227 MB). All recoverable from git history; gate checkpoints stay in `Training/runs`.
 - [x] 5 Scene sweep: all 29 scenes played 20 s (`[SceneSweep]` markers in Editor.log): 0 errors except Event_DeepSquat 2,319x `IndexOutOfRangeException` in `MjCubePool.Fastest` — stale cube indices across Play sessions (no scene reload); fixed (re-read on a new model / pool size), 3 replays 0 errors. FPS in the editor 59-117 per event.
 - [x] 6 Packages / tools: `com.unity.ide.rider` removed (`modules.terrain` stays: org.mujoco's heightfield uses `Terrain`); `com.unity.pipeline` = the `unity command` bridge, kept. Tools removed: `tb_screenshot.py` (= `tb_shots.py`), `render_overlay.py`, `getup_film.py` (one-offs, no references).
 - [x] 7 Assets: of 195 project assets 2 UI clips were unreferenced (`error_004.ogg`, `maximize_006.ogg`, removed); the fonts and synced model files are loaded by path (kept).

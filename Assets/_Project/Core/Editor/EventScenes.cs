@@ -1,0 +1,1275 @@
+using System;
+using System.IO;
+using System.Linq;
+using Mujoco;
+using Unity.InferenceEngine;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
+
+namespace PoOlympic.Editor
+{
+    /// <summary>
+    /// Phase D — authors the event scenes in-editor from the generated MJCFs. Anything the athlete can touch is a MuJoCo
+    /// geom from Training/assets/*.xml; Unity-side art (stadium, dressing) is render-only.
+    /// </summary>
+    public static class EventScenes
+    {
+        public const string IronPedestalScene = "Assets/_Project/Scenes/Event_IronPedestal.unity";
+        public const string PedestalSource = "Training/assets/scene_pedestal.xml";
+        public const string IronMaterial = "Assets/_Project/Environments/Materials/IronPedestal.mat";
+        public const string DefaultRung0Brain = "r0_v2_it1000.onnx";
+        public const int AthleteLane = 3;
+        public const string StadiumAsset = "Assets/_Project/Environments/Art/Stadium/Stadium.glb";
+
+        public const string VenuesJson = "Assets/_Project/Environments/Art/Stadium/venues.json";
+
+        /// <summary>(position, yaw°) of one competitor spot from venues.json (MuJoCo axes; written by build_venues.py).</summary>
+        public static (Vector3 posMj, float yawDeg) VenueLane(int eventNum, int lane)
+        {
+            var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(VenuesJson));
+            var l = root["events"][$"{eventNum:00}"]["lanes"][lane];
+            var p = l["pos"];
+            return (new Vector3((float)p[0], (float)p[1], (float)p[2]), (float)l["yaw_deg"]);
+        }
+
+        /// <summary>
+        /// Render-only stadium (SourceArt/Stadium/stadium.blend → Stadium.glb, authored in MuJoCo axes). glTF→glTFast maps
+        /// Blender (x, y, z) to Unity (−x, z, −y); a 180° yaw makes it (x, z, y) = the MuJoCo plug-in's mapping. It is then
+        /// turned about the vertical by the lane's yaw (MuJoCo yaw ψ ≙ Unity Euler(0, −ψ, 0), so undoing ψ is Euler(0, +ψ, 0))
+        /// and shifted so the competitor spot E##_L# lands on the MuJoCo origin: the athlete (default pose facing +x) then
+        /// stands exactly on that spot facing the event direction. Spot height = surface under the athlete (pedestal top).
+        /// extraYawDeg turns the athlete relative to the event direction (180 = facing away from the finish, event 9).
+        /// </summary>
+        public static GameObject PlaceStadium(Scene scene, int eventNum, int lane, float extraYawDeg = 0f)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(StadiumAsset) ?? throw new FileNotFoundException(StadiumAsset);
+            var st = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+            st.name = "Stadium";
+            var (_, yaw) = VenueLane(eventNum, lane);
+            yaw += extraYawDeg;
+            st.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(0f, 180f, 0f));
+            var name = $"E{eventNum:00}_L{lane}";
+            var anchor = Array.Find(st.GetComponentsInChildren<Transform>(true), t => t.name == name)
+                         ?? throw new MissingReferenceException($"lane anchor {name} not in {StadiumAsset}");
+            st.transform.position = -anchor.position;
+            foreach (var c in st.GetComponentsInChildren<Component>(true))
+                if (c is Collider || c is Rigidbody) throw new InvalidOperationException($"stadium must be render-only: {c.GetType().Name} on {c.name}");
+            StadiumLook.Dress(st);
+            return st;
+        }
+
+        public const string IronPedestalHeatScene = "Assets/_Project/Scenes/Event_IronPedestal_Heat.unity";
+        public const string PedestalHeatSource = "Training/assets/scene_pedestal8.xml";
+        public const string PedestalHeatLayout = "Training/assets/pedestal8_layout.json";
+        // Phase Z: the official heat is a mixed meet — MATT in lanes 1/3/5/7, the zombie in 2/4/6/8
+        // (Training/tools/compose_mixed.py pedestal8 matt,zombie,…)
+        public const string PedestalMixedSource = "Training/assets/scene_pedestal8_mzmzmzmz.xml";
+        public const string PedestalMixedLayout = "Training/assets/pedestal8_mzmzmzmz_layout.json";
+        public const string ZombieAsset = "Assets/_Project/Agents/Characters/Zombie.glb";
+        public const string GrandmaAsset = "Assets/_Project/Agents/Characters/Grandma.glb";   // SourceArt/Grandma/grandma.glb (rig_grandma.py)
+        // Roster scenes (Training/tools/compose_mixed.py <scene> roster): MATT (L<k>_) + zombie (Z<k>_) in every lane;
+        // LaneLineup keeps the body picked in the main menu and switches the other off before MuJoCo compiles.
+        public const string PedestalRosterSource = "Training/assets/scene_pedestal16_roster.xml";
+        public const string PedestalRosterLayout = "Training/assets/pedestal16_roster_layout.json";
+        public const string DefaultZombieRung2Brain = "zombie_rung2.onnx";
+        public const string DefaultZombieRung0Brain = "zombie_rung0.onnx";
+        // GRANDMA (Phase G): Rung 0 = g0_v2 it 1499 (G1 10/10); Rung 2 = g2ramp_v2 it 300 (G1 100/100, zero falls).
+        // Its ramp critic is incompatible with the actor interface, so confidence telemetry remains uncalibrated.
+        // No crawl brain: the all-fours scenes (8, 23) hold MATT + zombie only.
+        public const string DefaultGrandmaRung0Brain = "grandma_rung0.onnx";
+        public const string DefaultGrandmaRung2Brain = "grandma_rung2.onnx";
+        // KIM (Phase K, 2026-10-11): SourceArt/Kim/kim.glb (convert_kim.py); Rung 0 = k0_v1 it 1499 (G1 10/10), Rung 2 =
+        // k2_v3 it 600 (G1 10/10, 29/30), crawl = kcrawl_v2 it 999 (30 m 5/5)
+        public const string KimAsset = "Assets/_Project/Agents/Characters/Kim.glb";
+        public const string DefaultKimRung0Brain = "kim_rung0.onnx";
+        public const string DefaultKimRung2Brain = "kim_rung2.onnx";
+
+        /// <summary>Per-body assets: contract (Models/contract[_body].json), visual (glTF) and lane label letter.</summary>
+        public static (string contract, string visual, string letter) BodyAssets(string body) => body switch
+        {
+            "matt" => ("Assets/_Project/RL_Models/contract.json", VisualBinding.MattAsset, "M"),
+            "zombie" => ("Assets/_Project/RL_Models/contract_zombie.json", ZombieAsset, "Z"),
+            "mattbio" => ("Assets/_Project/RL_Models/contract_mattbio.json", VisualBinding.MattAsset, "M"),   // MATT's skeleton
+            "grandma" => ("Assets/_Project/RL_Models/contract_grandma.json", GrandmaAsset, "G"),
+            "kim" => ("Assets/_Project/RL_Models/contract_kim.json", KimAsset, "K"),
+            _ => throw new ArgumentException($"unknown athlete body '{body}'"),
+        };
+
+        /// <summary>
+        /// Event 1 official heat: 8 athletes shoulder to shoulder (0.7 m) on the stadium's iron beam (lane origins and the
+        /// beam come from the venue layout, so physics beam = stadium beam; crowd scene: the athletes collide), 16 pooled
+        /// cubes, IronPedestalHeat + HUD. Mixed meet: every lane carries its own body (layout "body"), contract, brain and
+        /// visual.
+        /// </summary>
+        [MenuItem("PoOlympic/Events/Build Event 1 — Iron Pedestal Heat (MATT + zombie)")]
+        public static string BuildIronPedestalHeat() => BuildIronPedestalHeat(DefaultRung0Brain, PedestalRosterSource, PedestalRosterLayout);
+
+        public static string BuildIronPedestalHeat(string brainFile) => BuildIronPedestalHeat(brainFile, PedestalHeatSource, PedestalHeatLayout);
+
+        public static string BuildIronPedestalHeat(string brainFile, string source, string layoutPath, string zombieBrain = DefaultZombieRung0Brain,
+                                                   string grandmaBrain = DefaultGrandmaRung0Brain)
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            ParityHarness.SyncArtifacts();
+            AthleteImport.SyncModel(layoutPath);
+            var layout = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Application.dataPath), layoutPath)));
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var physics = AthleteImport.ImportIntoActiveScene(source);
+
+            var src = EditorSceneManager.OpenScene(ParityHarness.TestbedScene, OpenSceneMode.Additive);
+            GameObject Copy(string name)
+            {
+                var clone = UnityEngine.Object.Instantiate(Array.Find(src.GetRootGameObjects(), g => g.name == name));
+                clone.name = name;
+                SceneManager.MoveGameObjectToScene(clone, scene);
+                return clone;
+            }
+            var cam = Copy("Main Camera");
+            Copy("Sun");
+            EditorSceneManager.CloseScene(src, true);
+            SceneManager.SetActiveScene(scene);
+            PlaceStadium(scene, 1, AthleteLane);
+
+            var beamRend = scene.GetRootGameObjects().First(g => g.name == "Stadium").GetComponentsInChildren<Renderer>(true)
+                                .FirstOrDefault(r => r.name == "E01_Beam");
+            var beamMat = beamRend != null ? beamRend.sharedMaterial : IronPedestalMaterial();
+            if (beamRend != null) beamRend.enabled = false;
+            var cubeMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Environments/Materials/PoolCube.mat");
+            foreach (var rend in physics.GetComponentsInChildren<Renderer>(true))
+            {
+                if (rend.GetComponent<MjGeom>() == null) continue;
+                bool cube = rend.gameObject.name.StartsWith("cube");
+                bool beam = rend.gameObject.name == "pedestal";
+                rend.enabled = cube || beam;             // widened 2-row beam matches Physics directly
+                if (beam && beamMat != null) rend.sharedMaterial = beamMat;
+                if (cube && cubeMat != null) rend.sharedMaterial = cubeMat;
+            }
+
+            var brains = new System.Collections.Generic.Dictionary<string, string> { { "matt", brainFile }, { "zombie", zombieBrain }, { "grandma", grandmaBrain },
+                                                                                     { "kim", DefaultKimRung0Brain } };
+            var pool = new GameObject("CubePool").AddComponent<MjCubePool>();
+            pool.poolSize = (int)layout["n_cubes"];
+            var heat = new GameObject("IronPedestalHeat").AddComponent<IronPedestalHeat>();
+            heat.cubes = pool;
+            MjBody focusPelvis = null;
+            var lineup = new System.Collections.Generic.List<string>();
+            var lanes = new GameObject("LaneLineup").AddComponent<LaneLineup>();
+            lanes.physicsRoot = physics;
+            lanes.pool = pool;
+            lanes.focusLane = AthleteLane;
+            foreach (var l in layout["lanes"])
+            {
+                int k = (int)l["lane"];
+                string prefix = (string)l["prefix"];
+                string body = (string)l["body"] ?? "matt";
+                lineup.Add(body);
+                var (contractPath, visualPath, letter) = BodyAssets(body);
+                var o = l["origin"];
+                var go = new GameObject($"Athlete_Lane{k + 1}_{body.ToUpperInvariant()}");
+                var r = go.AddComponent<PolicyRunner>();
+                r.contractJson = AssetDatabase.LoadAssetAtPath<TextAsset>(contractPath) ?? throw new FileNotFoundException(contractPath);
+                r.brain = AssetDatabase.LoadAssetAtPath<ModelAsset>($"{ParityHarness.ModelsFolder}/Brains/{brains[body]}") ?? throw new FileNotFoundException(brains[body]);
+                r.brainSidecar = AssetDatabase.LoadAssetAtPath<TextAsset>($"{ParityHarness.ModelsFolder}/Brains/{brains[body]}.json");
+                r.athletePrefix = prefix;
+                r.laneOriginX = (double)o[0];
+                r.laneOriginY = (double)o[1];
+                r.startYawDeg = l["yaw_deg"] != null ? (double)l["yaw_deg"] : 0.0;
+                r.cubeSlots = l["cubes"].Select(c => (int)c).ToArray();
+                r.useStandardParityScript = false;
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(visualPath) ?? throw new FileNotFoundException(visualPath);
+                var visual = (GameObject)PrefabUtility.InstantiatePrefab(prefab, go.transform);
+                visual.name = $"{body.ToUpperInvariant()}_Visual";
+                visual.transform.SetPositionAndRotation(new Vector3((float)o[0], (float)o[2], (float)o[1]), VisualBinding.GltfToPlugin);
+                var binder = visual.AddComponent<BoneBinder>();
+                binder.Capture(physics.transform, prefix);
+                var (pe, re) = binder.BindError();
+                if (pe > 0.01f || re > 1f) throw new InvalidOperationException($"lane {k} ({body}) bind error {pe * 1000f:F2} mm / {re:F2} deg");
+                heat.runners.Add(new IronPedestalHeat.Runner { runner = r, name = $"{letter}{k + 1}" });
+                var pelvis = Array.Find(physics.GetComponentsInChildren<MjBody>(true), bd => bd.name == prefix + "pelvis");
+                lanes.entries.Add(new LaneLineup.Entry { lane = k, body = body, runner = r, pelvis = pelvis.gameObject });
+                if (k == AthleteLane && body == "matt") focusPelvis = pelvis;
+            }
+            pool.runner = heat.runners[0].runner;
+            string version = lineup.Distinct().Count() > 1
+                ? "v0 · " + string.Join(" + ", lineup.Distinct().Select(b => Path.GetFileNameWithoutExtension(brains[b])))
+                : $"v0 · {Path.GetFileNameWithoutExtension(brainFile)} · 8 runners";
+            lanes.broadcastCamera = cam.GetComponent<BroadcastCamera>();
+
+            var cc = cam.GetComponent<Camera>();
+            cc.nearClipPlane = 0.2f;
+            cc.farClipPlane = 1000f;
+            var bc = cam.GetComponent<BroadcastCamera>();
+            bc.target = focusPelvis;
+            bc.focusOffset = new Vector3(-0.7f, 0f, 0.35f);  // centre of the 2 rows of 8
+            bc.offset = new Vector3(5.6f, 3.0f, -7.8f);      // front-left end of the widened beam: both rows fit in a 9:16 frame
+            AddBroadcast(heat, "IRON PEDESTAL", "Event 1 · last one standing", 1, version, cam, BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(scene, IronPedestalHeatScene);
+            return $"{IronPedestalHeatScene}: {heat.runners.Count} athletes ({string.Join(",", lineup.Distinct())} in every lane), brains {string.Join(" / ", brains.Values)}";
+        }
+
+        public const string TrackSource = "Training/assets/scene_track16_roster.xml";
+        public const string TrackLayout = "Training/assets/track16_roster_layout.json";
+        public const string InvertedSource = "Training/assets/scene_inverted16_roster.xml";
+        public const string InvertedLayout = "Training/assets/inverted16_roster_layout.json";
+        // Event 8 (30m All Fours): crawlers 1.1 m apart in 2 rows of 8 (venue 08; crowd scene) — the other track races keep 1.22 m lanes
+        public const string CrawlSource = "Training/assets/scene_crawl16_roster.xml";
+        public const string CrawlLayout = "Training/assets/crawl16_roster_layout.json";
+        public const string DefaultRung2Brain = "rung2.onnx";
+        // Event 8 (30m All Fours): crawl brains per body (Training/poolympic/tasks/crawl_env.py)
+        public const string AllFoursScene = "Assets/_Project/Scenes/Event_30mAllFours.unity";
+        public const string CrawlMattBrain = "crawl_matt.onnx";
+        public const string CrawlZombieBrain = "crawl_zombie.onnx";
+        public const string CrawlGrandmaBrain = "crawl_grandma.onnx";
+        public const string CrawlKimBrain = "crawl_kim.onnx";
+        // Event 13 (Steeplechase Jog): MATT's flight brain (tasks PoOlympic-Matt-Rung2-Flight, r2f_v3 it100); the zombie
+        // keeps its Rung 2 brain
+        public const string SteepleScene = "Assets/_Project/Scenes/Event_SteeplechaseJog.unity";
+        public const string FlightMattBrain = "r2f_v3_it100.onnx";
+        public static readonly (int ev, TrackRaceEvent.Mode mode, string title, string scene)[] TrackEvents =
+        {
+            (4, TrackRaceEvent.Mode.Funnel, "FUNNEL BOTTLENECK", FunnelScene),
+            (6, TrackRaceEvent.Mode.Crossroad, "FIGURE-8 CROSSROAD", CrossroadScene),
+            (8, TrackRaceEvent.Mode.AllFours, "30m ALL FOURS", AllFoursScene),   // replaced The 30m Dash (2026-09-29)
+            (18, TrackRaceEvent.Mode.PackMile, "INSIDE-RAIL PACK MILE", PackMileScene),
+            (19, TrackRaceEvent.Mode.Terminal, "TERMINAL VELOCITY", "Assets/_Project/Scenes/Event_TerminalVelocity.unity"),
+            (22, TrackRaceEvent.Mode.Brake, "EMERGENCY BRAKE", "Assets/_Project/Scenes/Event_EmergencyBrake.unity"),
+            (9, TrackRaceEvent.Mode.Inverted, "INVERTED SPRINT", "Assets/_Project/Scenes/Event_InvertedSprint.unity"),
+            (13, TrackRaceEvent.Mode.Steeplechase, "STEEPLECHASE JOG", SteepleScene),
+            (27, TrackRaceEvent.Mode.Resurrection, "RESURRECTION DASH", ResurrectionScene),
+        };
+        public const string FunnelScene = "Assets/_Project/Scenes/Event_FunnelBottleneck.unity";
+        public const string FunnelSource = "Training/assets/scene_funnel8_roster.xml";
+        public const string FunnelLayout = "Training/assets/funnel8_roster_layout.json";
+        public const string CrossroadScene = "Assets/_Project/Scenes/Event_CrossroadDash.unity";
+        public const string CrossroadSource = "Training/assets/scene_crossroad8_roster.xml";
+        public const string CrossroadLayout = "Training/assets/crossroad8_roster_layout.json";
+        public const string PackMileScene = "Assets/_Project/Scenes/Event_PackMile.unity";
+        // Event 14 (The Alpine Ramp): each body's slope brain (tasks PoOlympic-<Body>-Rung4-Slope15) on the track scene with
+        // gravity tilted by 15 deg (TrackRaceEvent.Mode.Ramp); the stadium is turned so its ramp lies on the flat track
+        public const string RampScene = "Assets/_Project/Scenes/Event_AlpineRamp.unity";
+        public const string RampMattBrain = "slope_matt.onnx", RampZombieBrain = "slope_zombie.onnx", RampGrandmaBrain = "slope_grandma.onnx", RampKimBrain = "slope_kim.onnx";
+        public const float RampFootX = 2.0f + 0.2f;   // m to shift the stadium back: its ramp foot is 2 m past the venue lane anchor (build_venues.py E14) and goes 0.2 m behind the start line (the athletes start 0.2 m up it)
+
+        [MenuItem("PoOlympic/Events/Build Event 14 — The Alpine Ramp")]
+        public static string BuildAlpineRamp() => BuildTrackRace(14, TrackRaceEvent.Mode.Ramp, "ALPINE RAMP", RampScene, RampOr(RampMattBrain, DefaultRung2Brain));
+
+        /// <summary>A body without a slope brain races with its flat-ground Rung 2 brain (it does not get far up a 15° ramp).</summary>
+        static string RampOr(string slopeBrain, string fallback) => File.Exists(Path.Combine("Assets/_Project/RL_Models/Brains", slopeBrain)) ? slopeBrain : fallback;
+        // Event 27 (The Resurrection Dash): Rung 2 brains + each body's get-up brain (BroadcastFx.Install wires them)
+        public const string ResurrectionScene = "Assets/_Project/Scenes/Event_ResurrectionDash.unity";
+
+        [MenuItem("PoOlympic/Events/Build Event 27 — The Resurrection Dash")]
+        public static string BuildResurrectionDash() =>
+            BuildTrackRace(27, TrackRaceEvent.Mode.Resurrection, "RESURRECTION DASH", ResurrectionScene, DefaultRung2Brain);
+
+        [MenuItem("PoOlympic/Events/Build Track Races (4, 6, 8, 9, 13, 18, 19, 22, 27)")]
+        public static string BuildTrackRaces()
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var t in TrackEvents)
+                sb.AppendLine(t.mode switch
+                {
+                    TrackRaceEvent.Mode.AllFours => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, CrawlSource, CrawlLayout),
+                    TrackRaceEvent.Mode.Inverted => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, InvertedSource, InvertedLayout),
+                    TrackRaceEvent.Mode.Funnel => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, FunnelSource, FunnelLayout),
+                    TrackRaceEvent.Mode.Crossroad => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain, CrossroadSource, CrossroadLayout),
+                    _ => BuildTrackRace(t.ev, t.mode, t.title, t.scene, DefaultRung2Brain),
+                });
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Straight-track race scene: 8 runners on scene_track8.xml (lane origins from the stadium venue), stadium snapped
+        /// to the event's lane 4, TrackRaceEvent + RaceHud, broadcast camera trackside following lane 4.
+        /// Backward races (Inverted): the athletes face away from the finish — the stadium is turned 180° about venue lane 5
+        /// (the MuJoCo lane layout is the mirror image), so MuJoCo lane k runs in venue lane 8 - k.
+        /// </summary>
+        public static string BuildTrackRace(int eventNum, TrackRaceEvent.Mode mode, string title, string scenePath, string brainFile)
+            => BuildTrackRace(eventNum, mode, title, scenePath, brainFile, TrackSource, TrackLayout);
+
+        public static string BuildTrackRace(int eventNum, TrackRaceEvent.Mode mode, string title, string scenePath, string brainFile,
+                                            string source, string layout, float distance = 0f)
+        {
+            bool reversed = mode == TrackRaceEvent.Mode.Inverted;
+            bool crawl = mode == TrackRaceEvent.Mode.AllFours;
+            bool steeple = mode == TrackRaceEvent.Mode.Steeplechase;
+            var brains = crawl ? new System.Collections.Generic.Dictionary<string, string> { { "matt", CrawlMattBrain }, { "zombie", CrawlZombieBrain },
+                                                                                             { "grandma", CrawlGrandmaBrain }, { "kim", CrawlKimBrain } }
+                       : steeple ? new System.Collections.Generic.Dictionary<string, string> { { "matt", FlightMattBrain }, { "zombie", DefaultZombieRung2Brain },
+                                                                                               { "grandma", DefaultGrandmaRung2Brain }, { "kim", DefaultKimRung2Brain } }
+                       : mode == TrackRaceEvent.Mode.Ramp ? new System.Collections.Generic.Dictionary<string, string> { { "matt", RampOr(RampMattBrain, DefaultRung2Brain) },
+                                                                                               { "zombie", RampOr(RampZombieBrain, DefaultZombieRung2Brain) },
+                                                                                               { "grandma", RampOr(RampGrandmaBrain, DefaultGrandmaRung2Brain) }, { "kim", RampOr(RampKimBrain, DefaultKimRung2Brain) } }
+                       : null;
+            if (crawl) brainFile = CrawlMattBrain;
+            if (steeple) brainFile = FlightMattBrain;
+            // Event 27 / 4 / 18 run on the Terminal Velocity back straightaway; Event 6 (Crossroad) uses infield open turf
+            int venue = mode is TrackRaceEvent.Mode.Resurrection or TrackRaceEvent.Mode.Funnel or TrackRaceEvent.Mode.PackMile ? 19
+                      : mode == TrackRaceEvent.Mode.Crossroad ? 5 : eventNum;
+            var meet = BuildMeetScene(source, layout, venue, reversed ? 7 - AthleteLane : AthleteLane, reversed ? 180f : 0f, brainFile, brains);
+            if (mode == TrackRaceEvent.Mode.Crossroad) HideStadiumProps(meet.Scene, "E05_Shaker");
+            var race = new GameObject("TrackRaceEvent").AddComponent<TrackRaceEvent>();
+            race.mode = mode;
+            (race.distance, race.commandSpeed, race.maxSeconds) = TrackRaceEvent.Defaults(mode);
+            if (mode == TrackRaceEvent.Mode.PackMile) { race.breakX = 2f; race.aggressivePack = true; }
+            if (distance > 0f) race.distance = distance;
+            foreach (var (k, r) in meet.Lanes)
+            {
+                int labelNum = reversed ? (k / 8) * 8 + (8 - k % 8) : k + 1;
+                race.runners.Add(new TrackRaceEvent.Runner { runner = r, name = LaneLabel($"L{labelNum}", r) });
+                if (crawl)
+                {
+                    // all_fours.py prone_start: face down, head towards the finish, pelvis at 0.22 m × λ (λ = SpeedScale²)
+                    double s = Contract.Parse(r.contractJson.text).SpeedScale;
+                    r.startProne = true;
+                    r.proneHeight = 0.22 * s * s;
+                    r.crawlSteering = true;
+                    EditorUtility.SetDirty(r);
+                }
+                if (mode == TrackRaceEvent.Mode.Resurrection)
+                {
+                    // track.py resurrection: on the back, pelvis at SUPINE_Z × the body's height scale (fall line / MATT's)
+                    r.startSupine = true;
+                    r.supineHeight = 0.22 * Contract.Parse(r.contractJson.text).FallPelvisZ / 0.55;
+                    EditorUtility.SetDirty(r);
+                }
+            }
+            meet.Pool.runner = race.runners[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(reversed ? -1.0f : 1.0f, 0f, -0.6f);   // centre of the 8 lanes (Unity z = +3.66 .. -4.88), a bit ahead
+            bc.offset = new Vector3(reversed ? 3.5f : -3.5f, 3.2f, -13f);      // trackside, slightly behind the pack (backward runners face it)
+            if (crawl) { bc.offset = new Vector3(-3.0f, 2.0f, -9f); bc.lookHeight = 0.4f; }   // crawlers are ~0.5 m tall
+            if (mode == TrackRaceEvent.Mode.Resurrection) bc.lookHeight = 0.6f;   // they start lying down
+            if (mode == TrackRaceEvent.Mode.Funnel)
+                ColorMjGeoms(name => name.StartsWith("funnel_w"), StageMaterial("FunnelBarrier", new Color(0.82f, 0.28f, 0.14f), 0.35f));
+            if (mode == TrackRaceEvent.Mode.Crossroad)
+            {
+                bc.target = null;
+                bc.focusOffset = new Vector3(12f, 0.9f, 0f);
+                bc.offset = new Vector3(-4f, 9f, -14f);
+            }
+            AddBroadcast(race, title, $"Event {eventNum}", eventNum, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Race,
+                         reversed ? Vector3.left : Vector3.right);
+            if (mode == TrackRaceEvent.Mode.Ramp)
+            {
+                // the stadium's ramp onto the flat track: its foot under the start line, then everything static (stadium, sun,
+                // fill lights, probes) turned by -slope about the foot; RampView turns the camera the same way
+                foreach (var g in meet.Scene.GetRootGameObjects())
+                {
+                    if (g.name is not ("Stadium" or "Sun" or "AthleteFill" or "ArenaProbes")) continue;
+                    if (g.name == "Stadium") g.transform.position += Vector3.left * RampFootX;
+                    g.transform.RotateAround(new Vector3(-0.2f, 0f, 0f), Vector3.forward, -race.slopeDeg);
+                }
+                var view = meet.Camera.AddComponent<RampView>();
+                view.slopeDeg = race.slopeDeg;
+            }
+            HandTunedSave.SaveBuilt(meet.Scene, scenePath);
+            return $"{scenePath}: {mode}, {race.runners.Count} runners, {race.distance} m, brain {brainFile}";
+        }
+
+        public const string TrenchScene = "Assets/_Project/Scenes/Event_TrenchCrawl.unity";
+        public const string TrenchSource = "Training/assets/scene_trench8_roster.xml";
+        public const string TrenchLayout = "Training/assets/trench8_roster_layout.json";
+        public const float TrenchDistance = 16f;   // = all_fours.TRENCH_DISTANCE
+
+        /// <summary>Event 23: the all-fours race (crawl brains) over the venue's 16 m under the trench ceiling
+        /// (build_mjcf.trench_props: 12 m slab, underside 0.72 m, posts outside the lanes). The ceiling and posts are
+        /// physical, so they are drawn by their MuJoCo geoms (translucent TrenchGlass slab, stadium steel posts); the
+        /// stadium's own render-only trench (0.60 m, older export) is hidden.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 23 — The Trench Crawl")]
+        public static string BuildTrenchCrawl()
+        {
+            var msg = BuildTrackRace(23, TrackRaceEvent.Mode.AllFours, "THE TRENCH CRAWL", TrenchScene, CrawlMattBrain, TrenchSource, TrenchLayout, TrenchDistance);
+            var scene = EditorSceneManager.OpenScene(TrenchScene);
+            var art = scene.GetRootGameObjects().First(g => g.name == "Stadium").GetComponentsInChildren<Renderer>(true)
+                           .Where(r => r.name.StartsWith("E23_")).ToArray();
+            var slab = TrenchGlass();                         // see-through: the broadcast cameras film the crawlers from above
+            var steel = art.FirstOrDefault(r => r.name.Contains("Post"))?.sharedMaterial;
+            int hidden = 0, shown = 0;
+            foreach (var r in art.Where(r => r.name.Contains("Ceiling") || r.name.Contains("Post"))) { r.enabled = false; hidden++; }
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (!g.name.StartsWith("trench_") || !g.TryGetComponent<Renderer>(out var rend)) continue;
+                rend.enabled = true;
+                rend.sharedMaterial = g.name.Contains("ceiling") ? slab : steel;
+                shown++;
+            }
+            if (shown != 9) throw new InvalidOperationException($"expected 9 MuJoCo trench geoms (ceiling + 8 posts), found {shown}");
+
+            EditorSceneManager.SaveScene(scene);
+            return $"{msg}; trench: {shown} MuJoCo geoms drawn, {hidden} stadium renderers hidden";
+        }
+
+        public const string TrenchGlassMaterial = "Assets/_Project/Environments/Materials/TrenchGlass.mat";
+
+        /// <summary>Tinted, translucent URP material for the trench ceiling (an opaque slab hides the crawlers from every
+        /// broadcast angle but a sub-0.7 m one, where it is an invisible 4 cm line).</summary>
+        static Material TrenchGlass()
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(TrenchGlassMaterial);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "TrenchGlass" };
+            mat.SetFloat("_Surface", 1f);                  // transparent
+            mat.SetFloat("_Blend", 0f);                    // alpha
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.SetFloat("_Cull", 0f);                     // both faces (seen from above and below)
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.SetColor("_BaseColor", new Color(0.55f, 0.75f, 0.95f, 0.28f));
+            mat.SetFloat("_Smoothness", 0.85f);
+            AssetDatabase.CreateAsset(mat, TrenchGlassMaterial);
+            return mat;
+        }
+
+        public const string TurntableScene = "Assets/_Project/Scenes/Event_360Turntable.unity";
+        public const string TurntableSource = "Training/assets/scene_turntable16_roster.xml";
+        public const string TurntableLayout = "Training/assets/turntable16_roster_layout.json";
+
+        /// <summary>Event 12: 8 athletes on the venue's ring of spin spots, 0.75 m apart (scene_turntable8.xml, crowd scene),
+        /// TurntableEvent + HUD.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 12 — 360 Turntable")]
+        public static string BuildTurntable() => BuildTurntable(DefaultRung2Brain);
+
+        public static string BuildTurntable(string brainFile)
+        {
+            var meet = BuildMeetScene(TurntableSource, TurntableLayout, 12, AthleteLane, 0f, brainFile);
+            var ev = new GameObject("TurntableEvent").AddComponent<TurntableEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.spinners.Add(new TurntableEvent.Spinner { runner = r, name = LaneLabel($"S{k + 1}", r) });
+            meet.Pool.runner = ev.spinners[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-0.69f, 0f, 0.69f); // centre of the concentric rings (spot S4 is the origin)
+            bc.offset = new Vector3(6.8f, 4.4f, -6.8f);      // wider front three-quarter for inner + outer 8-rings
+            AddBroadcast(ev, "THE 360 TURNTABLE", "Event 12", 12, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, TurntableScene);
+            return $"{TurntableScene}: {ev.spinners.Count} athletes, {ev.turns} turns at {ev.spinRate} rad/s, brain {brainFile}";
+        }
+
+        public const string SquatScene = "Assets/_Project/Scenes/Event_DeepSquat.unity";
+        public const string SquatSource = "Training/assets/scene_squat8_mattbio.xml";
+        public const string SquatLayout = "Training/assets/squat8_mattbio_layout.json";
+        // Event 3: the Rung S brain (contract v4 pelvis-height command), trained on the mattbio body -> all-mattbio scene
+        // Per-event stance brains (user decision 2026-10-01). Event 3 keeps rs_v6 it 3299: in CPU heats of the event (12 reps
+        // to 45 cm, feet may slide 20 cm) it has 1-4 finishers per heat; rs_v8 it 1199 (G1 squat drill also 10/10) has none.
+        public const string SquatBrain = "rsq_v2_it500.onnx";   // squat specialist: 80 of 80 finish the event's 12 reps (rs_v6 it 3299: 7 of 24)
+
+        /// <summary>Event 3: 8 mattbio athletes on the venue's 2 x 4 station grid (3 m x 4 m apart, scene_squat8_mattbio.xml),
+        /// DeepSquatEvent + HUD.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 3 — Deep Squat Endurance")]
+        public static string BuildDeepSquat() => BuildDeepSquat(SquatBrain);
+
+        public static string BuildDeepSquat(string brainFile)
+        {
+            var meet = BuildMeetScene(SquatSource, SquatLayout, 3, AthleteLane, 0f, brainFile,
+                                      new System.Collections.Generic.Dictionary<string, string> { { "mattbio", brainFile } });
+            var ev = new GameObject("DeepSquatEvent").AddComponent<DeepSquatEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.squatters.Add(new DeepSquatEvent.Squatter { runner = r, name = $"S{k + 1}" });
+            meet.Pool.runner = ev.squatters[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-4.5f, 0f, -2f);    // grid centre (station S4 is the origin; rows at y = 0 / -4 m)
+            bc.offset = new Vector3(8.5f, 4.0f, -5.0f);      // front three-quarter: the athletes face +x
+            AddBroadcast(ev, "DEEP SQUAT", "Event 3", 3, $"v0 · {Path.GetFileNameWithoutExtension(brainFile)}", meet.Camera,
+                         BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, SquatScene);
+            return $"{SquatScene}: {ev.squatters.Count} athletes, {ev.reps} reps, brain {brainFile}";
+        }
+
+        public const string ArcherScene = "Assets/_Project/Scenes/Event_TorsoArcher.unity";
+        public const string ReachScene = "Assets/_Project/Scenes/Event_JavelinReach.unity";
+        // Events 2 / 4: Rung S brains on the all-mattbio scenes of venues 2 / 4 (tools/compose_mixed.py archer8 / reach8: the
+        // 2 x 4 station grid, no props). Torso: rs_v8 it 1199 (every aim inside the spine's ±45° within 2°); reach:
+        // rs_reach_v1 it 1199 (targets to 0.78 of the reach radius within 9 cm).
+        public const string ArcherBrain = "rs_v8_it1199.onnx";
+        public const string ReachBrain = "rs_reach_v1_it1199.onnx";
+        public const string TargetMaterial = "Assets/_Project/Environments/Materials/TargetMarker.mat";
+
+        [MenuItem("PoOlympic/Events/Build Event 2 — Torso Archer")]
+        public static string BuildTorsoArcher() => BuildTargetEvent(TargetEvent.Kind.Archer, 2, "archer8", ArcherBrain, ArcherScene, "TORSO ARCHER", 0.22f);
+
+        [MenuItem("PoOlympic/Events/Build Event 4 — Precision Javelin Reach")]
+        public static string BuildJavelinReach() => BuildTargetEvent(TargetEvent.Kind.Reach, 4, "reach8", ReachBrain, ReachScene, "JAVELIN REACH", 0.10f);
+
+        /// <summary>Events 2 / 4: 8 mattbio athletes on the venue's 2 x 4 station grid, TargetEvent + HUD, one target marker
+        /// per lane (a glowing ball the event moves; hidden until GO).</summary>
+        static string BuildTargetEvent(TargetEvent.Kind kind, int number, string model, string brainFile, string scenePath, string title, float markerSize)
+        {
+            var meet = BuildMeetScene($"Training/assets/scene_{model}_mattbio.xml", $"Training/assets/{model}_mattbio_layout.json", number,
+                                      AthleteLane, 0f, brainFile, new System.Collections.Generic.Dictionary<string, string> { { "mattbio", brainFile } });
+            var ev = new GameObject("TargetEvent").AddComponent<TargetEvent>();
+            ev.kind = kind;
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(TargetMaterial);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = "TargetMarker" };
+                mat.SetColor("_BaseColor", new Color(1f, 0.72f, 0.1f));
+                AssetDatabase.CreateAsset(mat, TargetMaterial);
+            }
+            var markers = new GameObject("Targets");
+            foreach (var (k, r) in meet.Lanes)
+            {
+                var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                ball.name = $"Target_Lane{k + 1}";
+                UnityEngine.Object.DestroyImmediate(ball.GetComponent<Collider>());   // display only (no PhysX in the scenes)
+                ball.transform.SetParent(markers.transform);
+                ball.transform.localScale = Vector3.one * markerSize;
+                var rend = ball.GetComponent<Renderer>();
+                rend.sharedMaterial = mat;
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                ball.SetActive(false);
+                ev.aimers.Add(new TargetEvent.Aimer { runner = r, name = $"S{k + 1}", marker = ball.transform });
+            }
+            meet.Pool.runner = ev.aimers[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-4.5f, 0f, -2f);    // grid centre (station S4 is the origin; rows at y = 0 / -4 m)
+            bc.offset = new Vector3(8.5f, 4.0f, -5.0f);      // front three-quarter: the athletes face +x
+            AddBroadcast(ev, title, $"Event {number}", number, $"v0 · {Path.GetFileNameWithoutExtension(brainFile)}", meet.Camera,
+                         BroadcastDirector.Kind.Arena, Vector3.right);
+            // rs_reach_v1's checkpoint is gone (only the ONNX is in git), so its critic cannot be exported: the reach lanes
+            // read the general stance brain's critic (same observations and rewards; uncalibrated like every stance brain)
+            var standIn = AssetDatabase.LoadAssetAtPath<ModelAsset>($"{ParityHarness.ModelsFolder}/Brains/{Path.ChangeExtension(ArcherBrain, null)}.critic.onnx");
+            foreach (var a in ev.aimers)
+                if (a.runner.critic == null) { a.runner.critic = standIn; EditorUtility.SetDirty(a.runner); }
+            HandTunedSave.SaveBuilt(meet.Scene, scenePath);
+            return $"{scenePath}: {ev.aimers.Count} athletes, {ev.rounds} rounds, brain {brainFile}";
+        }
+
+        public const string FlamingoScene = "Assets/_Project/Scenes/Event_FlamingoClassic.unity";
+        // Event 6: Rung S brain rs_v6 it 2550 (the one checkpoint that passes the G1 flamingo drill 10/10; per-event stance
+        // brains, user decision 2026-10-01) on the all-mattbio scene of venue 6 (tools/compose_mixed.py flamingo8: the
+        // 2 x 4 station grid, no props).
+        public const string FlamingoSource = "Training/assets/scene_flamingo8_mattbio.xml";
+        public const string FlamingoLayout = "Training/assets/flamingo8_mattbio_layout.json";
+        public const string FlamingoBrain = "rs_v6_it2550.onnx";
+
+        /// <summary>Event 6: 8 mattbio athletes on the venue's 2 x 4 station grid, FlamingoEvent + HUD.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 6 — The Flamingo Classic")]
+        public static string BuildFlamingo() => BuildFlamingo(FlamingoBrain);
+
+        public static string BuildFlamingo(string brainFile)
+        {
+            var meet = BuildMeetScene(FlamingoSource, FlamingoLayout, 6, AthleteLane, 0f, brainFile,
+                                      new System.Collections.Generic.Dictionary<string, string> { { "mattbio", brainFile } });
+            var ev = new GameObject("FlamingoEvent").AddComponent<FlamingoEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.flamingos.Add(new FlamingoEvent.Flamingo { runner = r, name = $"S{k + 1}" });
+            meet.Pool.runner = ev.flamingos[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-4.5f, 0f, -2f);    // grid centre (station S4 is the origin; rows at y = 0 / -4 m)
+            bc.offset = new Vector3(8.5f, 4.0f, -5.0f);      // front three-quarter: the athletes face +x
+            AddBroadcast(ev, "THE FLAMINGO CLASSIC", "Event 6", 6, $"v0 · {Path.GetFileNameWithoutExtension(brainFile)}", meet.Camera,
+                         BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, FlamingoScene);
+            return $"{FlamingoScene}: {ev.flamingos.Count} athletes, gust {ev.gustStart} + {ev.gustStep} m/s every {ev.roundSeconds} s, brain {brainFile}";
+        }
+
+        public const string MarchScene = "Assets/_Project/Scenes/Event_CadenceMarch.unity";
+        // Event 7: Rung S brain rs_v8 it 1199 (G1 march drill 9/10, drift 6-17 cm) on the all-mattbio scene of venue 7
+        // (tools/compose_mixed.py march8: the 2 x 4 station grid + the metronome tower at its centre as a MuJoCo box; the
+        // stadium draws the tower).
+        public const string MarchSource = "Training/assets/scene_march8_mattbio.xml";
+        public const string MarchLayout = "Training/assets/march8_mattbio_layout.json";
+        public const string MarchBrain = "rs_v8_it1199.onnx";
+
+        /// <summary>Event 7: 8 mattbio athletes on the venue's 2 x 4 station grid, CadenceMarchEvent + HUD.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 7 — Cadence March")]
+        public static string BuildCadenceMarch() => BuildCadenceMarch(MarchBrain);
+
+        public static string BuildCadenceMarch(string brainFile)
+        {
+            var meet = BuildMeetScene(MarchSource, MarchLayout, 7, AthleteLane, 0f, brainFile,
+                                      new System.Collections.Generic.Dictionary<string, string> { { "mattbio", brainFile } });
+            var ev = new GameObject("CadenceMarchEvent").AddComponent<CadenceMarchEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.marchers.Add(new CadenceMarchEvent.Marcher { runner = r, name = $"S{k + 1}" });
+            meet.Pool.runner = ev.marchers[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-4.5f, 0f, -2f);    // grid centre (station S4 is the origin; rows at y = 0 / -4 m)
+            bc.offset = new Vector3(8.5f, 4.0f, -5.0f);      // front three-quarter: the athletes face +x
+            AddBroadcast(ev, "CADENCE MARCH", "Event 7", 7, $"v0 · {Path.GetFileNameWithoutExtension(brainFile)}", meet.Camera,
+                         BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, MarchScene);
+            return $"{MarchScene}: {ev.marchers.Count} athletes, {ev.stages} stages {ev.hzStart}-{ev.Cadence(ev.stages - 1)} Hz, brain {brainFile}";
+        }
+
+        public const string CrabScene = "Assets/_Project/Scenes/Event_CrabShuffle.unity";
+        public const string CrabSource = "Training/assets/scene_crab16_roster.xml";
+        public const string CrabLayout = "Training/assets/crab16_roster_layout.json";
+
+        /// <summary>Event 10: 8 athletes turned 90° to the course (they side-step to their right) between the physical
+        /// rails of scene_crab8.xml; CrabShuffleEvent + StandingsHud.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 10 — Crab Shuffle")]
+        public static string BuildCrabShuffle() => BuildCrabShuffle(DefaultRung2Brain);
+
+        public static string BuildCrabShuffle(string brainFile)
+        {
+            var meet = BuildMeetScene(CrabSource, CrabLayout, 10, AthleteLane, 90f, brainFile);
+            var layout = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Application.dataPath), CrabLayout)));
+            var ev = new GameObject("CrabShuffleEvent").AddComponent<CrabShuffleEvent>();
+            ev.railGeoms = layout["props"].Select(pr => (string)pr["name"]).ToArray();
+            foreach (var (k, r) in meet.Lanes) ev.racers.Add(new CrabShuffleEvent.Racer { runner = r, name = LaneLabel($"L{k + 1}", r) });
+            meet.Pool.runner = ev.racers[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-0.6f, 0f, -1.5f);  // centre of the 8 lanes (Unity x = +3.66 .. -4.88), a bit down the course
+            bc.offset = new Vector3(9.5f, 4f, -5.5f);        // in front of lane 1, down the course: the row recedes, faces + rails
+            AddBroadcast(ev, "CRAB SHUFFLE", "Event 10", 10, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Race, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, CrabScene);
+            return $"{CrabScene}: {ev.racers.Count} athletes, {ev.distance} m at {ev.sideSpeed} m/s, {ev.railGeoms.Length} rails, brain {brainFile}";
+        }
+
+        public const string SlalomScene = "Assets/_Project/Scenes/Event_SlalomSprint.unity";
+        public const string SlalomSource = "Training/assets/scene_slalom16_roster.xml";
+        public const string SlalomLayout = "Training/assets/slalom16_roster_layout.json";
+
+        /// <summary>Event 11: 8 runners weave through the 7 physical poles on each lane's centre line (scene_slalom8.xml,
+        /// 1.4 m lanes, crowd scene: mirror slalom — neighbours meet at every other pole); SlalomEvent + StandingsHud.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 11 — Slalom Sprint")]
+        public static string BuildSlalom() => BuildSlalom(DefaultRung2Brain);
+
+        public static string BuildSlalom(string brainFile)
+        {
+            var meet = BuildMeetScene(SlalomSource, SlalomLayout, 11, AthleteLane, 0f, brainFile);
+            var ev = new GameObject("SlalomEvent").AddComponent<SlalomEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.racers.Add(new SlalomEvent.Racer { runner = r, name = LaneLabel($"L{k + 1}", r), lane = k % 8 });
+            meet.Pool.runner = ev.racers[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(1.5f, 0f, -0.7f);   // centre of the 8 lanes (Unity z = +4.2 .. -5.6), ahead of the pack
+            bc.offset = new Vector3(-4f, 3.4f, -12f);        // trackside, outside lane 8, slightly behind the pack
+            AddBroadcast(ev, "SLALOM SPRINT", "Event 11", 11, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Race, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, SlalomScene);
+            return $"{SlalomScene}: {ev.racers.Count} runners, {ev.nPoles} poles, {ev.speed} m/s, brain {brainFile}";
+        }
+
+        public const string GauntletScene = "Assets/_Project/Scenes/Event_GustGauntlet.unity";
+        public const string ShakerSource = "Training/assets/scene_shaker16_roster.xml";
+        public const string ShakerLayout = "Training/assets/shaker16_roster_layout.json";
+
+        /// <summary>Event 5: 8 athletes in a 2 x 4 grid (0.8 m) on ONE spring-mounted shaker floor (scene_shaker8.xml, crowd
+        /// scene); GustGauntletEvent + StandingsHud. The floor moves, so it is drawn by its MuJoCo geom (stadium hazard
+        /// material) and the stadium's static floor is hidden.</summary>
+        [MenuItem("PoOlympic/Events/Build Event 5 — Gust Gauntlet")]
+        public static string BuildGustGauntlet() => BuildGustGauntlet(DefaultRung2Brain);
+
+        public static string BuildGustGauntlet(string brainFile)
+        {
+            var meet = BuildMeetScene(ShakerSource, ShakerLayout, 5, AthleteLane, 0f, brainFile);
+            var pads = meet.Scene.GetRootGameObjects().First(g => g.name == "Stadium").GetComponentsInChildren<Renderer>(true)
+                           .Where(r => r.name.StartsWith("E05_Shaker")).ToArray();
+            if (pads.Length != 1) throw new InvalidOperationException($"expected the stadium shaker floor, found {pads.Length}");
+            var hazard = pads[0].sharedMaterial;
+            foreach (var pad in pads) pad.enabled = false;
+            int shown = 0;
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (!(g.name == "shaker" || g.name.EndsWith("_shaker")) || !g.TryGetComponent<Renderer>(out var rend)) continue;
+                rend.enabled = true;
+                rend.sharedMaterial = hazard;
+                shown++;
+            }
+            if (shown != 1) throw new InvalidOperationException($"expected 1 MuJoCo shaker floor, found {shown}");   // shared by all lanes
+            var ev = new GameObject("GustGauntletEvent").AddComponent<GustGauntletEvent>();
+            foreach (var (k, r) in meet.Lanes) ev.athletes.Add(new GustGauntletEvent.Athlete { runner = r, name = LaneLabel($"S{k + 1}", r), lane = k });
+            meet.Pool.runner = ev.athletes[0].runner;
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = meet.FocusPelvis;
+            bc.focusOffset = new Vector3(-1.2f, 0f, -1.6f);  // centre of the 16-athlete shaker floor
+            bc.offset = new Vector3(6.8f, 4.4f, -6.8f);      // front three-quarter, wide enough for both 2 x 4 blocks
+            AddBroadcast(ev, "THE GUST GAUNTLET", "Event 5", 5, BrainsLabel(brainFile), meet.Camera, BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, GauntletScene);
+            return $"{GauntletScene}: {ev.athletes.Count} athletes, {ev.rounds} rounds, brain {brainFile}";
+        }
+
+        public const string HudStyle = "Assets/_Project/UI/BroadcastHud.uss";
+        public const string OddsModel = "Assets/_Project/RL_Models/odds_model.json";
+
+        /// <summary>D3 broadcast layer of an 8-athlete event scene: UI Toolkit BroadcastHud (standings + odds, betting slip,
+        /// ticker, result card, records, gauntlet) and a BroadcastDirector on the camera (tracking shots; the authored
+        /// BroadcastCamera offset becomes the establishing shot).</summary>
+        static BroadcastHud AddBroadcast(MonoBehaviour board, string title, string subtitle, int eventNum, string version, GameObject cam,
+                                         BroadcastDirector.Kind kind, Vector3 forward)
+        {
+            var go = new GameObject("BroadcastHUD");
+            var doc = go.AddComponent<UIDocument>();
+            doc.panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(MenuPanelSettings) ?? throw new FileNotFoundException(MenuPanelSettings);
+            var hud = go.AddComponent<BroadcastHud>();
+            hud.board = board;
+            hud.title = title;
+            hud.subtitle = subtitle;
+            hud.eventNumber = eventNum;
+            hud.version = version;
+            hud.style = AssetDatabase.LoadAssetAtPath<StyleSheet>(HudStyle) ?? throw new FileNotFoundException(HudStyle);
+            hud.oddsModel = AssetDatabase.LoadAssetAtPath<TextAsset>(OddsModel);
+            var bc = cam.GetComponent<BroadcastCamera>();
+            var dir = cam.GetComponent<BroadcastDirector>() ?? cam.AddComponent<BroadcastDirector>();
+            dir.board = board;
+            dir.kind = kind;
+            dir.forward = forward;
+            dir.establishing = bc.offset;
+            dir.lookHeight = bc.lookHeight;
+            // features 2/3/5/6/7/10: tension meter, Cinemachine rig, impact FX, audio, per-athlete telemetry + overlays
+            BroadcastFx.Install(hud, dir, UnityEngine.Object.FindObjectsByType<PolicyRunner>(FindObjectsInactive.Include));
+            return hud;
+        }
+
+        /// <summary>HUD lane label: the zombie's lanes read Z&lt;n&gt;, GRANDMA's G&lt;n&gt; (roster prefixes Z&lt;k&gt;_ / G&lt;k&gt;_),
+        /// MATT keeps the event's own label.</summary>
+        static string LaneLabel(string label, PolicyRunner r) =>
+            r.athletePrefix.StartsWith("Z") || r.athletePrefix.StartsWith("G") || r.athletePrefix.StartsWith("K") ? r.athletePrefix.Substring(0, 1) + label.Substring(1) : label;
+
+        static string BrainsLabel(string brainFile) =>
+            $"v0 · {Path.GetFileNameWithoutExtension(brainFile)} + " +
+            (brainFile == CrawlMattBrain ? $"{Path.GetFileNameWithoutExtension(CrawlZombieBrain)} + {Path.GetFileNameWithoutExtension(CrawlGrandmaBrain)} + {Path.GetFileNameWithoutExtension(CrawlKimBrain)}"
+                : $"{Path.GetFileNameWithoutExtension(DefaultZombieRung2Brain)} + {Path.GetFileNameWithoutExtension(DefaultGrandmaRung2Brain)} + {Path.GetFileNameWithoutExtension(DefaultKimRung2Brain)}");
+
+        public sealed class MeetScene
+        {
+            public Scene Scene;
+            public GameObject Camera;
+            public MjCubePool Pool;
+            public MjBody FocusPelvis;
+            public readonly System.Collections.Generic.List<(int lane, PolicyRunner runner)> Lanes = new();
+        }
+
+        /// <summary>
+        /// Shared setup of every 8-athlete event scene: the event MJCF (lane origins from the stadium venue), camera + sun
+        /// from the testbed, the render-only stadium snapped to venue lane `anchorLane` (turned by extraYawDeg), one
+        /// PolicyRunner + bound MATT visual per lane, the cube pool. MuJoCo geoms are hidden except the pool cubes (the
+        /// stadium draws the props). Focus pelvis = lane AthleteLane (the MuJoCo origin).
+        /// </summary>
+        public static MeetScene BuildMeetScene(string source, string layoutPath, int eventNum, int anchorLane, float extraYawDeg, string brainFile,
+                                               System.Collections.Generic.Dictionary<string, string> bodyBrains = null)
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            ParityHarness.SyncArtifacts();
+            AthleteImport.SyncModel(layoutPath);
+            var layout = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Application.dataPath), layoutPath)));
+            var meet = new MeetScene { Scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single) };
+            var physics = AthleteImport.ImportIntoActiveScene(source);
+            var src = EditorSceneManager.OpenScene(ParityHarness.TestbedScene, OpenSceneMode.Additive);
+            GameObject Copy(string name)
+            {
+                var clone = UnityEngine.Object.Instantiate(Array.Find(src.GetRootGameObjects(), g => g.name == name));
+                clone.name = name;
+                SceneManager.MoveGameObjectToScene(clone, meet.Scene);
+                return clone;
+            }
+            meet.Camera = Copy("Main Camera");
+            Copy("Sun");
+            EditorSceneManager.CloseScene(src, true);
+            SceneManager.SetActiveScene(meet.Scene);
+            PlaceStadium(meet.Scene, eventNum, anchorLane, extraYawDeg);
+
+            var cubeMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Environments/Materials/PoolCube.mat");
+            foreach (var rend in physics.GetComponentsInChildren<Renderer>(true))
+            {
+                if (rend.GetComponent<MjGeom>() == null) continue;
+                bool cube = rend.gameObject.name.StartsWith("cube");
+                rend.enabled = cube;
+                if (cube && cubeMat != null) rend.sharedMaterial = cubeMat;
+            }
+            // per-lane body (layout "body", tools/compose_mixed.py; default matt): its contract, brain and visual
+            bodyBrains ??= new System.Collections.Generic.Dictionary<string, string> { { "matt", brainFile }, { "zombie", DefaultZombieRung2Brain },
+                                                                                       { "grandma", DefaultGrandmaRung2Brain }, { "kim", DefaultKimRung2Brain } };
+            string BrainOf(string body) => bodyBrains.TryGetValue(body, out var b) ? b : brainFile;
+            meet.Pool = new GameObject("CubePool").AddComponent<MjCubePool>();
+            meet.Pool.poolSize = (int)layout["n_cubes"];
+            var lanes = new GameObject("LaneLineup").AddComponent<LaneLineup>();
+            lanes.physicsRoot = physics;
+            lanes.pool = meet.Pool;
+            lanes.focusLane = AthleteLane;
+            lanes.broadcastCamera = meet.Camera.GetComponent<BroadcastCamera>();
+            foreach (var l in layout["lanes"])
+            {
+                int k = (int)l["lane"];
+                string prefix = (string)l["prefix"];
+                string body = (string)l["body"] ?? "matt";
+                var (contractPath, visualPath, _) = BodyAssets(body);
+                var o = l["origin"];
+                var go = new GameObject($"Athlete_Lane{k + 1}_{body.ToUpperInvariant()}");
+                var r = go.AddComponent<PolicyRunner>();
+                r.contractJson = AssetDatabase.LoadAssetAtPath<TextAsset>(contractPath) ?? throw new FileNotFoundException(contractPath);
+                r.brain = AssetDatabase.LoadAssetAtPath<ModelAsset>($"{ParityHarness.ModelsFolder}/Brains/{BrainOf(body)}") ?? throw new FileNotFoundException(BrainOf(body));
+                r.brainSidecar = AssetDatabase.LoadAssetAtPath<TextAsset>($"{ParityHarness.ModelsFolder}/Brains/{BrainOf(body)}.json");
+                r.athletePrefix = prefix;
+                r.laneOriginX = (double)o[0];
+                r.laneOriginY = (double)o[1];
+                r.startYawDeg = l["yaw_deg"] != null ? (double)l["yaw_deg"] : 0.0;
+                r.cubeSlots = l["cubes"].Select(c => (int)c).ToArray();
+                r.useStandardParityScript = false;
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(visualPath) ?? throw new FileNotFoundException(visualPath);
+                var visual = (GameObject)PrefabUtility.InstantiatePrefab(prefab, go.transform);
+                visual.name = $"{body.ToUpperInvariant()}_Visual";
+                visual.transform.SetPositionAndRotation(new Vector3((float)o[0], (float)o[2], (float)o[1]), VisualBinding.GltfToPlugin);
+                var binder = visual.AddComponent<BoneBinder>();
+                binder.Capture(physics.transform, prefix);
+                var (pe, re) = binder.BindError();
+                if (pe > 0.01f || re > 1f) throw new InvalidOperationException($"lane {k} bind error {pe * 1000f:F2} mm / {re:F2} deg");
+                meet.Lanes.Add((k, r));
+                var pelvis = Array.Find(physics.GetComponentsInChildren<MjBody>(true), bd => bd.name == prefix + "pelvis");
+                lanes.entries.Add(new LaneLineup.Entry { lane = k, body = body, runner = r, pelvis = pelvis.gameObject });
+                if (k == AthleteLane && (body == "matt" || meet.FocusPelvis == null)) meet.FocusPelvis = pelvis;   // MATT, else the lane's body
+            }
+            var cc = meet.Camera.GetComponent<Camera>();
+            cc.nearClipPlane = 0.2f;
+            cc.farClipPlane = 1000f;
+            return meet;
+        }
+
+        public const string HubScene = "Assets/_Project/Scenes/Stadium_Hub.unity";
+        public const string CatalogJson = "Assets/_Project/Environments/Art/Stadium/events_catalog.json";
+        public const int CatalogEventCount = 16;
+
+        /// <summary>Retained event number → built event scene.</summary>
+        public static readonly System.Collections.Generic.Dictionary<int, string> EventScenePaths = new()
+        {
+            { 1, IronPedestalHeatScene },   // official 16-runner 2x8 heat (solo practice: Event_IronPedestal.unity)
+            { 5, GauntletScene },
+            { 8, AllFoursScene },
+            { 9, "Assets/_Project/Scenes/Event_InvertedSprint.unity" },
+            { 10, CrabScene },
+            { 11, SlalomScene },
+            { 12, TurntableScene },
+            { 13, SteepleScene },
+            { 14, RampScene },
+            { 19, "Assets/_Project/Scenes/Event_TerminalVelocity.unity" },
+            { 27, ResurrectionScene },
+        };
+
+        public const string SumoScene = "Assets/_Project/Scenes/Event_SumoRing.unity";
+        public const string SumoSource = "Training/assets/scene_sumo8_roster.xml";
+        public const string SumoLayout = "Training/assets/sumo8_roster_layout.json";
+        public const string BridgeScene = "Assets/_Project/Scenes/Event_NarrowBridge.unity";
+        public const string BridgeSource = "Training/assets/scene_bridge8_roster.xml";
+        public const string BridgeLayout = "Training/assets/bridge8_roster_layout.json";
+        public const string PadsScene = "Assets/_Project/Scenes/Event_ShrinkingSafeZone.unity";
+        public const string PadsSource = "Training/assets/scene_pads8_roster.xml";
+        public const string PadsLayout = "Training/assets/pads8_roster_layout.json";
+        public const string BeaconScene = "Assets/_Project/Scenes/Event_CenterBeacon.unity";
+        public const string BeaconSource = "Training/assets/scene_beacon8_roster.xml";
+        public const string BeaconLayout = "Training/assets/beacon8_roster_layout.json";
+        public const string HillScene = "Assets/_Project/Scenes/Event_HilltopScramble.unity";
+        public const string HillSource = "Training/assets/scene_hill8_roster.xml";
+        public const string HillLayout = "Training/assets/hill8_roster_layout.json";
+
+        [MenuItem("PoOlympic/Events/Build Collision Overhaul Events (2,3,4,6,7,10,18,25) + Hub + Menu")]
+        public static string BuildOverhaulScenes()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(BuildArenaBrawl(2, ArenaBrawlEvent.Mode.Sumo, "SUMO RING", SumoScene, SumoSource, SumoLayout));
+            sb.AppendLine(BuildArenaBrawl(3, ArenaBrawlEvent.Mode.Bridge, "NARROW BRIDGE CROSSING", BridgeScene, BridgeSource, BridgeLayout));
+            sb.AppendLine(BuildTrackRace(4, TrackRaceEvent.Mode.Funnel, "FUNNEL BOTTLENECK", FunnelScene, DefaultRung2Brain, FunnelSource, FunnelLayout));
+            sb.AppendLine(BuildTrackRace(6, TrackRaceEvent.Mode.Crossroad, "FIGURE-8 CROSSROAD", CrossroadScene, DefaultRung2Brain, CrossroadSource, CrossroadLayout));
+            sb.AppendLine(BuildArenaBrawl(7, ArenaBrawlEvent.Mode.Pads, "SHRINKING SAFE-ZONE", PadsScene, PadsSource, PadsLayout));
+            sb.AppendLine(BuildArenaBrawl(10, ArenaBrawlEvent.Mode.Beacon, "CENTER BEACON SCRAMBLE", BeaconScene, BeaconSource, BeaconLayout));
+            sb.AppendLine(BuildTrackRace(18, TrackRaceEvent.Mode.PackMile, "INSIDE-RAIL PACK MILE", PackMileScene, DefaultRung2Brain));
+            sb.AppendLine(BuildArenaBrawl(25, ArenaBrawlEvent.Mode.Hill, "HILLTOP SCRAMBLE", HillScene, HillSource, HillLayout));
+            sb.AppendLine(BuildStadiumHub());
+            sb.AppendLine(BuildMainMenu());
+            AssetDatabase.SaveAssets();
+            string summary = sb.ToString();
+            Debug.Log("[BuildOverhaulScenes]\n" + summary);
+            return summary;
+        }
+
+        public static void BuildAllFoursOnly()
+        {
+            string msg = BuildTrackRace(8, TrackRaceEvent.Mode.AllFours, "30m ALL FOURS", AllFoursScene,
+                                        DefaultRung2Brain, CrawlSource, CrawlLayout);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[BuildAllFoursOnly] " + msg);
+        }
+
+        [MenuItem("PoOlympic/Events/Build All 11 Playable 16-Athlete Events (2x8) + Menu")]
+        public static void BuildPlayableSixteen()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(BuildIronPedestalHeat());
+            sb.AppendLine(BuildGustGauntlet());
+            sb.AppendLine(BuildTrackRace(8, TrackRaceEvent.Mode.AllFours, "30m ALL FOURS", AllFoursScene, DefaultRung2Brain, CrawlSource, CrawlLayout));
+            sb.AppendLine(BuildTrackRace(9, TrackRaceEvent.Mode.Inverted, "INVERTED SPRINT", "Assets/_Project/Scenes/Event_InvertedSprint.unity", DefaultRung2Brain, InvertedSource, InvertedLayout));
+            sb.AppendLine(BuildCrabShuffle());
+            sb.AppendLine(BuildSlalom());
+            sb.AppendLine(BuildTurntable());
+            sb.AppendLine(BuildTrackRace(13, TrackRaceEvent.Mode.Steeplechase, "STEEPLECHASE JOG", SteepleScene, DefaultRung2Brain));
+            sb.AppendLine(BuildAlpineRamp());
+            sb.AppendLine(BuildTrackRace(19, TrackRaceEvent.Mode.Terminal, "TERMINAL VELOCITY", "Assets/_Project/Scenes/Event_TerminalVelocity.unity", DefaultRung2Brain));
+            sb.AppendLine(BuildResurrectionDash());
+            sb.AppendLine(BuildMainMenu());
+            AssetDatabase.SaveAssets();
+            Debug.Log("[BuildPlayableSixteen]\n" + sb);
+        }
+
+        [MenuItem("PoOlympic/Events/Bake Missing Lightmaps (unbaked EventScenes)")]
+        public static void BakeMissingLightmaps()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            int baked = 0;
+            foreach (var scenePath in EventScenePaths.Values.Distinct())
+            {
+                var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                if (LightmapSettings.lightmaps.Length > 0) continue;
+                StadiumShowcase.ApplyLightingSettings(scene);
+                Debug.Log($"[BakeMissingLightmaps] Baking {scenePath}...");
+                if (!Lightmapping.Bake())
+                    throw new InvalidOperationException($"Lightmapping.Bake() failed for {scenePath}");
+                EditorSceneManager.SaveScene(scene);
+                baked++;
+                Debug.Log($"[BakeMissingLightmaps] Done {scenePath} (lightmaps={LightmapSettings.lightmaps.Length})");
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[BakeMissingLightmaps] Finished baking {baked} scene(s).");
+        }
+
+        public static string BuildArenaBrawl(int eventNum, ArenaBrawlEvent.Mode mode, string title, string scenePath, string source, string layout)
+        {
+            var meet = BuildMeetScene(source, layout, 5, AthleteLane, 0f, DefaultRung2Brain);
+            HideStadiumProps(meet.Scene, "E05_Shaker");
+            if (mode is ArenaBrawlEvent.Mode.Sumo or ArenaBrawlEvent.Mode.Bridge or ArenaBrawlEvent.Mode.Hill)
+            {
+                var st = meet.Scene.GetRootGameObjects().First(g => g.name == "Stadium");
+                st.transform.position += Vector3.down * 0.5f;   // dropped MuJoCo ground at z = -0.5 m
+            }
+
+            var ev = new GameObject("ArenaBrawlEvent").AddComponent<ArenaBrawlEvent>();
+            ev.mode = mode;
+            (ev.maxSeconds, ev.recoverFromFalls) = ArenaBrawlEvent.Defaults(mode);
+            foreach (var (k, r) in meet.Lanes) ev.runners.Add(new ArenaBrawlEvent.Runner { runner = r, name = LaneLabel($"A{k + 1}", r) });
+            meet.Pool.runner = ev.runners[0].runner;
+
+            if (mode == ArenaBrawlEvent.Mode.Sumo)
+                ColorMjGeoms(n => n == "sumo_ring", StageMaterial("SumoRing", new Color(0.85f, 0.72f, 0.45f), 0.3f));
+            else if (mode == ArenaBrawlEvent.Mode.Bridge)
+                ColorMjGeoms(n => n == "bridge", StageMaterial("NarrowBridge", new Color(0.70f, 0.48f, 0.25f), 0.3f));
+            else if (mode == ArenaBrawlEvent.Mode.Hill)
+            {
+                ColorMjGeoms(n => n == "hill_summit", StageMaterial("HillSummit", new Color(0.90f, 0.68f, 0.18f), 0.4f));
+                ColorMjGeoms(n => n.StartsWith("hill_ramp_") || n.StartsWith("hill_pad_"), StageMaterial("HillRamp", new Color(0.45f, 0.52f, 0.60f), 0.3f));
+            }
+            else if (mode == ArenaBrawlEvent.Mode.Pads)
+            {
+                var visuals = new GameObject("ArenaVisuals");
+                var padMat = StageMaterial("SafePad", new Color(0.15f, 0.85f, 0.75f), 0.5f);
+                ev.padVisuals = new Transform[7];
+                for (int i = 0; i < 7; i++)
+                {
+                    var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    disc.name = $"PadVisual_{i}";
+                    disc.transform.SetParent(visuals.transform);
+                    disc.transform.localScale = new Vector3(ev.padRadius * 2f, 0.015f, ev.padRadius * 2f);
+                    disc.transform.localPosition = new Vector3(0f, 0.015f, 0f);
+                    UnityEngine.Object.DestroyImmediate(disc.GetComponent<Collider>());
+                    disc.GetComponent<Renderer>().sharedMaterial = padMat;
+                    ev.padVisuals[i] = disc.transform;
+                }
+            }
+            else if (mode == ArenaBrawlEvent.Mode.Beacon)
+            {
+                var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                disc.name = "BeaconZoneVisual";
+                disc.transform.localScale = new Vector3(ev.beaconRadius * 2f, 0.012f, ev.beaconRadius * 2f);
+                disc.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+                UnityEngine.Object.DestroyImmediate(disc.GetComponent<Collider>());
+                disc.GetComponent<Renderer>().sharedMaterial = StageMaterial("BeaconZone", new Color(0.95f, 0.72f, 0.10f), 0.6f);
+            }
+
+            var bc = meet.Camera.GetComponent<BroadcastCamera>();
+            bc.target = null;
+            if (mode == ArenaBrawlEvent.Mode.Bridge) { bc.focusOffset = new Vector3(6f, 0.9f, 0f); bc.offset = new Vector3(0f, 6.5f, -10.5f); }
+            else if (mode == ArenaBrawlEvent.Mode.Sumo) { bc.focusOffset = new Vector3(0f, 0.9f, 0f); bc.offset = new Vector3(3.8f, 3.8f, -4.8f); }
+            else { bc.focusOffset = new Vector3(0f, 0.9f, 0f); bc.offset = new Vector3(6.2f, 6.5f, -7.8f); }
+
+            AddBroadcast(ev, title, $"Event {eventNum}", eventNum, BrainsLabel(DefaultRung2Brain), meet.Camera, BroadcastDirector.Kind.Arena, Vector3.right);
+            HandTunedSave.SaveBuilt(meet.Scene, scenePath);
+            return $"{scenePath}: {mode}, {ev.runners.Count} athletes";
+        }
+
+        static void HideStadiumProps(Scene scene, string prefix)
+        {
+            var st = scene.GetRootGameObjects().FirstOrDefault(g => g.name == "Stadium");
+            if (st == null) return;
+            foreach (var r in st.GetComponentsInChildren<Renderer>(true))
+                if (r.name.StartsWith(prefix)) r.enabled = false;
+        }
+
+        static void ColorMjGeoms(Func<string, bool> match, Material mat)
+        {
+            foreach (var g in UnityEngine.Object.FindObjectsByType<MjGeom>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (!match(g.name) || !g.TryGetComponent<Renderer>(out var rend)) continue;
+                rend.enabled = true;
+                rend.sharedMaterial = mat;
+            }
+        }
+
+        static Material StageMaterial(string assetName, Color color, float smoothness = 0.4f)
+        {
+            string path = $"Assets/_Project/Environments/Materials/{assetName}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = assetName };
+            mat.SetColor("_BaseColor", color);
+            mat.SetFloat("_Smoothness", smoothness);
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
+        }
+
+        /// <summary>
+        /// Stadium hub: the stadium in the MuJoCo frame (yaw 180° only) with all 16 retained events as EventVenue objects (catalogue
+        /// data + their 8 competitor anchors), an event picker, and Build Settings = hub + every built event scene.
+        /// </summary>
+        [MenuItem("PoOlympic/Events/Build Stadium Hub (16 events)")]
+        public static string BuildStadiumHub()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(StadiumAsset) ?? throw new FileNotFoundException(StadiumAsset);
+            var st = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+            st.name = "Stadium";
+            st.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, 180f, 0f)); // stadium coords = MuJoCo coords
+            var anchors = st.GetComponentsInChildren<Transform>(true);
+
+            var src = EditorSceneManager.OpenScene(ParityHarness.TestbedScene, OpenSceneMode.Additive);
+            GameObject Copy(string name)
+            {
+                var clone = UnityEngine.Object.Instantiate(Array.Find(src.GetRootGameObjects(), g => g.name == name));
+                clone.name = name;
+                SceneManager.MoveGameObjectToScene(clone, scene);
+                return clone;
+            }
+            var cam = Copy("Main Camera");
+            Copy("Sun");
+            EditorSceneManager.CloseScene(src, true);
+            SceneManager.SetActiveScene(scene);
+            cam.GetComponent<BroadcastCamera>().target = null; // letterbox only; the director drives the camera
+            cam.GetComponent<Camera>().farClipPlane = 1500f;
+            cam.GetComponent<Camera>().nearClipPlane = 0.5f; // overview camera: never closer than a few metres
+            StadiumLook.Dress(st);
+
+            var catalog = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(CatalogJson))["events"];
+            var root = new GameObject("Events");
+            var venues = new System.Collections.Generic.List<EventVenue>();
+            foreach (var e in catalog)
+            {
+                int n = (int)e["number"];
+                var go = new GameObject($"E{n:00} {(string)e["name"]}");
+                go.transform.SetParent(root.transform);
+                var v = go.AddComponent<EventVenue>();
+                v.number = n;
+                v.eventName = (string)e["name"];
+                v.phase = (int)e["phase"];
+                v.skill = (string)e["skill"];
+                v.brain = (string)e["brain"];
+                v.rules = (string)e["rules"];
+                v.eventScene = EventScenePaths.TryGetValue(n, out var path) ? Path.GetFileNameWithoutExtension(path) : "";
+                for (int k = 0; k < 8; k++)
+                    v.lanes[k] = Array.Find(anchors, t => t.name == $"E{n:00}_L{k}") ?? throw new MissingReferenceException($"E{n:00}_L{k}");
+                go.transform.position = v.Centre;
+                venues.Add(v);
+            }
+            if (venues.Count != CatalogEventCount) throw new InvalidOperationException($"catalogue has {venues.Count} events, expected {CatalogEventCount}");
+            var director = new GameObject("StadiumDirector").AddComponent<StadiumDirector>();
+            director.cam = cam.GetComponent<Camera>();
+            director.venues = venues.ToArray();
+            director.selected = 1;
+            EditorSceneManager.SaveScene(scene, HubScene);
+
+            int built = SetBuildScenes();
+            return $"{HubScene}: {venues.Count} event venues, {venues.Count(x => x.Playable)} playable; build scenes {built}";
+        }
+
+        /// <summary>Build Settings: main menu (first = start scene, if built) → every built event scene. The stadium
+        /// hub and the solo Iron Pedestal stay out (2026-10-11): nothing in a build loads them and their HUDs are
+        /// IMGUI dev screens (SceneIntegrityTests keeps OnGUI out of the build scenes); open them in the editor.</summary>
+        static int SetBuildScenes()
+        {
+            var list = new System.Collections.Generic.List<EditorBuildSettingsScene>();
+            if (File.Exists(MainMenuScene)) list.Add(new EditorBuildSettingsScene(MainMenuScene, true));
+            foreach (var path in EventScenePaths.Values) list.Add(new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = list.ToArray();
+            return list.Count;
+        }
+
+        public const string MainMenuScene = "Assets/_Project/Scenes/MainMenu.unity";
+        public const string MenuUxml = "Assets/_Project/UI/MainMenu.uxml";
+        public const string MenuTheme = "Assets/_Project/UI/PoOlympicTheme.tss";
+        public const string MenuPanelSettings = "Assets/_Project/UI/PoOlympicPanelSettings.asset";
+
+        /// <summary>
+        /// Main menu: display the 16 catalogue events in order. Built events draw 16 entrants and run two 8-lane heats;
+        /// events without a built scene remain visible as Coming Soon.
+        /// UI Toolkit (MainMenu.uxml),
+        /// portrait reference 1080 × 1920. Becomes the first scene in Build Settings.
+        /// </summary>
+        [MenuItem("PoOlympic/Events/Build Main Menu")]
+        public static string BuildMainMenu()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(MenuPanelSettings);
+            if (panel == null)
+            {
+                panel = ScriptableObject.CreateInstance<PanelSettings>();
+                AssetDatabase.CreateAsset(panel, MenuPanelSettings);
+            }
+            panel.themeStyleSheet = AssetDatabase.LoadAssetAtPath<ThemeStyleSheet>(MenuTheme) ?? throw new FileNotFoundException(MenuTheme);
+            panel.scaleMode = PanelScaleMode.ScaleWithScreenSize;
+            panel.referenceResolution = new Vector2Int(1080, 1920);
+            panel.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
+            panel.match = 1f;                                  // fit the portrait layout to the screen height
+            EditorUtility.SetDirty(panel);
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var cam = new GameObject("Main Camera") { tag = "MainCamera" }.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.047f, 0.071f, 0.125f);
+            var go = new GameObject("MainMenu");
+            var doc = go.AddComponent<UIDocument>();
+            doc.panelSettings = panel;
+            doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MenuUxml) ?? throw new FileNotFoundException(MenuUxml);
+            var menu = go.AddComponent<MainMenuController>();
+            menu.columns = 4;
+            var catalog = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(CatalogJson))["events"];
+            int displayNumber = 0;
+            foreach (var e in catalog.OrderBy(x => (int)x["number"]))
+            {
+                displayNumber++;
+                int num = (int)e["number"];
+                bool playable = EventScenePaths.TryGetValue(num, out var path);
+                menu.events.Add(new MainMenuController.MenuEvent   // roster scenes: any lineup (LaneLineup)
+                {
+                    number = num, displayNumber = displayNumber, name = (string)e["name"], rules = (string)e["rules"],
+                    brain = num == 1 ? "rung0" : (string)e["brain"],
+                    scene = playable ? Path.GetFileNameWithoutExtension(path) : "",
+                    lineup = null, bodies = playable ? SceneBodies(path) : Array.Empty<string>(), participants = Array.Empty<string>(),
+                });
+            }
+            EditorSceneManager.SaveScene(scene, MainMenuScene);
+            int n = SetBuildScenes();
+            return $"{MainMenuScene}: {menu.events.Count} events numbered 01–16, 16 entrants per playable event in two rows of 8; build scenes {n}";
+        }
+
+        /// <summary>Roster athletes (MeetLineup names) a built event scene holds, from its LaneLineup; a scene of
+        /// another body only (Events 3 / 7: mattbio = MATT's body with the stance brain) plays as MATT.</summary>
+        static string[] SceneBodies(string scenePath)
+        {
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+            try
+            {
+                var lanes = scene.GetRootGameObjects().Select(g => g.GetComponent<LaneLineup>()).FirstOrDefault(l => l != null);
+                if (lanes == null) return new string[0];
+                var held = lanes.entries.Select(e => e.body.ToUpperInvariant()).Distinct().ToArray();
+                var roster = MeetLineup.Roster.Where(a => held.Contains(a)).ToArray();
+                return roster.Length > 0 ? roster : new[] { MeetLineup.Roster[0] };
+            }
+            finally { EditorSceneManager.CloseScene(scene, true); }
+        }
+
+        static Material IronPedestalMaterial()
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(IronMaterial);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "IronPedestal" };
+            mat.SetColor("_BaseColor", new Color(0.23f, 0.24f, 0.26f));
+            mat.SetFloat("_Metallic", 0.85f);
+            mat.SetFloat("_Smoothness", 0.45f);
+            AssetDatabase.CreateAsset(mat, IronMaterial);
+            return mat;
+        }
+
+        [MenuItem("PoOlympic/Events/Build Event 1 — Iron Pedestal")]
+        public static string BuildIronPedestal() => BuildIronPedestal(DefaultRung0Brain);
+
+        public static string BuildIronPedestal(string brainFile)
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("exit Play mode first");
+            ParityHarness.SyncArtifacts();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var physics = AthleteImport.ImportIntoActiveScene(PedestalSource);
+
+            // camera / light / render-only track from the testbed look
+            var src = EditorSceneManager.OpenScene(ParityHarness.TestbedScene, OpenSceneMode.Additive);
+            GameObject Copy(string name)
+            {
+                var original = Array.Find(src.GetRootGameObjects(), g => g.name == name) ?? throw new MissingReferenceException(name);
+                var clone = UnityEngine.Object.Instantiate(original);
+                clone.name = name;
+                SceneManager.MoveGameObjectToScene(clone, scene);
+                return clone;
+            }
+            var cam = Copy("Main Camera");
+            Copy("Sun");
+            EditorSceneManager.CloseScene(src, true);
+            SceneManager.SetActiveScene(scene);
+            // Event 1 venue: 8 pedestals; this single athlete takes lane 4 (E01_L3). The stadium's pedestal there is the
+            // visual of the MuJoCo pedestal geom (same 1 x 1 x 0.5 m box, top at z = 0); the other 7 wait for D4.
+            PlaceStadium(scene, 1, AthleteLane);
+
+            // MuJoCo geom renderers: only the pedestal and the pool cubes are shown
+            var cubeMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Environments/Materials/PoolCube.mat");
+            var iron = IronPedestalMaterial();
+            foreach (var rend in physics.GetComponentsInChildren<Renderer>(true))
+            {
+                if (rend.GetComponent<MjGeom>() == null) continue;
+                var n = rend.gameObject.name;
+                rend.enabled = n.StartsWith("cube");   // the pedestal is drawn by the stadium (identical box)
+                if (n == "pedestal") rend.sharedMaterial = iron;
+                else if (n.StartsWith("cube") && cubeMat != null) rend.sharedMaterial = cubeMat;
+            }
+
+            // athlete: runner + pooled cubes + bound MATT visual
+            var athlete = new GameObject("Athlete");
+            var runner = athlete.AddComponent<PolicyRunner>();
+            runner.contractJson = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/_Project/RL_Models/contract.json");
+            runner.brain = AssetDatabase.LoadAssetAtPath<ModelAsset>($"{ParityHarness.ModelsFolder}/Brains/{brainFile}")
+                           ?? throw new FileNotFoundException(brainFile);
+            runner.brainSidecar = AssetDatabase.LoadAssetAtPath<TextAsset>($"{ParityHarness.ModelsFolder}/Brains/{brainFile}.json");
+            runner.useStandardParityScript = false;
+            var pool = athlete.AddComponent<MjCubePool>();
+            pool.runner = runner;
+            pool.poolSize = 4;
+            var visual = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(VisualBinding.MattAsset), athlete.transform);
+            visual.name = "MATT_Visual";
+            visual.transform.SetPositionAndRotation(Vector3.zero, VisualBinding.GltfToPlugin);
+            var binder = visual.AddComponent<BoneBinder>();
+            binder.Capture(physics.transform);
+
+            // event + HUD
+            var evGo = new GameObject("IronPedestalEvent");
+            var ev = evGo.AddComponent<IronPedestalEvent>();
+            ev.runner = runner;
+            ev.cubes = pool;
+            var hud = new GameObject("EventHUD").AddComponent<EventHud>();
+            hud.ev = ev;
+            hud.version = $"v0 · {Path.GetFileNameWithoutExtension(brainFile)}";
+
+            var bc = cam.GetComponent<BroadcastCamera>();
+            // depth precision: the stadium is 300 m across and its decals sit 1 cm apart — a 0.05 m near plane z-fights
+            var c = cam.GetComponent<Camera>();
+            c.nearClipPlane = 0.2f;
+            c.farClipPlane = 1000f;
+            bc.target = Array.Find(physics.GetComponentsInChildren<MjBody>(true), b => b.name == "pelvis");
+            bc.offset = new Vector3(4.4f, 0.9f, -2.2f); // front three-quarter: the athlete faces +x, the empty pedestals run along +z
+
+            HandTunedSave.SaveBuilt(scene, IronPedestalScene);
+            var (p, rot) = binder.BindError();
+            return $"{IronPedestalScene}: brain {brainFile}, bind error {p * 1000f:F2} mm / {rot:F3}°";
+        }
+    }
+}

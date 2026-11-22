@@ -37,7 +37,7 @@ noise on the block. Actions are unchanged (23 joint targets, same ONNX output ma
 A v5 brain's own ONNX metadata carries a `fatigue_block` entry with the layout and every constant below
 (`contract.fatigue_block()`); `contract.json` gets the block only once this is approved.
 
-## The physics hook (one definition: `training/poolympic/biomech.py`)
+## The physics hook (one definition: `Training/poolympic/biomech.py`)
 
 Constants (all four fatigue numbers are proposals to tune):
 
@@ -120,7 +120,7 @@ Parity work if approved: a v5 random test brain + reference run (G2 with the blo
 `PoOlympic-Kim-Rung2-Bio` = her production recipe (k2_v3, `-Bands2`) + the limits + the fatigue block + privileged
 critic. One change at a time: shoves and DR stay k2_v3's.
 
-    cd training ; $env:POOLYMPIC_BODY = "kim"
+    cd Training ; $env:POOLYMPIC_BODY = "kim"
     uv run python tools/expand_obs.py runs/kim_rung2/2026-10-11_02-42-46_k2_v3/model_600.pt runs/kim_rung2/kbio_init --actor-zeros 6 --critic-zeros 14
     # queue line: kim | PoOlympic-Kim-Rung2-Bio | kbio_v1 | kim_rung2/kbio_init | 800 | --gates 2 --its 200,400,600,799
     uv run python tools/smoke_task.py PoOlympic-Kim-Rung2-Bio      # builds, steps, mirrors (done 2026-10-11)

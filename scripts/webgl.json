@@ -28,7 +28,7 @@
   ],
   "knownFailures": {
     "_why": "EditMode failures already present in the 2026-11-20 baseline (before any of that day's changes). They need the owner's training pipeline (re-recorded parity references / a refit confidence model), not a code change. scripts/publish_webgl.ps1 lists them and still publishes; any OTHER failure stops the publish. Remove an entry once it passes.",
-    "PoOlympic.Tests.BroadcastFxTests.EveryEventBrainHasACalibratedCritic": "grandma_rung2 has no entry in Models/confidence_model.json: run training/tools/fit_confidence.py --groups stand_g,rung2_g",
+    "PoOlympic.Tests.BroadcastFxTests.EveryEventBrainHasACalibratedCritic": "grandma_rung2 has no entry in Models/confidence_model.json: run Training/tools/fit_confidence.py --groups stand_g,rung2_g",
     "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"grandma_rung2\")": "G3 action mismatch from tick 174: the reference was recorded with an older grandma_rung2 brain (G2 obs equal); re-record with tools/record_reference.py",
     "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"grandma_rung2_walk\")": "same as grandma_rung2 (stale reference)",
     "PoOlympic.Tests.ParityGateTests.Gates_G2_G3_G4(\"kim_rung2\")": "G3 action mismatch from tick 153: stale reference for the current kim_rung2 brain"

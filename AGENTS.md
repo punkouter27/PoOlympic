@@ -86,9 +86,9 @@ every publish. Tests never write into tracked files.
   camera, brain inference latency (rolling average), curriculum stage (the brain's rung / skill), on an opaque panel.
 - Demo mode: `MainMenuController.idleDemoSeconds` (30 s, serialized in MainMenu.unity) starts `DemoMode`; the
   broadcast HUD then hides everything but the event title, the DEMO caption and the clock; any input ends it.
-- Rewards: `training/config/reward_penalties.json` holds the torque², body angular velocity², action-rate and foot-slip
+- Rewards: `Training/config/reward_penalties.json` holds the torque², body angular velocity², action-rate and foot-slip
   weights (plus joint-velocity², 0 = off) that every task reads (`poolympic/penalties.py`). Unity mirrors them in
-  `Assets/PoOlympic/Resources/RewardPenalties.asset` (episode-reward readout); `RewardPenaltiesTests` keeps the two
+  `Assets/_Project/Data/Resources/RewardPenalties.asset` (episode-reward readout); `RewardPenaltiesTests` keeps the two
   equal. The shipped brains were trained with exactly these values; changing one means new task IDs + retraining.
 - MuJoCo: 3.11.0 everywhere (plugin `Packages/org.mujoco`, native `Assets/Plugins/MuJoCo/mujoco.dll`, WebGL
   `Assets/Plugins/WebGL/MuJoCo/*.a`, Android `libmujoco.so`, Python `mujoco`/`mujoco-warp` 3.11.0). It stays on
@@ -101,7 +101,7 @@ every publish. Tests never write into tracked files.
   `parity/` (local, ignored).
 - `parity/` is a local, git-ignored working folder (gate reports, candidate brains, captures). Its history up to
   2026-11-20 is archived as `parity.zip` on the GitHub release `archive-261120`. Deployed brains and the contracts
-  Unity reads are committed under `Assets/PoOlympic/Models/`.
+  Unity reads are committed under `Assets/_Project/RL_Models/`.
 
 ## 2. House rules
 
@@ -161,24 +161,24 @@ Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity
 ## 4. Working in this repo
 
 ### Layout
-- `Assets/PoOlympic/Runtime` game code (events, `PolicyRunner`, HUD, camera, audio) · `Editor` scene builders (`EventScenes`, `BroadcastFx`, `StadiumShowcase`) · `Tests/Editor` EditMode tests · `UI` USS / UXML (`Tokens.uss` = the design tokens).
-- `training/poolympic` contract, tasks, events (Python mirror of the Unity events) · `training/tools` queue, gates, exports · `training/runs` checkpoints (git-ignored).
+- `Assets/_Project/Core/Runtime` game code (events, `PolicyRunner`, HUD, camera, audio) · `Editor` scene builders (`EventScenes`, `BroadcastFx`, `StadiumShowcase`) · `Tests/Editor` EditMode tests · `UI` USS / UXML (`Tokens.uss` = the design tokens).
+- `Training/poolympic` contract, tasks, events (Python mirror of the Unity events) · `Training/tools` queue, gates, exports · `Training/runs` checkpoints (git-ignored).
 - `parity/` (git-ignored, local) gate reports, candidate brains (`parity/brains`), reference trajectories, review pages (`parity/tb/<run>`), UI captures (`parity/ui`). Its state of 2026-11-20 is `parity.zip` on the release `archive-261120`; unzip it at the repo root on a fresh clone to run the parity gates. UI before/after reports go in `SCREENSHOTS/`.
-- `scripts/` publish / deploy / editor helper scripts · `training/config/` training settings shared with Unity (reward penalties).
+- `scripts/` publish / deploy / editor helper scripts · `Training/config/` training settings shared with Unity (reward penalties).
 - Brain names: deployed = `<role>_<body>.onnx` (`crawl_kim`, `slope_matt`; MATT's oldest are `rung0` / `rung2` / `rs_v8_it1199`) + `.critic.onnx`, listed in `parity/brains/manifest.json`; candidates = `<run>_it<N>.onnx`, never copied into Unity (`ParityHarness.SyncArtifacts` syncs only brains the manifest or the C# names).
 - History: `docs/log/` (September log entries, finished task sections); `docs/rl_optimization_log.md` / `docs/tasks.md` hold the current ones.
 
 ### Commands
-- Fresh clone: `git lfs pull`, then `cd training; uv sync`.
-- Python checks (as CI): `uvx ruff check .`, `uvx ruff format --check .`, `cd training; uv run pytest tests -q -m "not slow"` (fast tier); everything: `uv run pytest tests -q` (slow tier = full-event CPU simulations with the shipped brains, ~15+ min; the parity-gate tests skip without `parity/`). After editing `poolympic/tasks/__init__.py`: `pwsh tools/check_bodies.ps1` (imports the tasks once per body); after touching shared task code: `uv run python tools/dump_task_cfgs.py --diff` (existing task cfg hashes must not move).
+- Fresh clone: `git lfs pull`, then `cd Training; uv sync`.
+- Python checks (as CI): `uvx ruff check .`, `uvx ruff format --check .`, `cd Training; uv run pytest tests -q -m "not slow"` (fast tier); everything: `uv run pytest tests -q` (slow tier = full-event CPU simulations with the shipped brains, ~15+ min; the parity-gate tests skip without `parity/`). After editing `poolympic/tasks/__init__.py`: `pwsh tools/check_bodies.ps1` (imports the tasks once per body); after touching shared task code: `uv run python tools/dump_task_cfgs.py --diff` (existing task cfg hashes must not move).
 - After deploying a brain: `uv run python tools/brain_manifest.py` (`--check` verifies `parity/brains/manifest.json`).
-- Training: add a line to `training/runs/queue.txt`, start `training/tools/train_queue.ps1` (and `keep_awake.ps1`) detached; gates run from `tools/watch_gate.py`.
-- Checkpoint clean-up: `pwsh training/tools/prune_checkpoints.ps1` (dry run; `-Delete` to act).
+- Training: add a line to `Training/runs/queue.txt`, start `Training/tools/train_queue.ps1` (and `keep_awake.ps1`) detached; gates run from `tools/watch_gate.py`.
+- Checkpoint clean-up: `pwsh Training/tools/prune_checkpoints.ps1` (dry run; `-Delete` to act).
 - Unity (editor open): `unity command eval_file --file x.cs`, `unity command menu --path "PoOlympic/…"`, tests `unity command run_tests --mode EditMode --filter PoOlympic.Tests --async_tests true` then poll `test_status`.
 - Scene rigs are built by editor code, not by hand: after changing `BroadcastFx.Install` run the menu "PoOlympic/Broadcast/Upgrade broadcast FX (all event scenes)". To move something by hand in an event scene and keep it across rebuilds, add the `HandTuned` component to it (`HandTunedSave.SaveBuilt` restores its local transform by hierarchy path).
 
 ### Things that bite
 - Play mode starts **without a domain reload**: every static needs a `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]` reset (see `DemoMode`, `MeetLineup`, `GameSettings`).
 - Runtime code may not call `Instantiate` / `Destroy` or any PhysX API (`RuntimeRulesTests`); new scene objects go through the editor builders as pools.
-- Brains are tied to the model fingerprint and observation contract: never change `training/assets/*.xml`, `contract.py` dims or an existing task's config in place — add a new task ID / contract version.
+- Brains are tied to the model fingerprint and observation contract: never change `Training/assets/*.xml`, `contract.py` dims or an existing task's config in place — add a new task ID / contract version.
 - Scenes are loaded only through `MeetLineup.Load`.

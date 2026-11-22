@@ -42,7 +42,7 @@ jobs:
       - name: ruff format --check
         run: uvx ruff format --check .
       - name: pytest (fast tier)
-        working-directory: training
+        working-directory: Training
         run: |
           # CPU torch on the runner (the uv project pins the CUDA wheel index for the training PC)
           uv venv --python 3.11 .ci-venv

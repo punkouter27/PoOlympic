@@ -56,7 +56,7 @@ APK size down.
 
 ## Implementation status (2026-09-29) — everything but the training run is done
 
-- Contract: `training/poolympic/contract.py` (SKILL_LAYOUT, SkillCommand, cadence clock, `build_obs(skill=...)`),
+- Contract: `Training/poolympic/contract.py` (SKILL_LAYOUT, SkillCommand, cadence clock, `build_obs(skill=...)`),
   `contract.json` "skill_block" (additive — v3 brains unchanged). Unity: `Contract.SkillBlock`, `ObservationBuilder`
   skill block, `SkillCommand`, `PolicyRunner.skill` (the brain's sidecar version picks 84 vs 95 obs).
 - Parity: v4 test brain `random_brain_v4` + reference `random_v4` — G2/G3/G4 in EditMode, closed-loop G5 in Play mode
@@ -69,7 +69,7 @@ APK size down.
 
 Training run (the only remaining step):
 
-    cd training
+    cd Training
     uv run python tools/expand_obs.py runs/matt_rung2/2026-09-28_04-54-44_r2_v8/model_600.pt runs/matt_stance/rs_init
     pwsh tools/preflight.ps1      # recipe v5: close Unity / Blender first; TensorBoard on :6006
     uv run train PoOlympic-Matt-RungS-Stance --log-root runs --agent.resume True \

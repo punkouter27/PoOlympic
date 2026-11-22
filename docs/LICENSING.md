@@ -7,22 +7,22 @@ below, read on that date. **Not legal advice** — the blockers need a lawyer's 
 
 | Asset | Where | Licence | Commercial use | Status |
 |---|---|---|---|---|
-| MATT avatar (Avaturn) | `SourceArt/test_MATT_Avaturn.glb`, `Assets/PoOlympic/Art/MATT.glb` | Avaturn Terms of Use (26 Jan 2023) | conditional | **action needed** |
-| ZOMBIE + GRANDMA meshes (likely Hunyuan3D output) | `Assets/PoOlympic/Art/Zombie.glb`, `SourceArt/test_GRANDMA_riggedTenCent.glb` | Tencent Hunyuan 3D Community License | not in EU / UK / South Korea | **blocker for a worldwide release** |
+| MATT avatar (Avaturn) | `SourceArt/test_MATT_Avaturn.glb`, `Assets/_Project/Agents/Characters/MATT.glb` | Avaturn Terms of Use (26 Jan 2023) | conditional | **action needed** |
+| ZOMBIE + GRANDMA meshes (likely Hunyuan3D output) | `Assets/_Project/Agents/Characters/Zombie.glb`, `SourceArt/test_GRANDMA_riggedTenCent.glb` | Tencent Hunyuan 3D Community License | not in EU / UK / South Korea | **blocker for a worldwide release** |
 | ZOMBIE rig (ActorCore AccuRIG) | `SourceArt/test_ZOMBIE_RiggedAccurig.fbx` | AccuRIG FAQ: free for personal and commercial use | yes | ok (the mesh's own licence applies) |
 | Stadium textures (Poly Haven) | `SourceArt/Stadium/fetch_textures.py` | CC0 | yes, no credit needed | ok |
-| Inter font | `Assets/PoOlympic/UI/Fonts/` | SIL OFL 1.1 | yes | ship `Inter-LICENSE.txt` |
+| Inter font | `Assets/_Project/UI/Fonts/` | SIL OFL 1.1 | yes | ship `Inter-LICENSE.txt` |
 | MuJoCo 3.11 + Unity plug-in | `Packages/org.mujoco`, `Assets/Plugins/MuJoCo/` | Apache-2.0 | yes | ship licence + note our patches (`POOLYMPIC_PATCHES.md`) |
 | Unity Inference Engine | `com.unity.ai.inference` | Unity ToS + its Third Party Notices | yes | include its notices |
 | glTFast | package | Apache-2.0 | yes | ship licence |
 | Input System | package | Unity Companion License | yes | ok |
 | Cinemachine 3 (`com.unity.cinemachine` 6.6.0), Visual Effect Graph 17.6.0 + its "Additions" sample (Sparks.vfx) | packages, `Assets/Samples/Visual Effect Graph/` | Unity Companion License | yes | ok |
 | PrimeTween 1.4.11 (Kyrylo Kuzyk) | npm scoped registry (`Packages/manifest.json`) | PrimeTween licence: free in commercial games; do not redistribute its source / tarball | yes | ok (installed as an npm package, as the licence asks) |
-| Impact + interface sounds (Kenney) | `Assets/PoOlympic/Audio/Sfx/`, `Audio/Ui/` | CC0 | yes, credit optional | ok (credit "Kenney.nl" in the credits screen) |
-| Crowd cheering / ambience (Gregor Quendel, "Free Crowd Cheering Sounds", opengameart.org) | `Assets/PoOlympic/Audio/Crowd/` (trimmed loops + stingers) | CC-BY 4.0 | yes, **attribution required** | **credit needed**: "Crowd sounds by Gregor Quendel (CC-BY 4.0)" in the credits / store page |
-| Announcer voice lines (Windows SAPI TTS, "Microsoft David Desktop", generated 2026-09-29) | `Assets/PoOlympic/Audio/Announcer/` | Windows licence terms for the built-in voices (output of a desktop TTS voice in a shipped product: **unverified**) | unverified | **check** — or re-record / use a TTS with explicit commercial terms |
-| Event SFX (starter gun, whistle, air horn, buzzer, PA chime, fanfare, shutter) | `Assets/PoOlympic/Audio/Sfx/Event/` | synthesised in-house (numpy, original fanfare melody) | yes | ok |
-| Surface and effort sounds (scrape loop, steel ring, glass knock, cube whoosh, breathing loop) | `Assets/PoOlympic/Audio/Sfx/Scrape`, `Metal`, `Glass`, `Whoosh`, `Breath` | synthesised in-house (`BroadcastFx.ScrapeClip` / `SurfaceClips`: noise and decaying sine partials) | yes | ok |
+| Impact + interface sounds (Kenney) | `Assets/_Project/Environments/Audio/Sfx/`, `Audio/Ui/` | CC0 | yes, credit optional | ok (credit "Kenney.nl" in the credits screen) |
+| Crowd cheering / ambience (Gregor Quendel, "Free Crowd Cheering Sounds", opengameart.org) | `Assets/_Project/Environments/Audio/Crowd/` (trimmed loops + stingers) | CC-BY 4.0 | yes, **attribution required** | **credit needed**: "Crowd sounds by Gregor Quendel (CC-BY 4.0)" in the credits / store page |
+| Announcer voice lines (Windows SAPI TTS, "Microsoft David Desktop", generated 2026-09-29) | `Assets/_Project/Environments/Audio/Announcer/` | Windows licence terms for the built-in voices (output of a desktop TTS voice in a shipped product: **unverified**) | unverified | **check** — or re-record / use a TTS with explicit commercial terms |
+| Event SFX (starter gun, whistle, air horn, buzzer, PA chime, fanfare, shutter) | `Assets/_Project/Environments/Audio/Sfx/Event/` | synthesised in-house (numpy, original fanfare melody) | yes | ok |
+| Surface and effort sounds (scrape loop, steel ring, glass knock, cube whoosh, breathing loop) | `Assets/_Project/Environments/Audio/Sfx/Scrape`, `Metal`, `Glass`, `Whoosh`, `Breath` | synthesised in-house (`BroadcastFx.ScrapeClip` / `SurfaceClips`: noise and decaying sine partials) | yes | ok |
 | "Olympic" rings / cauldron | was: stadium scoreboards + facade (`build_dressing.py`) | protected marks (e.g. 36 U.S.C. §220506) | **no** without consent | **removed from the game** (2026-09-29, `build_showcase.py`: rings, facade identity and cauldron moved to the non-exported Offstage collection; scoreboards show the live board) |
 | "Olympic" in the name | "PoOlympic / POOLYMPICS" (LED boards, HUD, title) | protected word (36 U.S.C. §220506) | **no** without consent | **blocker** (name decision) |
 

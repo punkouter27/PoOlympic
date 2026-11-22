@@ -28,7 +28,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else r"C:\Users\punko\Downloads\PoOlympic\SourceArt\Stadium"
-UNITY_VENUES = os.path.join(HERE, "..", "..", "Assets", "PoOlympic", "Art", "Stadium", "venues.json")
+UNITY_VENUES = os.path.join(HERE, "..", "..", "Assets", "_Project", "Environments", "Art", "Stadium", "venues.json")
 CROWD = (1, 5, 8, 11, 12, 19)
 PBR_TILE = {"Concrete": 3.0, "Stair_Concrete": 2.0, "Kerb_Grey": 1.5, "Track_Red": 2.0, "Steel": 2.0, "Gate_Frame": 2.0,
             "Wood": 1.0}                                         # = build_realism.PBR tiles (materials used here)

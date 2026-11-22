@@ -224,7 +224,7 @@ September 2026 entries (A1 .. the 2026-09-30 runs): [docs/log/rl_optimization_lo
   scene. Both fixes are therefore unverified by the test runner: re-run `BroadcastFxTests` and `CrowdContactTests` when the
   editor is open again.
 - Housekeeping: 588 MB of superseded TensorBoard runs moved to `runs_archive/2026-10-01/` (rs_v1-v5b, g2_v2b / v3 / v4);
-  TensorBoard on `training/runs` (:6006); queue restarted through WMI at 14:10 (2.5 s/it at the start, GPU 85 C / 58 W
+  TensorBoard on `Training/runs` (:6006); queue restarted through WMI at 14:10 (2.5 s/it at the start, GPU 85 C / 58 W
   with another project's Unity editor open and the fans on Auto).
 
 ## 2026-10-01 15:20 · Self-collision rule (AGENTS.md) audited and fixed: thighs now collide on the zombie and GRANDMA
@@ -356,7 +356,7 @@ September 2026 entries (A1 .. the 2026-09-30 runs): [docs/log/rl_optimization_lo
 - **gcrawl_v2** (23:24): + `reset_crawl_mix` (60 % of episodes start in one of four poses between lying and
   hands-and-knees, placed on the ground; 40 % lying as before), crawl height 0.32 m. Same warm start (Rung 0).
 - Queue after it: g2_v6 → getup_prone_v1 → ggetup_v1 → zgetup_v1. TensorBoard :6006 (running since 14:10; no obsolete
-  runs in `training/runs`). `keep_awake.ps1` running.
+  runs in `Training/runs`). `keep_awake.ps1` running.
 
 ## 2026-10-02 00:00 · Audit (user: "/ai PLAN and then TRAIN" on the MuJoCo stack) + gcrawl_v2 crawls
 - **gcrawl_v2:** gate it 300 0 m (all fours 0 %) · it 600 0.1 m but **all fours 100 % from the face-down start** · it 900
@@ -574,7 +574,7 @@ September 2026 entries (A1 .. the 2026-09-30 runs): [docs/log/rl_optimization_lo
 
 ## 2026-10-11 07:00 · KIM, fourth athlete: body, Rung 0 / 1 / 2, crawl, get-up — all gates passed in one night
 - **Start state:** the repo was a fresh clone without Git LFS content (991 pointer files: no brains, visuals, `mujoco.dll`)
-  and without `training/.venv` / `training/runs`; `git lfs pull` + `uv sync`. Old checkpoints and TensorBoard logs are
+  and without `Training/.venv` / `Training/runs`; `git lfs pull` + `uv sync`. Old checkpoints and TensorBoard logs are
   gone: comparisons with earlier runs use the saved charts in `parity/tb/`.
 - **Body** (user: "give her unique characteristics"; picked: "light and quick"): 1.55 m, 54 kg, strength 0.9, stiffness
   1.0, full self-collision, MATT's upright stance. `SourceArt/Kim/convert_kim.py` (headless Blender through
@@ -664,7 +664,7 @@ MJCFs by content) — **91 task IDs before, the same 91 hashes after**, 9 new ID
   env, entropy 0.001") — left alone. Duplicate `matt_stance_env_cfg` import removed. `SUPERSEDED` set in
   `tasks/__init__.py` (42 IDs; nothing unregistered; `dump_task_cfgs.py --list`). Deleted, unreferenced:
   `tools/train_queue.sh`, `watch_eval.py`, `rank_zombie_r2.py`. `bench_env.py --ckpt` is now required (its default
-  pointed at r2_v8, which is not on disk: `training/runs` holds KIM's runs only).
+  pointed at r2_v8, which is not on disk: `Training/runs` holds KIM's runs only).
 - **Dedupe (hash diff empty).** `matt_env.body_entity_cfg / scale_to_body / scaled_envelope / check_body / scene_root_z
   / body_fall_z` replace the copies in `zombie_env` and `grandma_env`; `MATT_ROOT_Z`, `FALL_PELVIS_Z`, `FALL_TILT_DEG`,
   `JOINT_VEL_LIMIT` live in `bodies.py` (were literals in `evaluate.py`, `matt_env.py`, `iron_pedestal.py`);
@@ -698,10 +698,10 @@ MJCFs by content) — **91 task IDs before, the same 91 hashes after**, 9 new ID
   (`mj_objectVelocity` of the touching geom, tangential part) and the contact count. Event 19, MATT, mid-race:
   effort 13-19 %, joints 6-7 rad/s, 1 % of steps over 18 rad/s, brain 0.2 ms (8 brains 1.8 ms per tick).
 - Unity action logs: `parity/actions/unity/e<event>_h<heat>_<time>.csv.gz` (1.4 MB for a 23 s 8-lane heat) and
-  `heats.jsonl` (places, marks, traits, telemetry bests per lane). `training/tools/report_actions.py` reads the Python
+  `heats.jsonl` (places, marks, traits, telemetry bests per lane). `Training/tools/report_actions.py` reads the Python
   gate logs; the Unity files share the folder but not yet the report.
 - Brain clean-up: `parity/brains` 644 → 98 files, `Models/Brains` 262 → 33 MB; `tools/brain_manifest.py --check`: 22
-  deployed brains, 0 problems. Checkpoints in `training/runs` were not pruned (script: `tools/prune_checkpoints.ps1`).
+  deployed brains, 0 problems. Checkpoints in `Training/runs` were not pruned (script: `tools/prune_checkpoints.ps1`).
 
 ## 2026-10-11 23:30 · Training audit, third pass: servo calibration, observation normalisers, fast sim for the staged tasks
 
@@ -742,7 +742,7 @@ they left out.
   Decision rate stays 50 Hz (decimation 4 at 5 ms is in the contract).
 - **Host.** While training: GPU 40-65 % busy at 86 °C / 79 W, Windows power plan "Balanced", three Unity processes
   open. The earlier measurement stands (Extreme Performance + Cooler Boost: +30-40 %).
-- **Staged, not started:** `training/staged_queue.txt` (three KIM lines in queue format with their warm-start prep;
+- **Staged, not started:** `Training/staged_queue.txt` (three KIM lines in queue format with their warm-start prep;
   the queue does not read that file). `runs/queue.txt` was not touched.
 - **Noted, not changed:** `biomech.HILL_W_MAX` is in MATT units for every body while the joint-speed bar is scaled
   (18 rad/s ÷ √λ) — settle it with the contract v5 constants.
@@ -997,7 +997,7 @@ All on 4096 envs, 0 falls at every gate. G1 Rung 2, 10 seeds (bar 0.157 m/s = 0.
 ## 2026-11-19 (night) · Warm-start bugs fixed; MATT turntable = contact, not spinning; zombie 71 -> 75/100 (nothing deployed)
 
 Full log `DOCS/20261119/overnight_training.md`, report `DOCS/20261119/overnight_training_report.html`. First training on
-the RTX 5070 Ti laptop (2.0-2.4 s/it at 4096 envs, ~2x the RTX 2060). No `training/runs` here: warm starts rebuilt from ONNX.
+the RTX 5070 Ti laptop (2.0-2.4 s/it at 4096 envs, ~2x the RTX 2060). No `Training/runs` here: warm starts rebuilt from ONNX.
 
 - **Bug 1, observation normaliser:** `onnx_to_checkpoint.py` kept the template's sample count (1,536; 1e6 after
   `expand_obs.py`), so the statistics re-fit to reset poses within ~10 iterations and a 100/100 brain scored 0/30 with
