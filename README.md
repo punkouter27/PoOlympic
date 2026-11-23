@@ -32,6 +32,10 @@ Engine). No animation and no PhysX.
     (RIFF LIST/INFO), and the generator sets `exists` true only for WAVs without it. The 400 unmarked placeholder WAVs
     the old tool baked were deleted on 2026-11-22 (they matched the old synth output).
   - Celebrate plays on an event win, for each medallist at the podium, and for the series champion.
+- Demo mode rates too: every completed demo event updates the same ratings with the series' rule
+  (`AgentElo.RecordEvent`: an athlete's best placing among its lanes, every pair of different athletes one game at
+  K / (athletes − 1), ties ½, an athlete never plays its own copies). The demo result card shows each athlete's new
+  ELO and change; a demo event left or skipped before its result records nothing (`DemoElo`).
 - Main menu: an empty entrant slot reads "BYE". Heats (`MeetSeries`) are unchanged; there is no bracket.
 
 ## Eight athletes per event

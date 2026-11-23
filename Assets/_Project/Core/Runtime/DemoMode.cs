@@ -89,6 +89,42 @@ namespace PoOlympic
         }
     }
 
+    /// <summary>
+    /// Demo-mode Elo (2026-11-22): every COMPLETED demo event updates the same persisted ratings the tournament uses
+    /// (<see cref="AgentElo"/>, start 1000, K 32) with the rule the RUN ALL series already uses
+    /// (<see cref="AgentElo.RecordEvent"/>): an athlete's mark is the best placing of its copies in the 8 lanes, every
+    /// pair of different athletes is one game (ahead = win, same place = ½) at K / (athletes − 1); same-athlete pairs
+    /// never play. Called by the HUD once per finished heat; a heat with no result (skipped by the watchdog, left
+    /// with a tap) records nothing, and a key guards against rating one heat twice.
+    /// </summary>
+    public static class DemoElo
+    {
+        static string _lastKey = "";
+        /// <summary>"KIM 1012 (+12) · MATT 996 (−4) …" of the last rated demo heat ("" if none).</summary>
+        public static string LastSummary { get; private set; } = "";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { _lastKey = ""; LastSummary = ""; }
+
+        /// <summary>Key of the demo heat now on screen (series, stage, event).</summary>
+        public static string CurrentKey => $"{DemoMode.Series}:{Gauntlet.Index}:{MeetLineup.EventNumber}";
+
+        /// <summary>Rate one completed demo heat: (athlete, place 1..8) per lane, athletes may repeat. Returns the rating
+        /// change per athlete; empty when this key was already rated or fewer than two different athletes ran.</summary>
+        public static Dictionary<string, float> RecordHeat(string key, IReadOnlyList<(string athlete, int place)> lanes)
+        {
+            var none = new Dictionary<string, float>();
+            if (lanes == null || key == null || key == _lastKey) return none;
+            _lastKey = key;
+            var athletes = lanes.Select(l => l.athlete).ToArray();
+            var points = lanes.Select(l => l.place >= 1 && l.place <= Gauntlet.PointsTable.Length ? Gauntlet.PointsTable[l.place - 1] : 0).ToArray();
+            var deltas = AgentElo.RecordEvent(athletes, points);
+            LastSummary = string.Join(" · ", deltas.OrderByDescending(d => d.Value).Select(d =>
+                $"{d.Key} {AgentElo.GetRoundedElo(d.Key)} ({(d.Value >= 0f ? "+" : "−")}{Mathf.Abs(Mathf.RoundToInt(d.Value))})"));
+            return deltas;
+        }
+    }
+
     /// <summary>Random lineups for demo mode, weighted so most series mix bodies (the best contact moments).</summary>
     public static class DemoLineups
     {

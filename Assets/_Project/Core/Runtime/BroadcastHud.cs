@@ -673,6 +673,8 @@ namespace PoOlympic
                 _frozen = rows;
                 AddLabel(_resultBox, "bh-card-line", $"GAUNTLET {Gauntlet.Index + 1}/{Gauntlet.Events.Length} · " +
                     string.Join(" · ", Gauntlet.Table().Take(4).Select(t => $"{t.lane} {t.points}")));
+                if (DemoMode.Active && DemoElo.RecordHeat(DemoElo.CurrentKey, rows.Select(r => (Odds.BodyOf(r.runner), r.place)).ToList()).Count > 0)
+                    AddLabel(_resultBox, "bh-card-line", "ELO " + DemoElo.LastSummary).style.whiteSpace = WhiteSpace.Normal;
                 if (DemoMode.Active && DemoSeason.Summary().Length > 0) AddLabel(_resultBox, "bh-card-line", DemoSeason.Summary());
             }
             else if (EventCompetition.Active && !EventCompetition.CurrentHeatScored)
