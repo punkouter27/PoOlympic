@@ -120,7 +120,9 @@ const detail = r => `<div class="detail-grid">
   <div><b>Load before the run</b><br>${loadText(r.load_before)}</div>
   <div><b>Machine</b><br>${esc(r.machine.cpu)}<br>${esc(r.machine.gpu || "no NVIDIA GPU")} · ${n(r.machine.vram_gb, 0)} GB ·
     driver ${esc(r.machine.gpu_driver || "–")}<br>${n(r.machine.ram_gb, 0)} GB RAM · ${esc(r.machine.os)}<br>${ctx(r.context)}</div>
-  <div><b>Result</b><br>${r.result ? `measured ${n(r.result.measured_s)} s · ${n(r.result.steps_measured, 0)} steps` +
+  <div><b>Result</b><br>${r.result ? `step ${n(r.result.step_time_ms, 2)} ms = ` +
+    `${r.workload.split ? "sim + learn (one jitted step)" : `sim ${n(r.result.sim_ms, 2)} + learn ${n(r.result.learn_ms, 2)} ms`}<br>` +
+    `measured ${n(r.result.measured_s)} s · ${n(r.result.steps_measured, 0)} steps` +
     `${r.result.blocks_measured ? ` in ${r.result.blocks_measured} blocks` : ""} · startup ${n(r.result.startup_s)} s` +
     `<br>step per block p50 ${n(r.result.step_p50_ms, 1)} · p95 ${n(r.result.step_p95_ms, 1)} ms · sim drift ` +
     `${r.result.sim_drift_pct == null ? "– (needs 4+ blocks)" : `${r.result.sim_drift_pct > 0 ? "+" : ""}${n(r.result.sim_drift_pct, 0)}% (last vs first quarter)`}`
@@ -132,27 +134,30 @@ const detail = r => `<div class="detail-grid">
 
 // ------------------------------------------------------------------ columns
 const D = r => r.load_during || {}, R = r => r.result || {};
+const clockPct = r => D(r).clock_pct_of_max ?? pct(D(r).sm_clock_mhz, D(r).sm_clock_max_mhz);
+const hot = (v, bad, d) => `<span class="${v != null && bad(v) ? "hot" : ""}">${n(v, d)}</span>`;
 const COLS = [
   { k: "when", label: "When", get: r => r.when, html: r => esc(r.when.replace("T", " ").slice(0, 16)) },
   { k: "machine", label: "Machine", get: r => r.machine.hostname,
     html: r => `${esc(r.machine.hostname)}<small>${esc((r.machine.gpu || "no NVIDIA GPU").replace("NVIDIA GeForce ", ""))}</small>` },
-  { k: "step", label: "Step time", sub: "ms", num: true, get: r => R(r).step_time_ms,
-    html: r => r.result ? n(R(r).step_time_ms, 2) : esc(r.error || "").slice(0, 60) },
-  { k: "sim", label: "Sim / Learn", sub: "ms (sorts by Sim)", num: true, get: r => r.workload.split ? null : R(r).sim_ms,
-    html: r => !r.result ? "–" : r.workload.split ? '<small title="Sim and Learn run as one jitted step">jitted</small>'
-                                                   : `${n(R(r).sim_ms, 2)} / ${n(R(r).learn_ms, 2)}` },
   { k: "eps", label: "Env steps/s", sub: "training speed · compare this", num: true, key: true, get: r => R(r).env_steps_per_s,
-    html: r => r.result ? `<b>${Number(R(r).env_steps_per_s).toLocaleString()}</b>` : "–" },
+    html: r => r.result ? `<b>${Number(R(r).env_steps_per_s).toLocaleString()}</b><small>${n(R(r).step_time_ms, 0)} ms/step</small>`
+                        : esc(r.error || "").slice(0, 60) },
+  // The columns below are what moves Env steps/s; each is flagged (orange) where it held this run back.
+  { k: "envs", label: "Rings", sub: "envs per step", num: true, get: r => r.workload?.num_envs,
+    html: r => r.workload?.num_envs != null ? Number(r.workload.num_envs).toLocaleString() : "–" },
+  { k: "gpu", label: "GPU busy", sub: "% · low = GPU waiting", num: true, get: r => D(r).gpu_pct,
+    html: r => hot(D(r).gpu_pct, v => v < 60, 0) },
+  { k: "clock", label: "GPU clock", sub: "% of max (heat)", num: true, get: r => clockPct(r),
+    html: r => `${hot(clockPct(r), v => v < 70, 0)}<small>${n(D(r).sm_clock_mhz, 0)} MHz</small>` },
+  { k: "thread", label: "Trainer thread", sub: "% of a core · high = CPU-bound", num: true, get: r => D(r).trainer_thread_pct,
+    html: r => hot(D(r).trainer_thread_pct, v => v >= 85, 0) },
+  { k: "before", label: "GPU busy before", sub: "% · other apps", num: true, get: r => r.load_before?.gpu_pct,
+    html: r => hot(r.load_before?.gpu_pct, v => v >= 20, 0) },
+  { k: "plan", label: "Power plan", get: r => r.context?.power_plan,
+    html: r => r.context?.power_plan ? `${esc(r.context.power_plan)}<small>${esc(r.context.power_mode || "")}</small>` : "–" },
   { k: "verdict", label: "Verdict", get: r => r.ok ? warnings(r) : 99, html: verdictHtml },
-  { k: "gpu", label: "GPU busy", sub: "%", num: true, get: r => D(r).gpu_pct, html: r => n(D(r).gpu_pct, 0) },
-  { k: "temp", label: "GPU temp", sub: "°C peak", num: true, get: r => D(r).gpu_temp_c,
-    html: r => `<span class="${(D(r).gpu_temp_c ?? 0) >= 85 ? "hot" : ""}">${n(D(r).gpu_temp_c, 0)}</span>` },
-  { k: "clock", label: "GPU clock", sub: "MHz (% of max)", num: true, get: r => D(r).sm_clock_mhz,
-    html: r => { const p = D(r).clock_pct_of_max ?? pct(D(r).sm_clock_mhz, D(r).sm_clock_max_mhz);
-                 return `${n(D(r).sm_clock_mhz, 0)}${p != null ? ` <small style="display:inline">(${p}%)</small>` : ""}`; } },
-  { k: "thread", label: "Trainer thread", sub: "% of a core", num: true, get: r => D(r).trainer_thread_pct,
-    html: r => `<span class="${(D(r).trainer_thread_pct ?? 0) >= 85 ? "hot" : ""}">${n(D(r).trainer_thread_pct, 0)}</span>` },
-];  // the rest (power, memory bus, CPU, load before, spread, drift, startup, workload) is in each row's details
+];  // the rest (sim / learn split, temperature, power, memory bus, CPU, spread, drift, startup, workload) is in each row's details
 
 let all = [], latestId = null, open = new Set();
 let sort = { k: "when", dir: -1 };  // every load starts newest run first; a column click re-sorts until the next load
