@@ -8,7 +8,9 @@ namespace PoOlympic.Editor
     /// <summary>
     /// Generates placeholder WAV files (HAPPY, ANGRY, HURT, INSULT x 5 sounds x 5 expressiveness levels) for every
     /// character in <see cref="MeetLineup.Roster"/> when a WAV does not yet exist, and populates
-    /// <c>Assets/_Project/Data/Resources/CharacterVoiceBank.asset</c>.
+    /// <c>Assets/_Project/Data/Resources/CharacterVoiceBank.asset</c>. CELEBRATE gets no placeholder WAVs (it is
+    /// synthesized at runtime until real recordings exist); any CELEBRATE WAV found at
+    /// <see cref="CharacterVoiceBank.RelativeWavPath"/> is bound into the bank like the other emotions.
     /// </summary>
     public static class CharacterVoiceAssets
     {
@@ -20,6 +22,9 @@ namespace PoOlympic.Editor
             var (created, total) = EnsurePlaceholders(forceReimport: true);
             return $"Character voice bank ready: {created} new placeholder WAVs generated ({total} total slots).";
         }
+
+        /// <summary>Emotions that get generated placeholder WAVs. CELEBRATE stays procedural until WAVs are added.</summary>
+        public static bool GetsPlaceholderWavs(CharacterEmotion emotion) => emotion != CharacterEmotion.Celebrate;
 
         public static (int created, int total) EnsurePlaceholders(bool forceReimport = false)
         {
@@ -41,6 +46,7 @@ namespace PoOlympic.Editor
                 for (int e = 0; e < CharacterVoiceSynth.EmotionCount; e++)
                 {
                     var emotion = (CharacterEmotion)e;
+                    if (!GetsPlaceholderWavs(emotion)) continue;
                     for (int v = 0; v < CharacterVoiceSynth.VariantsPerEmotion; v++)
                     {
                         for (int lvl = 1; lvl <= CharacterVoiceSynth.ExpressivenessLevels; lvl++)

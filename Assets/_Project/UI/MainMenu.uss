@@ -96,6 +96,7 @@
 .entrant--grandma { border-bottom-color: var(--po-grandma); }
 .entrant--kim { border-bottom-color: var(--po-kim); }
 .entrant--sub { opacity: 0.55; }
+.entrant--bye { opacity: 0.45; }                   /* empty slot: reads BYE */
 .entrant--fixed { opacity: 0.7; }
 .entrant-no { font-size: var(--po-text); color: var(--po-muted); }
 .entrant-name { -unity-font: url("project://database/Assets/_Project/UI/Fonts/Inter-SemiBold.ttf"); font-size: var(--po-text); white-space: nowrap; }

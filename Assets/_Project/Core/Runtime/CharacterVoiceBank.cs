@@ -5,8 +5,13 @@ using UnityEngine;
 namespace PoOlympic
 {
     /// <summary>
-    /// Per-character voice library: 4 emotions (HAPPY, ANGRY, HURT, INSULT) x 5 sounds x 5 expressiveness levels (1..5).
-    /// Any missing WAV slot transparently falls back to procedurally synthesized audio via <see cref="CharacterVoiceSynth"/>.
+    /// Per-character voice library: 5 emotions (HAPPY, ANGRY, HURT, INSULT, CELEBRATE) x 5 sounds x 5 expressiveness
+    /// levels (1..5). Any missing WAV slot transparently falls back to procedurally synthesized audio via
+    /// <see cref="CharacterVoiceSynth"/>. CELEBRATE (added 2026-11-22) has no placeholder WAVs: it plays the procedural
+    /// voice until real WAVs are dropped at <see cref="RelativeWavPath"/> (e.g.
+    /// <c>Characters/MATT/CELEBRATE/celebrate_01_L5.wav</c>) and the bank is rebuilt (PoOlympic/Audio menu).
+    /// Older bank assets hold 100 slots per character; <see cref="GetOrAddSet"/> grows them to 125 — the first 100
+    /// keep their indices because CELEBRATE is the last emotion.
     /// </summary>
     [CreateAssetMenu(menuName = "PoOlympic/Character Voice Bank", fileName = "CharacterVoiceBank")]
     public class CharacterVoiceBank : ScriptableObject
@@ -17,7 +22,7 @@ namespace PoOlympic
         public class CharacterSet
         {
             public string characterId = "";
-            [Tooltip("100 slots = [emotion (0..3) * 25 + variant (0..4) * 5 + (expressiveness - 1) (0..4)].")]
+            [Tooltip("125 slots = [emotion (0..4) * 25 + variant (0..4) * 5 + (expressiveness - 1) (0..4)].")]
             public AudioClip[] clips = new AudioClip[CharacterVoiceSynth.SoundsPerCharacter];
         }
 
@@ -48,6 +53,7 @@ namespace PoOlympic
                  + l;
         }
 
+        /// <summary>WAV location under the Audio folder: <c>Characters/&lt;ID&gt;/&lt;EMOTION&gt;/&lt;emotion&gt;_&lt;variant 01..05&gt;_L&lt;level 1..5&gt;.wav</c>.</summary>
         public static string RelativeWavPath(string characterId, CharacterEmotion emotion, int variant, int expressiveness)
         {
             string id = CharacterVoiceSynth.NormalizeId(characterId);

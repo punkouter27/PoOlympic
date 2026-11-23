@@ -159,6 +159,7 @@ namespace PoOlympic
             Champion = _entrants[winner];
             LastResult = Standings(_points, 3, "\n");
             AgentElo.RecordTournamentWin(Champion);
+            ArenaAudio.PlayDetachedCelebration(Champion);
             Debug.Log($"[MeetSeries] finished: {Standings(_points, 3)}");
             Screen.sleepTimeout = SleepTimeout.SystemSetting;
             MeetLineup.ReturnToMenu();

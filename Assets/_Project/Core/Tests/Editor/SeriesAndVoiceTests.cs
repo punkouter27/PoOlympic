@@ -9,7 +9,7 @@ using UnityEngine;
 namespace PoOlympic.Tests
 {
     /// <summary>
-    /// Verifies character voice sound coverage (4 emotions x 5 variants x 5 expressiveness levels = 100/character),
+    /// Verifies character voice sound coverage (5 emotions x 5 variants x 5 expressiveness levels = 125/character),
     /// procedural WAV placeholder generation + runtime fallback, persistent ELO ratings (head-to-head and from the
     /// placings of a 16-entrant event), and the 16-entrant event field.
     /// </summary>
@@ -38,17 +38,17 @@ namespace PoOlympic.Tests
         }
 
         [Test]
-        public void CharacterVoices_EveryRosterCharacterHasAll100SoundsAndPlaceholderWavs()
+        public void CharacterVoices_EveryRosterCharacterHasAll125SoundsAndPlaceholderWavs()
         {
             CharacterVoiceAssets.EnsurePlaceholders();
 
             var bank = AssetDatabase.LoadAssetAtPath<CharacterVoiceBank>(CharacterVoiceAssets.BankAssetPath);
             Assert.NotNull(bank, "CharacterVoiceBank asset missing");
 
-            Assert.AreEqual(4, CharacterVoiceSynth.EmotionCount);
+            Assert.AreEqual(5, CharacterVoiceSynth.EmotionCount);
             Assert.AreEqual(5, CharacterVoiceSynth.VariantsPerEmotion);
             Assert.AreEqual(5, CharacterVoiceSynth.ExpressivenessLevels);
-            Assert.AreEqual(100, CharacterVoiceSynth.SoundsPerCharacter);
+            Assert.AreEqual(125, CharacterVoiceSynth.SoundsPerCharacter);
 
             foreach (var characterId in MeetLineup.Roster)
             {
@@ -63,8 +63,13 @@ namespace PoOlympic.Tests
                         for (int lvl = 1; lvl <= CharacterVoiceSynth.ExpressivenessLevels; lvl++)
                         {
                             string wavPath = $"{BroadcastFx.AudioFolder}/{CharacterVoiceBank.RelativeWavPath(characterId, emotion, variant, lvl)}";
-                            Assert.IsTrue(File.Exists(wavPath), $"Missing placeholder WAV: {wavPath}");
-                            Assert.IsTrue(bank.HasWavClip(characterId, emotion, variant, lvl), $"Bank missing WAV clip for {characterId} {emotion} v{variant} L{lvl}");
+                            if (CharacterVoiceAssets.GetsPlaceholderWavs(emotion))
+                            {
+                                Assert.IsTrue(File.Exists(wavPath), $"Missing placeholder WAV: {wavPath}");
+                                Assert.IsTrue(bank.HasWavClip(characterId, emotion, variant, lvl), $"Bank missing WAV clip for {characterId} {emotion} v{variant} L{lvl}");
+                            }
+                            else    // CELEBRATE: procedural until real WAVs are added, then bound like the rest
+                                Assert.AreEqual(File.Exists(wavPath), bank.HasWavClip(characterId, emotion, variant, lvl), wavPath);
                             var clip = bank.GetClip(characterId, emotion, variant, lvl);
                             Assert.NotNull(clip, $"Null clip for {characterId} {emotion} v{variant} L{lvl}");
                         }
@@ -100,18 +105,37 @@ namespace PoOlympic.Tests
         }
 
         [Test]
+        public void CharacterVoices_CelebrateIsAppendedAndDistinctFromHappy()
+        {
+            // the first four emotions keep their slots in saved banks; CELEBRATE takes 100..124
+            Assert.AreEqual(99, CharacterVoiceBank.SlotIndex(CharacterEmotion.Insult, 4, 5));
+            Assert.AreEqual(100, CharacterVoiceBank.SlotIndex(CharacterEmotion.Celebrate, 0, 1));
+            Assert.AreEqual(124, CharacterVoiceBank.SlotIndex(CharacterEmotion.Celebrate, 4, 5));
+            Assert.AreEqual("Characters/KIM/CELEBRATE/celebrate_03_L5.wav",
+                CharacterVoiceBank.RelativeWavPath("kim", CharacterEmotion.Celebrate, 2, 5));
+
+            foreach (var characterId in MeetLineup.Roster)
+                for (int v = 0; v < CharacterVoiceSynth.VariantsPerEmotion; v++)
+                {
+                    var happy = CharacterVoiceSynth.GenerateSamples(characterId, CharacterEmotion.Happy, v, 5);
+                    var cheer = CharacterVoiceSynth.GenerateSamples(characterId, CharacterEmotion.Celebrate, v, 5);
+                    Assert.Greater(cheer.Length, happy.Length, $"{characterId} v{v}: celebrate is the longer, held whoop");
+                }
+        }
+
+        [Test]
         public void AgentElo_UpdatesAndIgnoresByeAndPersists()
         {
             AgentElo.Reset();
-            Assert.AreEqual(1200, AgentElo.GetRoundedElo("MATT"));
-            Assert.AreEqual(1200, AgentElo.GetRoundedElo("KIM"));
+            Assert.AreEqual(1000, AgentElo.GetRoundedElo("MATT"));
+            Assert.AreEqual(1000, AgentElo.GetRoundedElo("KIM"));
             Assert.IsTrue(AgentElo.IsBye("BYE"));
             Assert.IsTrue(AgentElo.IsBye(""));
 
             var (wElo, lElo, delta) = AgentElo.RecordMatch("MATT", "KIM");
             Assert.Greater(delta, 0f);
-            Assert.AreEqual(1200f + delta, wElo, 0.01f);
-            Assert.AreEqual(1200f - delta, lElo, 0.01f);
+            Assert.AreEqual(AgentElo.DefaultElo + delta, wElo, 0.01f);
+            Assert.AreEqual(AgentElo.DefaultElo - delta, lElo, 0.01f);
             Assert.AreEqual(wElo, AgentElo.GetElo("MATT"), 0.01f);
             Assert.AreEqual(lElo, AgentElo.GetElo("KIM"), 0.01f);
 
@@ -145,7 +169,7 @@ namespace PoOlympic.Tests
             Assert.AreEqual(0f, deltas["GRANDMA"], 0.01f);
             Assert.AreEqual(-k * 1.5f, deltas["ZOMBIE"], 0.01f, "ZOMBIE lost all three");
             Assert.AreEqual(0f, deltas.Values.Sum(), 0.01f, "ratings are zero-sum");
-            Assert.AreEqual(1200f + deltas["KIM"], AgentElo.GetElo("KIM"), 0.01f, "stored");
+            Assert.AreEqual(AgentElo.DefaultElo + deltas["KIM"], AgentElo.GetElo("KIM"), 0.01f, "stored");
             Assert.AreEqual(3, AgentElo.GetEntry("KIM").wins);
             Assert.AreEqual(3, AgentElo.GetEntry("ZOMBIE").losses);
 
@@ -153,6 +177,15 @@ namespace PoOlympic.Tests
             float before = AgentElo.GetElo("MATT");
             Assert.IsEmpty(AgentElo.RecordEvent(Enumerable.Repeat("MATT", 16).ToArray(), points));
             Assert.AreEqual(before, AgentElo.GetElo("MATT"), 0.001f);
+        }
+
+        [Test]
+        public void MainMenu_EmptyEntrantSlotReadsBye()
+        {
+            Assert.AreEqual("BYE", MainMenuController.ShortName(null));
+            Assert.AreEqual("BYE", MainMenuController.ShortName(""));
+            Assert.AreEqual("BYE", MainMenuController.ShortName("bye"));
+            Assert.AreEqual("GRA", MainMenuController.ShortName("GRANDMA"));
         }
 
         [Test]

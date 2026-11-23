@@ -17,6 +17,7 @@ namespace PoOlympic
     ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 16 entrant slots
     ///   entrants          2 rows of 8: the field of 16 every event is run with (the roster's characters, repeated
     ///                     as needed); tap a slot = the next athlete in it. Row 1 runs as heat 1, row 2 as heat 2.
+    ///                     An empty slot reads "BYE".
     ///   events            full catalogue numbered 01–16
     ///   detail            the selected event: name, brain, rules and its world record — or, with ★ on, its all-time
     ///                     top 5 (the ★ toggle also puts every event's world record on its tile: the old records board)
@@ -331,7 +332,8 @@ namespace PoOlympic
                 var (tile, name) = _slots[k];
                 string a = _entrants[k];
                 name.text = ShortName(a);
-                tile.tooltip = $"Entrant {k + 1:00}: {a} · row {k / 8 + 1}, slot {k % 8 + 1}, lane {k + 1}";
+                tile.EnableInClassList("entrant--bye", AgentElo.IsBye(a));
+                tile.tooltip = $"Entrant {k + 1:00}: {(AgentElo.IsBye(a) ? "BYE (empty slot)" : a)} · row {k / 8 + 1}, slot {k % 8 + 1}, lane {k + 1}";
                 foreach (var r in MeetLineup.Roster) tile.EnableInClassList("entrant--" + r.ToLowerInvariant(), a == r);
                 tile.EnableInClassList("entrant--sub", a != null && !InEvent(a));   // sits this event out
                 tile.EnableInClassList("entrant--fixed", LineupFixed);
@@ -436,9 +438,10 @@ namespace PoOlympic
         }
 
         /// <summary>3-letter code of an athlete for the narrow entrant tiles ("GRA", "ZOM").</summary>
+        /// <summary>Entrant tile label: the athlete's first three letters; an empty slot reads "BYE".</summary>
         public static string ShortName(string athlete)
         {
-            if (string.IsNullOrEmpty(athlete)) return "?";
+            if (AgentElo.IsBye(athlete)) return "BYE";
             return athlete.Length <= 3 ? athlete : athlete.Substring(0, 3);
         }
 

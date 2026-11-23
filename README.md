@@ -14,6 +14,17 @@ Engine). No animation and no PhysX.
 - `Tab` (or the bottom-left debug button) shows FPS, episode reward, inference latency, curriculum stage and a training-speed benchmark button; after
   30 s without input the game runs itself (demo mode).
 
+## Ratings and athlete voices
+- ELO (`Core/Runtime/AgentElo.cs`, PlayerPrefs `PoOlympic.AgentElo`): K = 32, new athletes start at **1000** (was 1200
+  until 2026-11-22). Ratings already saved on a device keep their values (athletes rated before the change sit near
+  1200) until the save is wiped (`GameSettings.ResetSave`, which calls `AgentElo.Reset()`).
+- Voices (`CharacterVoiceBank` + `CharacterVoiceSynth`): 5 emotions (happy, angry, hurt, insult, celebrate) x 5
+  variants x 5 levels per athlete. Missing WAVs fall back to the procedural synth. CELEBRATE (event win, each medallist
+  at the podium, series champion) has no WAVs yet: add them as
+  `Assets/_Project/Environments/Audio/Characters/<ATHLETE>/CELEBRATE/celebrate_<01..05>_L<1..5>.wav`, then run
+  PoOlympic › Audio › Generate Character Voice Placeholders to bind them.
+- Main menu: an empty entrant slot reads "BYE". Heats (`MeetSeries`) are unchanged; there is no bracket.
+
 ## Deploy
 `pwsh -File scripts/publish_webgl.ps1` (Unity closed, HEAD pushed): EditMode tests, WebGL build, GitHub release
 `webgl-*`, which `.github/workflows/webgl.yml` deploys to Azure Static Web Apps. Details: `AGENTS.md`.

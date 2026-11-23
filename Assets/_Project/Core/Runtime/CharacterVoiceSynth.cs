@@ -10,16 +10,19 @@ namespace PoOlympic
         Angry = 1,
         Hurt = 2,
         Insult = 3,
+        /// <summary>Victory whoop (event win, medal, series win). Appended last so the slots of the first four
+        /// emotions keep their indices in saved <see cref="CharacterVoiceBank"/> assets.</summary>
+        Celebrate = 4,
     }
 
     /// <summary>
     /// Procedural formant + prosody vocal synthesizer for character voice placeholders and runtime fallbacks.
-    /// Produces 4 emotions (HAPPY, ANGRY, HURT, INSULT) x 5 variants x 5 expressiveness levels (1=weakest..5=strongest),
+    /// Produces 5 emotions (HAPPY, ANGRY, HURT, INSULT, CELEBRATE) x 5 variants x 5 expressiveness levels (1=weakest..5=strongest),
     /// tailored per character profile (MATT, ZOMBIE, GRANDMA, KIM, or deterministic hash-derived profiles for new agents).
     /// </summary>
     public static class CharacterVoiceSynth
     {
-        public const int EmotionCount = 4;
+        public const int EmotionCount = 5;
         public const int VariantsPerEmotion = 5;
         public const int ExpressivenessLevels = 5;
         public const int SoundsPerCharacter = EmotionCount * VariantsPerEmotion * ExpressivenessLevels;
@@ -139,10 +142,14 @@ namespace PoOlympic
             int n = Mathf.Max(SampleRate / 6, Mathf.RoundToInt(dur * SampleRate));
             var outSamples = new float[n];
 
+            bool celebrate = emotion == CharacterEmotion.Celebrate;
             float pitchExcursion = Mathf.Lerp(0.38f, 1.72f, exp);
-            float grit = Mathf.Clamp01(prof.Grit + exp * (emotion == CharacterEmotion.Angry ? 0.45f : emotion == CharacterEmotion.Hurt ? 0.30f : 0.15f));
-            float breath = Mathf.Clamp01(prof.Breathiness + (emotion == CharacterEmotion.Hurt ? 0.22f : 0.08f) * (0.4f + 0.6f * exp));
+            float grit = Mathf.Clamp01(prof.Grit + exp * (emotion == CharacterEmotion.Angry ? 0.45f : emotion == CharacterEmotion.Hurt ? 0.30f : celebrate ? 0.08f : 0.15f));
+            float breath = Mathf.Clamp01(prof.Breathiness + (emotion == CharacterEmotion.Hurt ? 0.22f : celebrate ? 0.03f : 0.08f) * (0.4f + 0.6f * exp));
             float targetPeak = Mathf.Lerp(0.32f, 0.94f, exp);
+            // celebrate: a lifted, open-throated whoop with a wide triumphant vibrato on the held final vowel
+            float f0Lift = celebrate ? Mathf.Lerp(1.06f, 1.22f, exp) : 1f;
+            float vibBoost = celebrate ? 1.7f : 1f;
 
             int seed = StableSeed(NormalizeId(characterId), emotion, v, lvl);
             var rng = new System.Random(seed);
@@ -172,9 +179,10 @@ namespace PoOlympic
 
                 // Expressiveness scales pitch excursion away from neutral 1.0
                 float scaledMul = 1f + (f0Mul - 1f) * pitchExcursion;
-                float vib = Mathf.Sin(2f * Mathf.PI * prof.VibratoHz * t) * prof.VibratoDepth * Mathf.Lerp(0.4f, 1.8f, exp);
+                float vib = Mathf.Sin(2f * Mathf.PI * prof.VibratoHz * t) * prof.VibratoDepth * Mathf.Lerp(0.4f, 1.8f, exp)
+                          * (celebrate && u > 0.55f ? vibBoost : 1f);
                 float jitter = ((float)rng.NextDouble() * 2f - 1f) * grit * 0.03f;
-                float f0 = Mathf.Clamp(prof.BaseF0 * scaledMul * (1f + vib + jitter), 45f, 900f);
+                float f0 = Mathf.Clamp(prof.BaseF0 * f0Lift * scaledMul * (1f + vib + jitter), 45f, 900f);
 
                 phase += f0 / SampleRate;
                 if (phase >= 1f) phase -= 1f;
@@ -205,6 +213,8 @@ namespace PoOlympic
                 float sylEnv = sylU < attack ? sylU / attack : Mathf.Pow(Mathf.Clamp01((1f - sylU) / (1f - attack)), 0.65f);
                 if (emotion == CharacterEmotion.Happy && v == 2) // staccato laugh pulse
                     sylEnv *= 0.65f + 0.35f * Mathf.Abs(Mathf.Sin(Mathf.PI * 3f * sylU));
+                if (celebrate && v == 3) // "ha-ha-HA" victory laugh: faster pulses than Happy's
+                    sylEnv *= 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(Mathf.PI * 5f * sylU));
                 envSmooth = Mathf.Lerp(envSmooth, sylEnv, 0.08f);
 
                 // Retune formants every 32 samples to keep CPU tiny while staying smooth
@@ -284,6 +294,17 @@ namespace PoOlympic
                         2 => (0.52f, new[] { new Syllable(0.00f, 0.42f, 1.28f, 0.95f, 1f, 4f), new Syllable(0.48f, 0.98f, 1.08f, 0.70f, 4f, 2f) }),
                         3 => (0.44f, new[] { new Syllable(0.00f, 0.36f, 1.15f, 0.88f, 3f, 0f), new Syllable(0.44f, 0.96f, 1.32f, 0.68f, 0f, 2f) }),
                         _ => (0.40f, new[] { new Syllable(0.00f, 0.95f, 1.05f, 0.58f, 2f, 0f) }),
+                    };
+
+                case CharacterEmotion.Celebrate:
+                    // long, rising-then-held phrases ("YEAH!", "woo-HOO!", "we DID it!"), longer than Happy's
+                    return variant switch
+                    {
+                        0 => (0.72f, new[] { new Syllable(0.00f, 0.98f, 1.00f, 1.70f, 1f, 0f) }),
+                        1 => (0.78f, new[] { new Syllable(0.00f, 0.34f, 1.10f, 1.25f, 2f, 2f), new Syllable(0.38f, 0.98f, 1.30f, 1.85f, 2f, 3f) }),
+                        2 => (0.82f, new[] { new Syllable(0.00f, 0.24f, 1.05f, 1.15f, 1f, 1f), new Syllable(0.28f, 0.52f, 1.20f, 1.30f, 1f, 4f), new Syllable(0.56f, 0.98f, 1.45f, 1.75f, 0f, 0f) }),
+                        3 => (0.76f, new[] { new Syllable(0.00f, 0.98f, 1.20f, 1.60f, 0f, 4f) }),
+                        _ => (0.86f, new[] { new Syllable(0.00f, 0.30f, 1.00f, 1.40f, 4f, 0f), new Syllable(0.34f, 0.98f, 1.55f, 1.95f, 0f, 3f) }),
                     };
 
                 case CharacterEmotion.Insult:

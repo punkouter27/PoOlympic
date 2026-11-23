@@ -22,6 +22,9 @@ namespace PoOlympic
     ///                    calls: to your marks / set, lead changes, "is out", what a save, photo finish, "Lane N wins!",
     ///                    new world record, next heat — one line at a time, queued, stale lines dropped
     ///   hit-stop         the listener's low-pass closes while ImpactFx freezes time (70 ms thump)
+    ///   athlete voices   CharacterVoiceBank (5 emotions x 5 variants x 5 levels): hurt on falls / slams, angry when out,
+    ///                    insult on a lead change, happy on a save, CELEBRATE for the event winner, each medallist at the
+    ///                    ceremony (gold 5, silver 4, bronze 3) and the series champion (PlayDetachedCelebration)
     /// Sources are scene objects (built by the FX upgrade); 3D voices come from a small round-robin pool.
     /// </summary>
     [DefaultExecutionOrder(170)]
@@ -246,7 +249,7 @@ namespace PoOlympic
             bool photo = Race && tension != null && !float.IsNaN(tension.LeadGapM) && tension.LeadGapM < photoFinishGap;
             if (photo) Say(photoFinishLine, chime: true, ttl: 3f);
             Say(Line(winLines, w.name), chime: !photo, ttl: 5f);
-            PlayCharacterVoice(w.runner, CharacterEmotion.Happy, photo ? 5 : 4, ignoreGlobalCooldown: true);
+            PlayCharacterVoice(w.runner, CharacterEmotion.Celebrate, photo ? 5 : 4, ignoreGlobalCooldown: true);
         }
 
         static AudioClip Line(AudioClip[] lines, string laneName)
@@ -268,6 +271,33 @@ namespace PoOlympic
 
         /// <summary>PodiumCeremony: the medal ceremony starts.</summary>
         public void Fanfare() => Event(fanfare, 0.8f);
+
+        /// <summary>PodiumCeremony: a medallist (place 1..3) celebrates on the podium — gold 5, silver 4, bronze 3.</summary>
+        public void MedalCelebration(PolicyRunner runner, int place)
+        {
+            if (place < 1 || place > 3) return;
+            PlayCharacterVoice(runner, CharacterEmotion.Celebrate, 6 - place, ignoreGlobalCooldown: place == 1);
+        }
+
+        /// <summary>
+        /// MeetSeries: the series champion's victory whoop (level 5). The series returns to the menu right after, so the
+        /// clip plays on its own 2D source that survives the scene change and removes itself when done.
+        /// </summary>
+        public static void PlayDetachedCelebration(string characterId, int expressiveness = 5)
+        {
+            if (!Application.isPlaying || string.IsNullOrWhiteSpace(characterId)) return;
+            var bank = CharacterVoiceBank.Default;
+            int variant = UnityEngine.Random.Range(0, CharacterVoiceSynth.VariantsPerEmotion);
+            var clip = bank.GetClip(characterId, CharacterEmotion.Celebrate, variant, expressiveness);
+            if (clip == null) return;
+            var go = new GameObject("ChampionCelebration");
+            DontDestroyOnLoad(go);
+            var src = go.AddComponent<AudioSource>();
+            src.spatialBlend = 0f;
+            src.ignoreListenerPause = true;
+            src.PlayOneShot(clip, 0.85f * GameSettings.VolMaster * GameSettings.VolSfx);
+            Destroy(go, clip.length + 0.25f);
+        }
 
         void OnNearFall(PolicyRunner r)
         {
@@ -464,7 +494,7 @@ namespace PoOlympic
             }
         }
 
-        /// <summary>Play a character's emotional voice clip (HAPPY, ANGRY, HURT, INSULT) at expressiveness 1..5.</summary>
+        /// <summary>Play a character's emotional voice clip (HAPPY, ANGRY, HURT, INSULT, CELEBRATE) at expressiveness 1..5.</summary>
         public void PlayCharacterVoice(PolicyRunner runner, CharacterEmotion emotion, int expressiveness, bool ignoreGlobalCooldown = false)
         {
             if (runner == null) return;
