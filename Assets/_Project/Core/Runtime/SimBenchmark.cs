@@ -4,7 +4,7 @@ using Mujoco;
 namespace PoOlympic
 {
     /// <summary>
-    /// "Benchmark training speed" of the Tab overlay: steps a private copy of the loaded MuJoCo world (MjScene's model,
+    /// "Benchmark sim speed" of the Tab overlay: steps a private copy of the loaded MuJoCo world (MjScene's model,
     /// the current state copied into a scratch mjData) as fast as this device can for a bounded time, a few milliseconds
     /// per frame so the page keeps drawing, and reports physics steps/s and the agent decisions/s that rate gives at the
     /// brains' control decimation. It measures the local simulation only — no training, no network, no GPU learner —

@@ -93,7 +93,7 @@ every publish. Tests never write into tracked files.
   "Off": it needs the player's own key, which a browser build never has (Off rows do not count in the banner).
 - Tab overlay (`Tab` / `F3`, or the bottom-left debug button on touch screens): FPS, episode reward of the athlete on
   camera with each penalty term, brain inference latency (rolling average), curriculum stage (the brain's rung /
-  skill), and a **Benchmark training speed** button (`SimBenchmark`: steps a private copy of the event's MuJoCo world
+  skill), and a **Benchmark sim speed** button (`SimBenchmark`: steps a private copy of the event's MuJoCo world
   for `ShowcaseSettings.benchmarkSeconds` and reports physics steps/s and agent decisions/s; local simulation only,
   labelled "not a training run").
 - Demo mode: after `ShowcaseSettings.idleDemoSeconds` (30 s) without input the main menu starts `DemoMode`; the

@@ -26,7 +26,7 @@ namespace PoOlympic
         public readonly VisualElement TopBar, BottomBar, Extra, BottomCentre;
         public readonly Label Title, Sub, Fps, Version, DebugPanel;
         public readonly Button MenuButton, DebugButton;
-        /// <summary>Tab overlay: "Benchmark training speed" (SimBenchmark), inside the readout panel.</summary>
+        /// <summary>Tab overlay: "Benchmark sim speed" (SimBenchmark), inside the readout panel.</summary>
         public readonly Button BenchButton;
         readonly VisualElement _scrim, _sheet, _body, _veil;
         readonly List<Button> _tabs = new();
@@ -131,7 +131,7 @@ namespace PoOlympic
             AddLabel(_veil, "ha-veil-text", "Loading…");
             DebugPanel = AddLabel(debugHost, "ha-debug", "");
             DebugPanel.pickingMode = PickingMode.Ignore;
-            BenchButton = new Button(() => { SimBenchmark.Start(); _debugNext = 0f; }) { text = "Benchmark training speed", tooltip = "Steps this event's MuJoCo world as fast as this device can for a few seconds" };
+            BenchButton = new Button(() => { SimBenchmark.Start(); _debugNext = 0f; }) { text = "Benchmark sim speed", tooltip = "Steps this event's MuJoCo world as fast as this device can for a few seconds" };
             BenchButton.AddToClassList("ha-bench");
             debugHost.Add(BenchButton);       // a sibling: a child would turn the panel's text off for layout
             Live.Add(this);
