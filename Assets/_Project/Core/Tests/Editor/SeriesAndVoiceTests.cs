@@ -11,7 +11,7 @@ namespace PoOlympic.Tests
     /// <summary>
     /// Verifies character voice sound coverage (5 emotions x 5 variants x 5 expressiveness levels = 125/character),
     /// procedural WAV placeholder generation + runtime fallback, persistent ELO ratings (head-to-head and from the
-    /// placings of a 16-entrant event), and the 16-entrant event field.
+    /// placings of an event), the 8-athlete event field and the 8-lane scenes every playable event is built from.
     /// </summary>
     public class SeriesAndVoiceTests
     {
@@ -152,7 +152,7 @@ namespace PoOlympic.Tests
         public void AgentElo_EventPlacingsRateEveryCharacterAgainstEveryOther()
         {
             AgentElo.Reset();
-            // 16 entrants, two heats of 8: a character's mark is its best entrant
+            // RecordEvent takes any field size (16 here, from before events ran 8): a character's mark is its best entrant
             var entrants = new[]
             {
                 "KIM", "MATT", "ZOMBIE", "GRANDMA", "KIM", "MATT", "ZOMBIE", "GRANDMA",
@@ -196,7 +196,7 @@ namespace PoOlympic.Tests
         }
 
         [Test]
-        public void EventCompetition_Draws16ParticipantsWithReplacementFromCurrentAgents()
+        public void EventCompetition_Draws8ParticipantsWithReplacementFromCurrentAgents()
         {
             var participants = EventCompetition.DrawParticipants(MeetLineup.Roster, new System.Random(17));
             Assert.AreEqual(EventCompetition.EntrantCount, participants.Length);
@@ -209,12 +209,38 @@ namespace PoOlympic.Tests
         }
 
         [Test]
-        public void EventCompetition_RunsAll16EntrantsInOneHeat()
+        public void EventCompetition_RunsAll8EntrantsInOneHeat()
         {
+            Assert.AreEqual(8, EventCompetition.EntrantCount, "every event has exactly 8 athletes");
+            Assert.AreEqual(8, EventCompetition.HeatSize);
+            Assert.AreEqual(1, EventCompetition.HeatCount);
             var participants = Enumerable.Range(0, EventCompetition.EntrantCount).Select(i => $"AGENT_{i:00}").ToArray();
             CollectionAssert.AreEqual(participants,
                 EventCompetition.ParticipantsForHeat(participants, 0));
             Assert.Throws<ArgumentOutOfRangeException>(() => EventCompetition.ParticipantsForHeat(participants, 1));
+        }
+
+        [Test]
+        public void PlayableEvents_AreBuiltFromEightLaneScenes()
+        {
+            // the scene sources of the 11 playable events (EventScenes.EventScenePaths): 8 lanes, every roster body in each
+            var layouts = new[]
+            {
+                EventScenes.PedestalRosterLayout, EventScenes.ShakerLayout, EventScenes.CrawlLayout, EventScenes.InvertedLayout,
+                EventScenes.CrabLayout, EventScenes.SlalomLayout, EventScenes.TurntableLayout, EventScenes.TrackLayout,
+            };
+            string root = Path.GetDirectoryName(Application.dataPath);
+            foreach (var layout in layouts)
+            {
+                string json = File.ReadAllText(Path.Combine(root, layout));
+                var lanes = System.Text.RegularExpressions.Regex.Matches(json, "\"lane\":\\s*(\\d+)")
+                    .Cast<System.Text.RegularExpressions.Match>().Select(m => int.Parse(m.Groups[1].Value)).ToList();
+                CollectionAssert.AreEquivalent(Enumerable.Range(0, EventCompetition.HeatSize), lanes.Distinct(), layout);
+                foreach (var body in MeetLineup.Roster)
+                    Assert.AreEqual(EventCompetition.HeatSize,
+                        System.Text.RegularExpressions.Regex.Matches(json, $"\"body\":\\s*\"{body.ToLowerInvariant()}\"").Count,
+                        $"{layout}: {body} in every lane");
+            }
         }
     }
 }

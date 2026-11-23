@@ -539,7 +539,8 @@ namespace PoOlympic
         void ToggleStandings() => _expandPage = (_expandPage + 1) % (_lastRowCount > 8 ? 3 : 2);
 
         /// <summary>Collapsed standings: the top 3 + the story's 4th row (athlete in trouble, else your bet, else 4th).
-        /// When expanded with 16 athletes, pages 8 rows at a time (1-8 then 9-16) so the camera window stays open.</summary>
+        /// When expanded with more than 8 athletes (scenes from before the 8-athlete rule), pages 8 rows at a time
+        /// (1-8 then 9-16) so the camera window stays open; events run 8 athletes, so one page.</summary>
         List<(int place, string name, string result, bool bad, PolicyRunner runner)> Shown(
             List<(int place, string name, string result, bool bad, PolicyRunner runner)> rows, out List<int> ranks)
         {
@@ -678,8 +679,8 @@ namespace PoOlympic
             {
                 EventCompetition.ScoreHeat(rows.Select(r => (r.name, r.place)));
                 AddLabel(_resultBox, "bh-card-line", EventCompetition.HeatCount > 1
-                    ? $"16 ENTRANTS · HEAT {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}"
-                    : "16 ENTRANTS · 2 ROWS OF 8");
+                    ? $"{EventCompetition.EntrantCount} ENTRANTS · HEAT {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}"
+                    : $"{EventCompetition.EntrantCount} ENTRANTS · ONE HEAT");
             }
             if (!Gauntlet.Active && !MeetSeries.Active)
             {
@@ -701,8 +702,8 @@ namespace PoOlympic
             AddLabel(_match, "bh-overlay-title", title);
             string competitionHeat = EventCompetition.Active
                 ? (EventCompetition.HeatCount > 1
-                    ? $" · 16 entrants · heat {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}"
-                    : " · 16 entrants")
+                    ? $" · {EventCompetition.EntrantCount} entrants · heat {EventCompetition.HeatNumber}/{EventCompetition.HeatCount}"
+                    : $" · {EventCompetition.EntrantCount} entrants")
                 : "";
             AddLabel(_match, "bh-overlay-sub", $"{subtitle} · heat {b.Heat + 1} · final result{competitionHeat}");
             var head = Add(_match, "bh-match-tabs");
@@ -748,7 +749,7 @@ namespace PoOlympic
             if (EventCompetition.Active)
             {
                 AddLabel(places, "bh-card-line", EventCompetition.IsFinalHeat
-                    ? $"OVERALL 16-ENTRANT RESULTS · {EventCompetition.FinalSummary()}"
+                    ? $"OVERALL {EventCompetition.EntrantCount}-ENTRANT RESULTS · {EventCompetition.FinalSummary()}"
                     : "Heat 2 will run after you tap OK.").style.whiteSpace = WhiteSpace.Normal;
             }
             HeatBests(rows, telemetry);

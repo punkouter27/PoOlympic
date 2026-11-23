@@ -69,7 +69,7 @@ namespace PoOlympic.Tests
             Click(Button(hud.Frame, "OK"));
             Assert.IsTrue(MeetLineup.Loading, "OK on the match card did not start a load");
             Click(Button(hud.Frame, "OK"));                         // a double tap while loading must be a no-op
-            Assert.IsTrue(MeetLineup.Loading, "OK after the single 16-entrant heat did not start a load");
+            Assert.IsTrue(MeetLineup.Loading, "OK after the single 8-athlete heat did not start a load");
             yield return Menu(first: false);
 
             // ---- lap 2: another event, a second heat from the sheet, out through the sheet

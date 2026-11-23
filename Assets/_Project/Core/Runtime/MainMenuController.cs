@@ -14,9 +14,10 @@ namespace PoOlympic
     ///                     lineup presets, demo · Settings) · BL debug (Tab overlay); bottom centre: the last gauntlet result
     ///                     (the game name and version are drawn by the web page around the canvas)
     ///   landscape         wider than tall: the column widens and the event grid gets twice the columns
-    ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 16 entrant slots
-    ///   entrants          2 rows of 8: the field of 16 every event is run with (the roster's characters, repeated
-    ///                     as needed); tap a slot = the next athlete in it. Row 1 runs as heat 1, row 2 as heat 2.
+    ///   roster            one card per athlete (MeetLineup.Roster): tap = that athlete in all 8 entrant slots
+    ///   entrants          one row of 8: the field every event is run with, one athlete per lane (the roster's
+    ///                     characters, repeated as needed — a repeat keeps its lane label, e.g. L2 and L6 for two
+    ///                     MATTs); tap a slot = the next athlete in it.
     ///                     An empty slot reads "BYE".
     ///   events            full catalogue numbered 01–16
     ///   detail            the selected event: name, brain, rules and its world record — or, with ★ on, its all-time
@@ -40,7 +41,7 @@ namespace PoOlympic
             public string brain;
             public string scene;   // scene name in Build Settings
             public string[] lineup; // athlete per lane in the built scene (MATT / ZOMBIE); scenes are built per lineup
-            [Tooltip("Sixteen random entrants from the current agent roster; duplicates are allowed.")]
+            [Tooltip("Eight random entrants (one per lane) from the current agent roster; duplicates are allowed.")]
             public string[] participants;
             [Tooltip("Roster athletes the event scene holds (empty = the whole roster). An athlete without a brain for " +
                      "the event sits out: LaneLineup runs the first of these in that lane.")]
@@ -169,8 +170,8 @@ namespace PoOlympic
             _anchors = new HudAnchors(top, bottom, overlay, _detail ?? overlay, "LINEUP", "", "v" + Application.version);
             _anchors.SetMenu(MenuItems);
             _anchors.StageHint = () => _selected == null || string.IsNullOrEmpty(_selected.brain) ? "" : $"{_selected.brain} (selected event's brain)";
-            // one field of 16 for every event. Kept from the last visit to the menu; else a fresh draw: each row
-            // of 8 holds every character at least once, the other slots are repeats.
+            // one field of 8 for every event. Kept from the last visit to the menu; else a fresh draw: every
+            // character at least once, the other slots are repeats.
             var field = _savedEntrants != null && _savedEntrants.Length == _entrants.Length &&
                         _savedEntrants.All(a => Array.IndexOf(MeetLineup.Roster, a) >= 0)
                 ? _savedEntrants
@@ -184,7 +185,7 @@ namespace PoOlympic
             foreach (var athlete in MeetLineup.Roster)
             {
                 int elo = AgentElo.GetRoundedElo(athlete);
-                var card = new Button(() => FillAll(athlete)) { tooltip = $"{MeetLineup.Stats(athlete).Replace("\n", " · ")} · ELO {elo} · tap: all 16 entrants" };
+                var card = new Button(() => FillAll(athlete)) { tooltip = $"{MeetLineup.Stats(athlete).Replace("\n", " · ")} · ELO {elo} · tap: all {EventCompetition.EntrantCount} entrants" };
                 card.AddToClassList("athlete-card");
                 card.EnableInClassList("athlete-card--gap", athlete != MeetLineup.Roster[^1]);
                 // three cards share the row: chip + name + ×8 on one line, the stats + ELO on their own line below
@@ -192,7 +193,7 @@ namespace PoOlympic
                 head.AddToClassList("athlete-head");
                 head.Add(Chip(athlete));
                 head.Add(MakeLabel(athlete, "athlete-name"));
-                head.Add(MakeLabel("×16", "athlete-fill"));
+                head.Add(MakeLabel($"×{EventCompetition.EntrantCount}", "athlete-fill"));
                 card.Add(head);
                 card.Add(MakeLabel($"{MeetLineup.Stats(athlete).Split('\n')[0]} · ELO {elo}", "athlete-stats"));
                 roster.Add(card);
@@ -228,7 +229,7 @@ namespace PoOlympic
                 var button = new Button(() => SelectEvent(ev))
                 {
                     tooltip = playable
-                        ? $"{ev.brain} · 16 participants, 2 heats of 8"
+                        ? $"{ev.brain} · {EventCompetition.EntrantCount} athletes, one per lane"
                         : "Coming soon — playable event scene is not built yet."
                 };
                 button.SetEnabled(playable);
@@ -276,13 +277,13 @@ namespace PoOlympic
                     for (int k = 0; k < _entrants.Length; k++) _entrants[k] = MeetLineup.Roster[k % MeetLineup.Roster.Length];
                     RefreshSlots();
                 });
-            yield return ("Shuffle the 16 entrants", () =>
+            yield return ($"Shuffle the {EventCompetition.EntrantCount} entrants", () =>
             {
                 if (LineupFixed) return;
                 Array.Copy(EventCompetition.DrawParticipants(MeetLineup.Roster, new System.Random()), _entrants, _entrants.Length);
                 RefreshSlots();
             });
-            yield return ("Run all events (16 entrants, plays by itself)", RunAll);
+            yield return ($"Run all events ({EventCompetition.EntrantCount} athletes, plays by itself)", RunAll);
             yield return ($"Demo mode (starts by itself after {IdleDemoSeconds:0} s idle)", StartDemo);
             if (DemoSeason.SeriesPlayed > 0) yield return ("Demo season: reset", () => { DemoSeason.Reset(); UpdateStatus(); });
         }
@@ -333,7 +334,7 @@ namespace PoOlympic
                 string a = _entrants[k];
                 name.text = ShortName(a);
                 tile.EnableInClassList("entrant--bye", AgentElo.IsBye(a));
-                tile.tooltip = $"Entrant {k + 1:00}: {(AgentElo.IsBye(a) ? "BYE (empty slot)" : a)} · row {k / 8 + 1}, slot {k % 8 + 1}, lane {k + 1}";
+                tile.tooltip = $"Entrant {k + 1:00}: {(AgentElo.IsBye(a) ? "BYE (empty slot)" : a)} · lane {k + 1}";
                 foreach (var r in MeetLineup.Roster) tile.EnableInClassList("entrant--" + r.ToLowerInvariant(), a == r);
                 tile.EnableInClassList("entrant--sub", a != null && !InEvent(a));   // sits this event out
                 tile.EnableInClassList("entrant--fixed", LineupFixed);
@@ -456,11 +457,11 @@ namespace PoOlympic
             // the status line lives in the title chip (TL): no separate status label under PLAY
             _anchors.Sub.text = _selected == null ? "No playable events"
                 : !IsPlayable(_selected) ? $"{_selected.number:00} is coming soon"
-                : !full ? "Fill all 16 entrants"
+                : !full ? $"Fill all {EventCompetition.EntrantCount} entrants"
                 : !loadable ? $"{_selected.scene} is not in Build Settings"
                 : _gauntletMode ? (_gauntlet.Count == 0 ? "Tap events to build the gauntlet"
                     : $"Gauntlet {string.Join(" → ", _gauntlet.Select(e => e.number.ToString("00")))} · 10-8-6-5-4-3-2-1")
-                : SitOutNote() ?? "16 entrants · 2 rows of 8";
+                : SitOutNote() ?? $"{EventCompetition.EntrantCount} athletes · one per lane";
             _runAllButton?.SetEnabled(full && events.Any(e => IsPlayable(e) && !FixedLineup(e)));
             _last.text = (MeetSeries.LastResult.Length > 0 ? "Series: " + MeetSeries.LastResult.Replace("\n", " · ") + "\n" : "") +
                          (Gauntlet.LastResult.Length > 0 ? "Last gauntlet: " + Gauntlet.LastResult.Replace("\n", " · ") : "") +

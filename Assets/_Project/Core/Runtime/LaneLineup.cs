@@ -18,6 +18,9 @@ namespace PoOlympic
     /// this keeps the body picked in the main menu (MeetLineup.Athletes; MATT when that body is missing) and switches
     /// off the others — runner, visual, physics bodies, their actuators and contact excludes — so the running model is
     /// compose(scene, lineup). Then each event drops the switched-off athletes and the camera follows the kept pelvis.
+    /// A lane past the end of the lineup (a scene built with more lanes than <see cref="EventCompetition.HeatSize"/>,
+    /// e.g. a 16-lane scene not yet rebuilt for 8-athlete events) has every body switched off, so an event never runs
+    /// more athletes than the lineup holds.
     /// </summary>
     [DefaultExecutionOrder(-10000)]
     public sealed class LaneLineup : MonoBehaviour
@@ -44,7 +47,14 @@ namespace PoOlympic
         {
             int lanes = entries.Count == 0 ? 0 : entries.Max(e => e.lane) + 1;
             Kept = new string[lanes];
-            for (int k = 0; k < lanes; k++)
+            int used = MeetLineup.Athletes.Length > 0 ? Math.Min(lanes, MeetLineup.Athletes.Length) : lanes;
+            for (int k = used; k < lanes; k++)
+                foreach (var e in entries.Where(e => e.lane == k))
+                {
+                    e.runner.gameObject.SetActive(false);
+                    e.pelvis.SetActive(false);
+                }
+            for (int k = 0; k < used; k++)
             {
                 string want = k < MeetLineup.Athletes.Length ? MeetLineup.Athletes[k].ToLowerInvariant() : "matt";
                 if (!entries.Any(e => e.lane == k && e.body == want))   // MATT, else the lane's only body (Event 3: mattbio)
@@ -70,10 +80,11 @@ namespace PoOlympic
                 pool.runner = entries.First(e => e.body == Kept[e.lane]).runner;
             if (broadcastCamera != null)
             {
-                var focus = entries.FirstOrDefault(e => e.lane == focusLane && e.body == Kept[focusLane]);
+                int lane = Mathf.Clamp(focusLane, 0, Math.Max(0, used - 1));
+                var focus = entries.FirstOrDefault(e => e.lane == lane && e.body == Kept[lane]);
                 if (focus != null) broadcastCamera.target = focus.pelvis.GetComponent<MjBody>();
             }
-            Debug.Log($"[LaneLineup] {string.Join(" ", Kept.Select((b, k) => $"{char.ToUpperInvariant(b[0])}{k + 1}"))}");
+            Debug.Log($"[LaneLineup] {string.Join(" ", Kept.Select((b, k) => b == null ? $"-{k + 1}" : $"{char.ToUpperInvariant(b[0])}{k + 1}"))}");
         }
     }
 }

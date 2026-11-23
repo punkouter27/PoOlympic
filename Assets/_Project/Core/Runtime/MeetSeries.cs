@@ -7,9 +7,9 @@ using UnityEngine.SceneManagement;
 namespace PoOlympic
 {
     /// <summary>
-    /// The auto-run series (main menu: RUN ALL): every playable event in turn with one field of 16 entrants (the
+    /// The auto-run series (main menu: RUN ALL): every playable event in turn with one field of 8 entrants (the
     /// roster's characters, repeated as needed), unattended, until one entrant has the most points.
-    ///   - each event is an <see cref="EventCompetition"/> (the 16 entrants over the scene's heats); the HUD scores
+    ///   - each event is an <see cref="EventCompetition"/> (the 8 entrants, one per lane, in one heat); the HUD scores
     ///     each heat and calls Advance after ResultSeconds;
     ///   - an entrant's points per event (10-8-6-5-4-3-2-1 by place in its heat) add up over the series;
     ///   - ratings move after every event (EventCompetition → <see cref="AgentElo.RecordEvent"/>);
@@ -63,7 +63,7 @@ namespace PoOlympic
         /// <summary>Series points of entrant 0-15 so far (events already closed).</summary>
         public static int PointsOf(int entrant) => _points[entrant];
 
-        /// <summary>Start the series: every loadable event, in the given order, with these 16 entrants.</summary>
+        /// <summary>Start the series: every loadable event, in the given order, with these 8 entrants.</summary>
         public static bool Begin(IEnumerable<EventChoice> events, string[] entrants)
         {
             if (entrants == null || entrants.Length != EventCompetition.EntrantCount)

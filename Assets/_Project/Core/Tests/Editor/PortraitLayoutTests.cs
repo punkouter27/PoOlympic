@@ -164,12 +164,12 @@ namespace PoOlympic.Tests
             Assert.AreEqual(11, tiles.Count);
             foreach (var t in tiles) Assert.GreaterOrEqual(t.layout.height, 104f, $"{phone}: event tile under 104");
 
-            // the field of 16: two rows of 8 entrant slots, every one holding a roster character, nothing cut off
+            // the field: one row of 8 entrant slots (one per lane), every one holding a roster character, nothing cut off
             var entrants = root.Query<Button>(className: "entrant").ToList();
             Assert.AreEqual(EventCompetition.EntrantCount, entrants.Count, $"{phone}: entrant slots");
             var rows = entrants.GroupBy(t => Mathf.RoundToInt(t.worldBound.yMin)).OrderBy(g => g.Key).ToList();
-            Assert.AreEqual(2, rows.Count, $"{phone}: entrant rows");
-            Assert.IsTrue(rows.All(g => g.Count() == 8), $"{phone}: 8 entrants per row");
+            Assert.AreEqual(1, rows.Count, $"{phone}: entrant rows");
+            Assert.IsTrue(rows.All(g => g.Count() == EventCompetition.HeatSize), $"{phone}: 8 entrants in the row");
             var codes = MeetLineup.Roster.Select(MainMenuController.ShortName).ToArray();
             foreach (var t in entrants)
             {
@@ -238,7 +238,7 @@ namespace PoOlympic.Tests
             public string InfoLine => "leader 86.8 / 84.4 m";
             public string Banner => BoardState == BoardPhase.Ready ? "3" : BoardState == BoardPhase.Result ? "L5 WINS" : "";
             public IEnumerable<(int place, string name, string result, bool bad, PolicyRunner runner)> Rows =>
-                Enumerable.Range(0, 16).Select(i => (BoardState == BoardPhase.Result ? i + 1 : 0, $"L{i + 1}",
+                Enumerable.Range(0, EventCompetition.HeatSize).Select(i => (BoardState == BoardPhase.Result ? i + 1 : 0, $"L{i + 1}",
                     i == 7 ? "FELL 12.3 s" : $"{86.8 - i * 0.4:0.0} m · {4.05 - i * 0.01:0.00} m/s", i == 7, (PolicyRunner)null));
             public bool TryWinningMark(out double value, out bool lowerIsBetter, out string text)
             { value = 4.05; lowerIsBetter = false; text = "4.05 m/s"; return BoardState == BoardPhase.Result; }
@@ -307,14 +307,14 @@ namespace PoOlympic.Tests
             Assert.IsTrue(board.HoldStart, "the heat after a single event's heat is not held");
             Assert.IsTrue(HudLayoutAudit.Shown(match), "no match card after a single event's heat");
             int ShownRows() => match.Query(className: "bh-row").ToList().Count(HudLayoutAudit.Shown);
-            Assert.AreEqual(16, ShownRows(), "match card places");
+            Assert.AreEqual(EventCompetition.HeatSize, ShownRows(), "match card places");
             foreach (var b in match.Query<Button>().ToList())
                 Assert.GreaterOrEqual(b.resolvedStyle.height, MinButton, $"match card button '{b.text}' under 104");
             AssertClean($"{phone} HUD match card", HudLayoutAudit.Check(hud.Frame, bounds, 28f));
-            // result, telemetry and replay are one card: the Telemetry tab swaps the 16 rows in place
+            // result, telemetry and replay are one card: the Telemetry tab swaps the 8 rows in place
             Click(match.Query<Button>().ToList().First(b => b.text == "Telemetry"));
             Settle(hud, doc);
-            Assert.AreEqual(16, ShownRows(), "match card telemetry rows");
+            Assert.AreEqual(EventCompetition.HeatSize, ShownRows(), "match card telemetry rows");
             Assert.IsTrue(match.Query<Label>().ToList().Any(l => HudLayoutAudit.Shown(l) && l.text.Contains("no telemetry")), "telemetry tab not shown");
             AssertClean($"{phone} HUD match card (telemetry)", HudLayoutAudit.Check(hud.Frame, bounds, 28f));
             Assert.IsNotNull(match.Query<Button>().ToList().FirstOrDefault(b => b.text == "Replay"), "no Replay on the match card");

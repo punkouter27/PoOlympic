@@ -9,7 +9,7 @@ namespace PoOlympic
     /// Persistent ELO rating table for every agent (PlayerPrefs JSON, survives restarts).
     /// Standard logistic expectation with K = 32 and initial rating = 1000 (tournament standard; it was 1200 before
     /// 2026-11-22 — ratings already saved under <see cref="Key"/> keep their values). Ratings move after every completed
-    /// 16-entrant event (RecordEvent): each character against each other character, on their best placing.
+    /// 8-athlete event (RecordEvent): each character against each other character, on their best placing.
     /// </summary>
     public static class AgentElo
     {

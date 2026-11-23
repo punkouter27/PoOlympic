@@ -73,7 +73,7 @@
 .menu-chip--grandma { background-color: var(--po-grandma); color: var(--po-white); }
 .menu-chip--kim { background-color: var(--po-kim); color: var(--po-on-kim); }
 
-/* ---------- entrants: 2 rows of 8 (the field of 16), tap = next athlete ---------- */
+/* ---------- entrants: one row of 8 (one athlete per lane), tap = next athlete ---------- */
 .slots { flex-direction: row; flex-wrap: wrap; justify-content: space-between; flex-shrink: 0; }
 .entrant {
     width: 12%;

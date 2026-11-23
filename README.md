@@ -25,6 +25,17 @@ Engine). No animation and no PhysX.
   PoOlympic › Audio › Generate Character Voice Placeholders to bind them.
 - Main menu: an empty entrant slot reads "BYE". Heats (`MeetSeries`) are unchanged; there is no bracket.
 
+## Eight athletes per event
+Every event runs exactly 8 athletes, one per lane, in one heat (`EventCompetition.EntrantCount` = 8; it was 16 in
+two rows of 8 from 2026-11-12). The menu's 8 entrant slots are filled from the roster; with only 4 roster athletes
+the lanes repeat athletes, and each keeps its lane label (MATT `L<n>`, ZOMBIE `Z<n>`, GRANDMA `G<n>`, KIM `K<n>`), so
+two MATTs read e.g. `L2` and `L6`. The 11 playable events are built from the 8-lane roster scenes
+(`Training/assets/*8_roster*`); the `*16_roster` assets stay in the repo, unused by Unity.
+**Rebuild the scenes** after pulling this: PoOlympic › Events › Build All 11 Playable 8-Athlete Events + Menu
+(the committed `Event_*` scenes of events 1, 5, 8, 9, 10, 11, 12, 13, 14, 19, 27 still hold 16 lanes; until they are
+rebuilt `LaneLineup` switches lanes 9–16 off, so they already run 8 athletes but framed for two rows).
+Solo scenes stay solo: `Event_IronPedestal.unity` (practice, not in the menu) and the `Testbed_*` dev scenes.
+
 ## Deploy
 `pwsh -File scripts/publish_webgl.ps1` (Unity closed, HEAD pushed): EditMode tests, WebGL build, GitHub release
 `webgl-*`, which `.github/workflows/webgl.yml` deploys to Azure Static Web Apps. Details: `AGENTS.md`.

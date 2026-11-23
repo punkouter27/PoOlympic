@@ -170,10 +170,15 @@ namespace PoOlympic
         }
     }
 
-    /// <summary>A 16-entrant event field run together at once in a two-rows-of-eight scene.</summary>
+    /// <summary>
+    /// An event field of 8 entrants, run together in one heat on the scene's 8 lanes (every event has exactly 8
+    /// athletes, 2026-11-22; it was 16 in two rows of 8 from 2026-11-12). With fewer than 8 distinct roster athletes the
+    /// lanes repeat athletes — each keeps its own lane label (MATT L&lt;n&gt;, ZOMBIE Z&lt;n&gt;, GRANDMA G&lt;n&gt;, KIM K&lt;n&gt;), so two
+    /// MATTs read e.g. L2 and L6. No BYE: a race is not a bracket.
+    /// </summary>
     public static class EventCompetition
     {
-        public const int EntrantCount = 16;
+        public const int EntrantCount = 8;
         public const int HeatSize = EntrantCount;
         public const int HeatCount = EntrantCount / HeatSize;
 
@@ -187,7 +192,7 @@ namespace PoOlympic
         /// <summary>"GRANDMA +8 · KIM +3 · MATT -5 …": the rating changes of the event just finished ("" if unrated).</summary>
         public static string LastEloSummary { get; private set; } = "";
         public static IReadOnlyList<string> Entrants => _entrants;
-        /// <summary>Points of entrant 0-15 in the running event (its place in its own heat, 10-8-6-5-4-3-2-1).</summary>
+        /// <summary>Points of entrant 0-7 in the running event (its place in its own heat, 10-8-6-5-4-3-2-1).</summary>
         public static int PointsOf(int entrant) => _points[entrant];
         public static int HeatNumber => _heat + 1;
         public static bool HasNextHeat => Active && _heat + 1 < HeatCount;
