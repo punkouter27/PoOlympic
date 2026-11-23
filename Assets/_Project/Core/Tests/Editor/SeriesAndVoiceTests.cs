@@ -10,7 +10,7 @@ namespace PoOlympic.Tests
 {
     /// <summary>
     /// Verifies character voice sound coverage (5 emotions x 5 variants x 5 expressiveness levels = 125/character),
-    /// procedural WAV placeholder generation + runtime fallback, persistent ELO ratings (head-to-head and from the
+    /// the voices.json manifest, the advanced procedural imitation and its fallback, persistent ELO ratings (head-to-head and from the
     /// placings of an event), the 8-athlete event field and the 8-lane scenes every playable event is built from.
     /// </summary>
     public class SeriesAndVoiceTests
@@ -38,44 +38,103 @@ namespace PoOlympic.Tests
         }
 
         [Test]
-        public void CharacterVoices_EveryRosterCharacterHasAll125SoundsAndPlaceholderWavs()
+        public void VoiceManifest_CoversEveryAthleteEmotionLevelAndTake()
         {
-            CharacterVoiceAssets.EnsurePlaceholders();
-
-            var bank = AssetDatabase.LoadAssetAtPath<CharacterVoiceBank>(CharacterVoiceAssets.BankAssetPath);
-            Assert.NotNull(bank, "CharacterVoiceBank asset missing");
-
             Assert.AreEqual(5, CharacterVoiceSynth.EmotionCount);
             Assert.AreEqual(5, CharacterVoiceSynth.VariantsPerEmotion);
             Assert.AreEqual(5, CharacterVoiceSynth.ExpressivenessLevels);
             Assert.AreEqual(125, CharacterVoiceSynth.SoundsPerCharacter);
 
-            foreach (var characterId in MeetLineup.Roster)
-            {
-                foreach (CharacterEmotion emotion in Enum.GetValues(typeof(CharacterEmotion)))
-                {
-                    for (int variant = 0; variant < CharacterVoiceSynth.VariantsPerEmotion; variant++)
-                    {
-                        float rms1 = Rms(CharacterVoiceSynth.GenerateSamples(characterId, emotion, variant, 1));
-                        float rms5 = Rms(CharacterVoiceSynth.GenerateSamples(characterId, emotion, variant, 5));
-                        Assert.Greater(rms5, rms1, $"{characterId} {emotion} v{variant}: expressiveness 5 should be louder/stronger than 1");
+            Assert.IsTrue(File.Exists(CharacterVoiceAssets.ManifestPath), "voices.json missing");
+            var m = CharacterVoiceManifest.Parse(File.ReadAllText(CharacterVoiceAssets.ManifestPath));
+            Assert.NotNull(m, "voices.json does not parse as po-voice-manifest/1");
+            CollectionAssert.AreEqual(new[] { "angry", "happy", "hurt", "insult", "celebrate" }, m.emotions);
+            CollectionAssert.AreEqual(new[] { 1, 2, 3, 4, 5 }, m.levels);
+            Assert.AreEqual("procedural", m.fallback);
+            Assert.AreEqual(CharacterVoiceManifest.Root, m.root);
+            CollectionAssert.AreEquivalent(MeetLineup.Roster, m.characters.Select(c => c.name), "one entry per roster athlete, no BYE");
 
-                        for (int lvl = 1; lvl <= CharacterVoiceSynth.ExpressivenessLevels; lvl++)
+            var naming = new System.Text.RegularExpressions.Regex(@"^[A-Z0-9_]+/(ANGRY|HAPPY|HURT|INSULT|CELEBRATE)/(angry|happy|hurt|insult|celebrate)_0[1-5]_L[1-5]\.wav$");
+            foreach (var c in m.characters)
+            {
+                Assert.AreEqual(c.name.ToLowerInvariant(), c.id);
+                Assert.IsTrue(c.voice != null && c.voice.Valid && !string.IsNullOrEmpty(c.voice.timbre), $"{c.name}: voice profile");
+                foreach (var emotion in CharacterVoiceManifest.EmotionOrder)
+                {
+                    var cells = c.clips.Of(emotion);
+                    CollectionAssert.AreEqual(new[] { 1, 2, 3, 4, 5 }, cells.Select(x => x.level), $"{c.name} {emotion}: levels");
+                    foreach (var cell in cells)
+                    {
+                        Assert.AreEqual(5, cell.takes.Length, $"{c.name} {emotion} L{cell.level}: takes");
+                        Assert.AreEqual(cell.takes[0].file, cell.file);
+                        Assert.AreEqual(cell.takes.Any(t => t.exists), cell.exists);
+                        for (int t = 0; t < 5; t++)
                         {
-                            string wavPath = $"{BroadcastFx.AudioFolder}/{CharacterVoiceBank.RelativeWavPath(characterId, emotion, variant, lvl)}";
-                            if (CharacterVoiceAssets.GetsPlaceholderWavs(emotion))
-                            {
-                                Assert.IsTrue(File.Exists(wavPath), $"Missing placeholder WAV: {wavPath}");
-                                Assert.IsTrue(bank.HasWavClip(characterId, emotion, variant, lvl), $"Bank missing WAV clip for {characterId} {emotion} v{variant} L{lvl}");
-                            }
-                            else    // CELEBRATE: procedural until real WAVs are added, then bound like the rest
-                                Assert.AreEqual(File.Exists(wavPath), bank.HasWavClip(characterId, emotion, variant, lvl), wavPath);
-                            var clip = bank.GetClip(characterId, emotion, variant, lvl);
-                            Assert.NotNull(clip, $"Null clip for {characterId} {emotion} v{variant} L{lvl}");
+                            var take = cell.takes[t];
+                            Assert.AreEqual(t + 1, take.take);
+                            Assert.AreEqual(CharacterVoiceManifest.FileOf(c.name, emotion, t, cell.level), take.file);
+                            StringAssert.IsMatch(naming.ToString(), take.file);
+                            // exists is the generator's: true only for a real recording (not a synth-baked placeholder)
+                            Assert.AreEqual(CharacterVoiceAssets.IsRecorded($"{m.root}/{take.file}"), take.exists,
+                                $"{take.file}: stale exists flag — run PoOlympic › Audio › Rebuild Voice Manifest");
                         }
                     }
                 }
             }
+            var bank = AssetDatabase.LoadAssetAtPath<CharacterVoiceBank>(CharacterVoiceAssets.BankAssetPath);
+            Assert.NotNull(bank, "CharacterVoiceBank asset missing");
+            Assert.AreEqual(AssetDatabase.LoadAssetAtPath<TextAsset>(CharacterVoiceAssets.ManifestPath), bank.manifest, "the bank loads voices.json");
+            foreach (var c in m.characters)
+                foreach (var emotion in CharacterVoiceManifest.EmotionOrder)
+                    for (int t = 0; t < 5; t++)
+                        for (int lvl = 1; lvl <= 5; lvl++)
+                        {
+                            Assert.AreEqual(m.Exists(c.name, emotion, t, lvl), bank.HasWavClip(c.name, emotion, t, lvl), $"{c.name} {emotion} {t} L{lvl}");
+                            Assert.NotNull(bank.GetClip(c.name, emotion, t, lvl));
+                        }
+        }
+
+        [Test]
+        public void VoiceManifest_SynthBakedWavIsAPlaceholderNotARecording()
+        {
+            string path = Path.Combine(Path.GetTempPath(), "poolympic_placeholder_test.wav");   // outside the project
+            try
+            {
+                CharacterVoiceSynth.WriteWavFile(path, CharacterVoiceSynth.GenerateSamples("MATT", CharacterEmotion.Happy, 0, 3));
+                var bytes = File.ReadAllBytes(path);
+                Assert.IsTrue(CharacterVoiceSynth.IsPlaceholderWav(bytes));
+                Assert.IsFalse(CharacterVoiceAssets.IsRecorded(path));
+                // the same audio without the marker is what a recording looks like
+                var marker = System.Text.Encoding.ASCII.GetBytes(CharacterVoiceSynth.PlaceholderMarker);
+                int at = Enumerable.Range(0, bytes.Length - marker.Length).First(i => bytes.Skip(i).Take(marker.Length).SequenceEqual(marker));
+                bytes[at] = (byte)'X';
+                Assert.IsFalse(CharacterVoiceSynth.IsPlaceholderWav(bytes));
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Test]
+        public void ProceduralVoice_EveryCellAudibleScaledDeterministicAndPerAthlete()
+        {
+            foreach (var characterId in MeetLineup.Roster)
+                foreach (CharacterEmotion emotion in Enum.GetValues(typeof(CharacterEmotion)))
+                    for (int take = 0; take < CharacterVoiceSynth.VariantsPerEmotion; take++)
+                    {
+                        var l1 = CharacterVoiceSynth.GenerateSamples(characterId, emotion, take, 1);
+                        var l5 = CharacterVoiceSynth.GenerateSamples(characterId, emotion, take, 5);
+                        string what = $"{characterId} {emotion} take {take + 1}";
+                        Assert.Greater(Rms(l1), 0.01f, $"{what}: level 1 silent");
+                        Assert.Greater(Rms(l5), Rms(l1), $"{what}: level 5 not louder than 1");
+                        Assert.Greater(l5.Length, l1.Length, $"{what}: level 5 not longer than 1");
+                        CollectionAssert.AreEqual(l5, CharacterVoiceSynth.GenerateSamples(characterId, emotion, take, 5), $"{what}: not deterministic");
+                    }
+            for (int a = 0; a < MeetLineup.Roster.Length; a++)
+                for (int b = a + 1; b < MeetLineup.Roster.Length; b++)
+                {
+                    var x = CharacterVoiceSynth.GenerateSamples(MeetLineup.Roster[a], CharacterEmotion.Angry, 0, 3);
+                    var y = CharacterVoiceSynth.GenerateSamples(MeetLineup.Roster[b], CharacterEmotion.Angry, 0, 3);
+                    Assert.IsFalse(x.Length == y.Length && x.SequenceEqual(y), $"{MeetLineup.Roster[a]} and {MeetLineup.Roster[b]} sound the same");
+                }
         }
 
         [Test]

@@ -18,11 +18,20 @@ Engine). No animation and no PhysX.
 - ELO (`Core/Runtime/AgentElo.cs`, PlayerPrefs `PoOlympic.AgentElo`): K = 32, new athletes start at **1000** (was 1200
   until 2026-11-22). Ratings already saved on a device keep their values (athletes rated before the change sit near
   1200) until the save is wiped (`GameSettings.ResetSave`, which calls `AgentElo.Reset()`).
-- Voices (`CharacterVoiceBank` + `CharacterVoiceSynth`): 5 emotions (happy, angry, hurt, insult, celebrate) x 5
-  variants x 5 levels per athlete. Missing WAVs fall back to the procedural synth. CELEBRATE (event win, each medallist
-  at the podium, series champion) has no WAVs yet: add them as
-  `Assets/_Project/Environments/Audio/Characters/<ATHLETE>/CELEBRATE/celebrate_<01..05>_L<1..5>.wav`, then run
-  PoOlympic › Audio › Generate Character Voice Placeholders to bind them.
+- Voices: `Assets/_Project/Environments/Audio/Characters/voices.json` lists every athlete x 5 emotions (angry, happy,
+  hurt, insult, celebrate) x 5 levels, each with its 5 takes by file name
+  (`<ATHLETE>/<EMOTION>/<emotion>_<take 01..05>_L<level 1..5>.wav`, relative to that folder), an `exists` flag and the
+  athlete's procedural `voice` profile (pitch, formants, breath, rasp, vibrato, tempo, nasal, timbre).
+  - Add a recording: drop the WAV at its listed path; the editor rewrites voices.json and rebinds
+    `Data/Resources/CharacterVoiceBank.asset` on import (or run PoOlympic › Audio › Rebuild Voice Manifest). It logs
+    "N of M clips recorded; missing: …". Edit a `voice` profile in voices.json by hand; the generator keeps it.
+  - What plays: a recorded take when voices.json says it exists, else the advanced procedural imitation
+    (`CharacterVoiceSynth`: glottal pulses with jitter/shimmer, 4 formants, consonant onsets, per-emotion prosody,
+    deterministic and cached). No recordings exist today (0 of 500), so everything is procedural.
+  - Placeholders never count: every WAV the synth bakes carries a `PoOlympic CharacterVoiceSynth placeholder` marker
+    (RIFF LIST/INFO), and the generator sets `exists` true only for WAVs without it. The 400 unmarked placeholder WAVs
+    the old tool baked were deleted on 2026-11-22 (they matched the old synth output).
+  - Celebrate plays on an event win, for each medallist at the podium, and for the series champion.
 - Main menu: an empty entrant slot reads "BYE". Heats (`MeetSeries`) are unchanged; there is no bracket.
 
 ## Eight athletes per event

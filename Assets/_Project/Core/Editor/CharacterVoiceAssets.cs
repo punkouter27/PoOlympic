@@ -1,33 +1,62 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
 namespace PoOlympic.Editor
 {
     /// <summary>
-    /// Generates placeholder WAV files (HAPPY, ANGRY, HURT, INSULT x 5 sounds x 5 expressiveness levels) for every
-    /// character in <see cref="MeetLineup.Roster"/> when a WAV does not yet exist, and populates
-    /// <c>Assets/_Project/Data/Resources/CharacterVoiceBank.asset</c>. CELEBRATE gets no placeholder WAVs (it is
-    /// synthesized at runtime until real recordings exist); any CELEBRATE WAV found at
-    /// <see cref="CharacterVoiceBank.RelativeWavPath"/> is bound into the bank like the other emotions.
+    /// Voice manifest generator. Scans <see cref="CharacterVoiceManifest.Root"/> for every roster athlete x 5 emotions x
+    /// 5 levels x 5 takes, rewrites <c>voices.json</c> (exists flags; the <c>voice</c> profiles already in the file are
+    /// kept), binds the recorded WAVs into <c>Data/Resources/CharacterVoiceBank.asset</c> (and nothing else), and logs
+    /// "N of M clips recorded; missing: …". Runs from PoOlympic › Audio › Rebuild Voice Manifest, from the FX upgrade
+    /// (BroadcastFx), and by itself whenever a WAV under the voice folder is imported, moved or deleted.
+    ///
+    /// Recorded vs placeholder: a WAV counts as recorded unless it carries
+    /// <see cref="CharacterVoiceSynth.PlaceholderMarker"/> (RIFF LIST/INFO ISFT), which every WAV the synth bakes has.
+    /// No placeholders are baked any more (the runtime synthesizes missing cells); the 400 old unmarked placeholder WAVs
+    /// were removed on 2026-11-22 after checking they matched the synth's output.
     /// </summary>
     public static class CharacterVoiceAssets
     {
         public const string BankAssetPath = "Assets/_Project/Data/Resources/CharacterVoiceBank.asset";
+        public const string ManifestPath = CharacterVoiceManifest.Root + "/voices.json";
 
-        [MenuItem("PoOlympic/Audio/Generate Character Voice Placeholders")]
-        public static string GenerateMenu()
+        [MenuItem("PoOlympic/Audio/Rebuild Voice Manifest (voices.json)")]
+        public static string RebuildMenu()
         {
-            var (created, total) = EnsurePlaceholders(forceReimport: true);
-            return $"Character voice bank ready: {created} new placeholder WAVs generated ({total} total slots).";
+            var (recorded, total, _) = Rebuild();
+            return $"voices.json: {recorded} of {total} clips recorded";
         }
 
-        /// <summary>Emotions that get generated placeholder WAVs. CELEBRATE stays procedural until WAVs are added.</summary>
-        public static bool GetsPlaceholderWavs(CharacterEmotion emotion) => emotion != CharacterEmotion.Celebrate;
+        /// <summary>A real recording (exists = true): the file is there and is not synth-baked.</summary>
+        public static bool IsRecorded(string assetPath) =>
+            File.Exists(assetPath) && !CharacterVoiceSynth.IsPlaceholderWav(File.ReadAllBytes(assetPath));
 
-        public static (int created, int total) EnsurePlaceholders(bool forceReimport = false)
+        public static string AssetPathOf(string characterId, CharacterEmotion emotion, int take, int level) =>
+            $"{CharacterVoiceManifest.Root}/{CharacterVoiceManifest.FileOf(characterId, emotion, take, level)}";
+
+        /// <summary>Rewrite voices.json and rebind the bank. Returns (recorded takes, all takes, missing summary).</summary>
+        public static (int recorded, int total, string missing) Rebuild()
         {
+            var old = File.Exists(ManifestPath) ? CharacterVoiceManifest.Parse(File.ReadAllText(ManifestPath)) : null;
+            var manifest = CharacterVoiceManifest.Build(MeetLineup.Roster,
+                (id, e, t, l) => IsRecorded(AssetPathOf(id, e, t, l)),
+                id => old?.Find(id)?.voice,
+                DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+
+            // only touch the file when something but the timestamp changed (no churn on every import)
+            string json = manifest.ToJson();
+            string Strip(string s) => string.Join("\n", (s ?? "").Replace("\r\n", "\n").Split('\n').Where(x => !x.TrimStart().StartsWith("\"generated\"")));
+            bool changed = !File.Exists(ManifestPath) || Strip(File.ReadAllText(ManifestPath)) != Strip(json);
+            if (changed)
+            {
+                File.WriteAllText(ManifestPath, json);
+                AssetDatabase.ImportAsset(ManifestPath, ImportAssetOptions.ForceSynchronousImport);
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(BankAssetPath));
             var bank = AssetDatabase.LoadAssetAtPath<CharacterVoiceBank>(BankAssetPath);
             if (bank == null)
@@ -35,63 +64,49 @@ namespace PoOlympic.Editor
                 bank = ScriptableObject.CreateInstance<CharacterVoiceBank>();
                 AssetDatabase.CreateAsset(bank, BankAssetPath);
             }
-
-            int created = 0;
-            int total = 0;
-            bool needRefresh = false;
-
-            foreach (var characterId in MeetLineup.Roster)
+            bank.manifest = AssetDatabase.LoadAssetAtPath<TextAsset>(ManifestPath);
+            foreach (var c in manifest.characters)
             {
-                var set = bank.GetOrAddSet(characterId);
-                for (int e = 0; e < CharacterVoiceSynth.EmotionCount; e++)
-                {
-                    var emotion = (CharacterEmotion)e;
-                    if (!GetsPlaceholderWavs(emotion)) continue;
-                    for (int v = 0; v < CharacterVoiceSynth.VariantsPerEmotion; v++)
-                    {
-                        for (int lvl = 1; lvl <= CharacterVoiceSynth.ExpressivenessLevels; lvl++)
-                        {
-                            total++;
-                            string rel = CharacterVoiceBank.RelativeWavPath(characterId, emotion, v, lvl);
-                            string assetPath = $"{BroadcastFx.AudioFolder}/{rel}";
-                            if (!File.Exists(assetPath))
-                            {
-                                float[] samples = CharacterVoiceSynth.GenerateSamples(characterId, emotion, v, lvl);
-                                CharacterVoiceSynth.WriteWavFile(assetPath, samples, CharacterVoiceSynth.SampleRate);
-                                created++;
-                                needRefresh = true;
-                            }
-                        }
-                    }
-                }
+                var set = bank.GetOrAddSet(c.name);
+                for (int i = 0; i < set.clips.Length; i++) set.clips[i] = null;   // a placeholder is never bound
+                foreach (var emotion in CharacterVoiceManifest.EmotionOrder)
+                    foreach (var cell in c.clips.Of(emotion))
+                        foreach (var take in cell.takes)
+                            if (take.exists)
+                                set.clips[CharacterVoiceBank.SlotIndex(emotion, take.take - 1, cell.level)] =
+                                    AssetDatabase.LoadAssetAtPath<AudioClip>($"{CharacterVoiceManifest.Root}/{take.file}");
             }
-
-            if (needRefresh || forceReimport)
-                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-
-            foreach (var characterId in MeetLineup.Roster)
-            {
-                var set = bank.GetOrAddSet(characterId);
-                for (int e = 0; e < CharacterVoiceSynth.EmotionCount; e++)
-                {
-                    var emotion = (CharacterEmotion)e;
-                    for (int v = 0; v < CharacterVoiceSynth.VariantsPerEmotion; v++)
-                    {
-                        for (int lvl = 1; lvl <= CharacterVoiceSynth.ExpressivenessLevels; lvl++)
-                        {
-                            string rel = CharacterVoiceBank.RelativeWavPath(characterId, emotion, v, lvl);
-                            string assetPath = $"{BroadcastFx.AudioFolder}/{rel}";
-                            int slot = CharacterVoiceBank.SlotIndex(emotion, v, lvl);
-                            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(assetPath);
-                            if (clip != null) set.clips[slot] = clip;
-                        }
-                    }
-                }
-            }
-
+            bank.ReloadManifest();
             EditorUtility.SetDirty(bank);
             AssetDatabase.SaveAssets();
-            return (created, total);
+
+            int recorded = manifest.RecordedCount(), total = manifest.TakeCount();
+            var missing = new List<string>();
+            foreach (var c in manifest.characters)
+                foreach (var e in CharacterVoiceManifest.EmotionOrder)
+                {
+                    int miss = c.clips.Of(e).Sum(cell => cell.takes.Count(t => !t.exists));
+                    if (miss > 0) missing.Add($"{c.name} {e.ToString().ToLowerInvariant()} ({miss})");
+                }
+            string summary = missing.Count == 0 ? "none" : string.Join(", ", missing);
+            Debug.Log($"[VoiceManifest] {recorded} of {total} clips recorded; missing: {summary}" +
+                      (changed ? $" — wrote {ManifestPath}" : ""));
+            return (recorded, total, summary);
+        }
+
+        /// <summary>Re-runs the generator when a WAV under the voice folder changes (cheap: a file scan).</summary>
+        sealed class Watcher : AssetPostprocessor
+        {
+            static bool _queued;
+
+            static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)
+            {
+                bool Voice(string p) => p.StartsWith(CharacterVoiceManifest.Root + "/", StringComparison.Ordinal) &&
+                                        p.EndsWith(".wav", StringComparison.OrdinalIgnoreCase);
+                if (_queued || !imported.Concat(deleted).Concat(moved).Concat(movedFrom).Any(Voice)) return;
+                _queued = true;
+                EditorApplication.delayCall += () => { _queued = false; Rebuild(); };
+            }
         }
     }
 }

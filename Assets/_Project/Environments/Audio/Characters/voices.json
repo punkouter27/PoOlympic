@@ -1,0 +1,779 @@
+{
+  "schema": "po-voice-manifest/1",
+  "game": "PoOlympic",
+  "generated": "2026-11-22T00:00:00Z",
+  "root": "Assets/_Project/Environments/Audio/Characters",
+  "emotions": ["angry", "happy", "hurt", "insult", "celebrate"],
+  "levels": [1, 2, 3, 4, 5],
+  "fallback": "procedural",
+  "characters": [
+    {
+      "id": "matt",
+      "name": "MATT",
+      "voice": { "pitchHz": 138, "formantScale": 1, "breath": 0.08, "rasp": 0.14, "vibratoHz": 5.2, "vibratoDepth": 0.018, "tempo": 1, "nasal": 0.1, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "MATT/ANGRY/angry_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/ANGRY/angry_01_L1.wav", "exists": false },
+            { "take": 2, "file": "MATT/ANGRY/angry_02_L1.wav", "exists": false },
+            { "take": 3, "file": "MATT/ANGRY/angry_03_L1.wav", "exists": false },
+            { "take": 4, "file": "MATT/ANGRY/angry_04_L1.wav", "exists": false },
+            { "take": 5, "file": "MATT/ANGRY/angry_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "MATT/ANGRY/angry_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/ANGRY/angry_01_L2.wav", "exists": false },
+            { "take": 2, "file": "MATT/ANGRY/angry_02_L2.wav", "exists": false },
+            { "take": 3, "file": "MATT/ANGRY/angry_03_L2.wav", "exists": false },
+            { "take": 4, "file": "MATT/ANGRY/angry_04_L2.wav", "exists": false },
+            { "take": 5, "file": "MATT/ANGRY/angry_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "MATT/ANGRY/angry_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/ANGRY/angry_01_L3.wav", "exists": false },
+            { "take": 2, "file": "MATT/ANGRY/angry_02_L3.wav", "exists": false },
+            { "take": 3, "file": "MATT/ANGRY/angry_03_L3.wav", "exists": false },
+            { "take": 4, "file": "MATT/ANGRY/angry_04_L3.wav", "exists": false },
+            { "take": 5, "file": "MATT/ANGRY/angry_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "MATT/ANGRY/angry_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/ANGRY/angry_01_L4.wav", "exists": false },
+            { "take": 2, "file": "MATT/ANGRY/angry_02_L4.wav", "exists": false },
+            { "take": 3, "file": "MATT/ANGRY/angry_03_L4.wav", "exists": false },
+            { "take": 4, "file": "MATT/ANGRY/angry_04_L4.wav", "exists": false },
+            { "take": 5, "file": "MATT/ANGRY/angry_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "MATT/ANGRY/angry_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/ANGRY/angry_01_L5.wav", "exists": false },
+            { "take": 2, "file": "MATT/ANGRY/angry_02_L5.wav", "exists": false },
+            { "take": 3, "file": "MATT/ANGRY/angry_03_L5.wav", "exists": false },
+            { "take": 4, "file": "MATT/ANGRY/angry_04_L5.wav", "exists": false },
+            { "take": 5, "file": "MATT/ANGRY/angry_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "happy": [
+          { "level": 1, "file": "MATT/HAPPY/happy_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HAPPY/happy_01_L1.wav", "exists": false },
+            { "take": 2, "file": "MATT/HAPPY/happy_02_L1.wav", "exists": false },
+            { "take": 3, "file": "MATT/HAPPY/happy_03_L1.wav", "exists": false },
+            { "take": 4, "file": "MATT/HAPPY/happy_04_L1.wav", "exists": false },
+            { "take": 5, "file": "MATT/HAPPY/happy_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "MATT/HAPPY/happy_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HAPPY/happy_01_L2.wav", "exists": false },
+            { "take": 2, "file": "MATT/HAPPY/happy_02_L2.wav", "exists": false },
+            { "take": 3, "file": "MATT/HAPPY/happy_03_L2.wav", "exists": false },
+            { "take": 4, "file": "MATT/HAPPY/happy_04_L2.wav", "exists": false },
+            { "take": 5, "file": "MATT/HAPPY/happy_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "MATT/HAPPY/happy_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HAPPY/happy_01_L3.wav", "exists": false },
+            { "take": 2, "file": "MATT/HAPPY/happy_02_L3.wav", "exists": false },
+            { "take": 3, "file": "MATT/HAPPY/happy_03_L3.wav", "exists": false },
+            { "take": 4, "file": "MATT/HAPPY/happy_04_L3.wav", "exists": false },
+            { "take": 5, "file": "MATT/HAPPY/happy_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "MATT/HAPPY/happy_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HAPPY/happy_01_L4.wav", "exists": false },
+            { "take": 2, "file": "MATT/HAPPY/happy_02_L4.wav", "exists": false },
+            { "take": 3, "file": "MATT/HAPPY/happy_03_L4.wav", "exists": false },
+            { "take": 4, "file": "MATT/HAPPY/happy_04_L4.wav", "exists": false },
+            { "take": 5, "file": "MATT/HAPPY/happy_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "MATT/HAPPY/happy_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HAPPY/happy_01_L5.wav", "exists": false },
+            { "take": 2, "file": "MATT/HAPPY/happy_02_L5.wav", "exists": false },
+            { "take": 3, "file": "MATT/HAPPY/happy_03_L5.wav", "exists": false },
+            { "take": 4, "file": "MATT/HAPPY/happy_04_L5.wav", "exists": false },
+            { "take": 5, "file": "MATT/HAPPY/happy_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "hurt": [
+          { "level": 1, "file": "MATT/HURT/hurt_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HURT/hurt_01_L1.wav", "exists": false },
+            { "take": 2, "file": "MATT/HURT/hurt_02_L1.wav", "exists": false },
+            { "take": 3, "file": "MATT/HURT/hurt_03_L1.wav", "exists": false },
+            { "take": 4, "file": "MATT/HURT/hurt_04_L1.wav", "exists": false },
+            { "take": 5, "file": "MATT/HURT/hurt_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "MATT/HURT/hurt_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HURT/hurt_01_L2.wav", "exists": false },
+            { "take": 2, "file": "MATT/HURT/hurt_02_L2.wav", "exists": false },
+            { "take": 3, "file": "MATT/HURT/hurt_03_L2.wav", "exists": false },
+            { "take": 4, "file": "MATT/HURT/hurt_04_L2.wav", "exists": false },
+            { "take": 5, "file": "MATT/HURT/hurt_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "MATT/HURT/hurt_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HURT/hurt_01_L3.wav", "exists": false },
+            { "take": 2, "file": "MATT/HURT/hurt_02_L3.wav", "exists": false },
+            { "take": 3, "file": "MATT/HURT/hurt_03_L3.wav", "exists": false },
+            { "take": 4, "file": "MATT/HURT/hurt_04_L3.wav", "exists": false },
+            { "take": 5, "file": "MATT/HURT/hurt_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "MATT/HURT/hurt_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HURT/hurt_01_L4.wav", "exists": false },
+            { "take": 2, "file": "MATT/HURT/hurt_02_L4.wav", "exists": false },
+            { "take": 3, "file": "MATT/HURT/hurt_03_L4.wav", "exists": false },
+            { "take": 4, "file": "MATT/HURT/hurt_04_L4.wav", "exists": false },
+            { "take": 5, "file": "MATT/HURT/hurt_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "MATT/HURT/hurt_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/HURT/hurt_01_L5.wav", "exists": false },
+            { "take": 2, "file": "MATT/HURT/hurt_02_L5.wav", "exists": false },
+            { "take": 3, "file": "MATT/HURT/hurt_03_L5.wav", "exists": false },
+            { "take": 4, "file": "MATT/HURT/hurt_04_L5.wav", "exists": false },
+            { "take": 5, "file": "MATT/HURT/hurt_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "insult": [
+          { "level": 1, "file": "MATT/INSULT/insult_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/INSULT/insult_01_L1.wav", "exists": false },
+            { "take": 2, "file": "MATT/INSULT/insult_02_L1.wav", "exists": false },
+            { "take": 3, "file": "MATT/INSULT/insult_03_L1.wav", "exists": false },
+            { "take": 4, "file": "MATT/INSULT/insult_04_L1.wav", "exists": false },
+            { "take": 5, "file": "MATT/INSULT/insult_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "MATT/INSULT/insult_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/INSULT/insult_01_L2.wav", "exists": false },
+            { "take": 2, "file": "MATT/INSULT/insult_02_L2.wav", "exists": false },
+            { "take": 3, "file": "MATT/INSULT/insult_03_L2.wav", "exists": false },
+            { "take": 4, "file": "MATT/INSULT/insult_04_L2.wav", "exists": false },
+            { "take": 5, "file": "MATT/INSULT/insult_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "MATT/INSULT/insult_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/INSULT/insult_01_L3.wav", "exists": false },
+            { "take": 2, "file": "MATT/INSULT/insult_02_L3.wav", "exists": false },
+            { "take": 3, "file": "MATT/INSULT/insult_03_L3.wav", "exists": false },
+            { "take": 4, "file": "MATT/INSULT/insult_04_L3.wav", "exists": false },
+            { "take": 5, "file": "MATT/INSULT/insult_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "MATT/INSULT/insult_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/INSULT/insult_01_L4.wav", "exists": false },
+            { "take": 2, "file": "MATT/INSULT/insult_02_L4.wav", "exists": false },
+            { "take": 3, "file": "MATT/INSULT/insult_03_L4.wav", "exists": false },
+            { "take": 4, "file": "MATT/INSULT/insult_04_L4.wav", "exists": false },
+            { "take": 5, "file": "MATT/INSULT/insult_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "MATT/INSULT/insult_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/INSULT/insult_01_L5.wav", "exists": false },
+            { "take": 2, "file": "MATT/INSULT/insult_02_L5.wav", "exists": false },
+            { "take": 3, "file": "MATT/INSULT/insult_03_L5.wav", "exists": false },
+            { "take": 4, "file": "MATT/INSULT/insult_04_L5.wav", "exists": false },
+            { "take": 5, "file": "MATT/INSULT/insult_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "MATT/CELEBRATE/celebrate_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/CELEBRATE/celebrate_01_L1.wav", "exists": false },
+            { "take": 2, "file": "MATT/CELEBRATE/celebrate_02_L1.wav", "exists": false },
+            { "take": 3, "file": "MATT/CELEBRATE/celebrate_03_L1.wav", "exists": false },
+            { "take": 4, "file": "MATT/CELEBRATE/celebrate_04_L1.wav", "exists": false },
+            { "take": 5, "file": "MATT/CELEBRATE/celebrate_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "MATT/CELEBRATE/celebrate_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/CELEBRATE/celebrate_01_L2.wav", "exists": false },
+            { "take": 2, "file": "MATT/CELEBRATE/celebrate_02_L2.wav", "exists": false },
+            { "take": 3, "file": "MATT/CELEBRATE/celebrate_03_L2.wav", "exists": false },
+            { "take": 4, "file": "MATT/CELEBRATE/celebrate_04_L2.wav", "exists": false },
+            { "take": 5, "file": "MATT/CELEBRATE/celebrate_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "MATT/CELEBRATE/celebrate_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/CELEBRATE/celebrate_01_L3.wav", "exists": false },
+            { "take": 2, "file": "MATT/CELEBRATE/celebrate_02_L3.wav", "exists": false },
+            { "take": 3, "file": "MATT/CELEBRATE/celebrate_03_L3.wav", "exists": false },
+            { "take": 4, "file": "MATT/CELEBRATE/celebrate_04_L3.wav", "exists": false },
+            { "take": 5, "file": "MATT/CELEBRATE/celebrate_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "MATT/CELEBRATE/celebrate_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/CELEBRATE/celebrate_01_L4.wav", "exists": false },
+            { "take": 2, "file": "MATT/CELEBRATE/celebrate_02_L4.wav", "exists": false },
+            { "take": 3, "file": "MATT/CELEBRATE/celebrate_03_L4.wav", "exists": false },
+            { "take": 4, "file": "MATT/CELEBRATE/celebrate_04_L4.wav", "exists": false },
+            { "take": 5, "file": "MATT/CELEBRATE/celebrate_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "MATT/CELEBRATE/celebrate_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "MATT/CELEBRATE/celebrate_01_L5.wav", "exists": false },
+            { "take": 2, "file": "MATT/CELEBRATE/celebrate_02_L5.wav", "exists": false },
+            { "take": 3, "file": "MATT/CELEBRATE/celebrate_03_L5.wav", "exists": false },
+            { "take": 4, "file": "MATT/CELEBRATE/celebrate_04_L5.wav", "exists": false },
+            { "take": 5, "file": "MATT/CELEBRATE/celebrate_05_L5.wav", "exists": false }
+          ] }
+        ]
+      }
+    },
+    {
+      "id": "zombie",
+      "name": "ZOMBIE",
+      "voice": { "pitchHz": 84, "formantScale": 0.84, "breath": 0.34, "rasp": 0.58, "vibratoHz": 3.8, "vibratoDepth": 0.036, "tempo": 1.18, "nasal": 0.22, "timbre": "undead-growl" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "ZOMBIE/ANGRY/angry_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/ANGRY/angry_01_L1.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/ANGRY/angry_02_L1.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/ANGRY/angry_03_L1.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/ANGRY/angry_04_L1.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/ANGRY/angry_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "ZOMBIE/ANGRY/angry_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/ANGRY/angry_01_L2.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/ANGRY/angry_02_L2.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/ANGRY/angry_03_L2.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/ANGRY/angry_04_L2.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/ANGRY/angry_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "ZOMBIE/ANGRY/angry_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/ANGRY/angry_01_L3.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/ANGRY/angry_02_L3.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/ANGRY/angry_03_L3.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/ANGRY/angry_04_L3.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/ANGRY/angry_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "ZOMBIE/ANGRY/angry_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/ANGRY/angry_01_L4.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/ANGRY/angry_02_L4.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/ANGRY/angry_03_L4.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/ANGRY/angry_04_L4.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/ANGRY/angry_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "ZOMBIE/ANGRY/angry_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/ANGRY/angry_01_L5.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/ANGRY/angry_02_L5.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/ANGRY/angry_03_L5.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/ANGRY/angry_04_L5.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/ANGRY/angry_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "happy": [
+          { "level": 1, "file": "ZOMBIE/HAPPY/happy_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HAPPY/happy_01_L1.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HAPPY/happy_02_L1.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HAPPY/happy_03_L1.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HAPPY/happy_04_L1.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HAPPY/happy_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "ZOMBIE/HAPPY/happy_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HAPPY/happy_01_L2.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HAPPY/happy_02_L2.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HAPPY/happy_03_L2.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HAPPY/happy_04_L2.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HAPPY/happy_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "ZOMBIE/HAPPY/happy_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HAPPY/happy_01_L3.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HAPPY/happy_02_L3.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HAPPY/happy_03_L3.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HAPPY/happy_04_L3.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HAPPY/happy_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "ZOMBIE/HAPPY/happy_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HAPPY/happy_01_L4.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HAPPY/happy_02_L4.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HAPPY/happy_03_L4.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HAPPY/happy_04_L4.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HAPPY/happy_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "ZOMBIE/HAPPY/happy_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HAPPY/happy_01_L5.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HAPPY/happy_02_L5.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HAPPY/happy_03_L5.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HAPPY/happy_04_L5.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HAPPY/happy_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "hurt": [
+          { "level": 1, "file": "ZOMBIE/HURT/hurt_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HURT/hurt_01_L1.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HURT/hurt_02_L1.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HURT/hurt_03_L1.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HURT/hurt_04_L1.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HURT/hurt_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "ZOMBIE/HURT/hurt_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HURT/hurt_01_L2.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HURT/hurt_02_L2.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HURT/hurt_03_L2.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HURT/hurt_04_L2.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HURT/hurt_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "ZOMBIE/HURT/hurt_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HURT/hurt_01_L3.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HURT/hurt_02_L3.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HURT/hurt_03_L3.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HURT/hurt_04_L3.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HURT/hurt_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "ZOMBIE/HURT/hurt_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HURT/hurt_01_L4.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HURT/hurt_02_L4.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HURT/hurt_03_L4.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HURT/hurt_04_L4.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HURT/hurt_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "ZOMBIE/HURT/hurt_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/HURT/hurt_01_L5.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/HURT/hurt_02_L5.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/HURT/hurt_03_L5.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/HURT/hurt_04_L5.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/HURT/hurt_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "insult": [
+          { "level": 1, "file": "ZOMBIE/INSULT/insult_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/INSULT/insult_01_L1.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/INSULT/insult_02_L1.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/INSULT/insult_03_L1.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/INSULT/insult_04_L1.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/INSULT/insult_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "ZOMBIE/INSULT/insult_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/INSULT/insult_01_L2.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/INSULT/insult_02_L2.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/INSULT/insult_03_L2.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/INSULT/insult_04_L2.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/INSULT/insult_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "ZOMBIE/INSULT/insult_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/INSULT/insult_01_L3.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/INSULT/insult_02_L3.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/INSULT/insult_03_L3.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/INSULT/insult_04_L3.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/INSULT/insult_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "ZOMBIE/INSULT/insult_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/INSULT/insult_01_L4.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/INSULT/insult_02_L4.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/INSULT/insult_03_L4.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/INSULT/insult_04_L4.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/INSULT/insult_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "ZOMBIE/INSULT/insult_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/INSULT/insult_01_L5.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/INSULT/insult_02_L5.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/INSULT/insult_03_L5.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/INSULT/insult_04_L5.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/INSULT/insult_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L1.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/CELEBRATE/celebrate_02_L1.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/CELEBRATE/celebrate_03_L1.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/CELEBRATE/celebrate_04_L1.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/CELEBRATE/celebrate_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "ZOMBIE/CELEBRATE/celebrate_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L2.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/CELEBRATE/celebrate_02_L2.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/CELEBRATE/celebrate_03_L2.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/CELEBRATE/celebrate_04_L2.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/CELEBRATE/celebrate_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "ZOMBIE/CELEBRATE/celebrate_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L3.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/CELEBRATE/celebrate_02_L3.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/CELEBRATE/celebrate_03_L3.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/CELEBRATE/celebrate_04_L3.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/CELEBRATE/celebrate_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "ZOMBIE/CELEBRATE/celebrate_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L4.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/CELEBRATE/celebrate_02_L4.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/CELEBRATE/celebrate_03_L4.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/CELEBRATE/celebrate_04_L4.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/CELEBRATE/celebrate_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "ZOMBIE/CELEBRATE/celebrate_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "ZOMBIE/CELEBRATE/celebrate_01_L5.wav", "exists": false },
+            { "take": 2, "file": "ZOMBIE/CELEBRATE/celebrate_02_L5.wav", "exists": false },
+            { "take": 3, "file": "ZOMBIE/CELEBRATE/celebrate_03_L5.wav", "exists": false },
+            { "take": 4, "file": "ZOMBIE/CELEBRATE/celebrate_04_L5.wav", "exists": false },
+            { "take": 5, "file": "ZOMBIE/CELEBRATE/celebrate_05_L5.wav", "exists": false }
+          ] }
+        ]
+      }
+    },
+    {
+      "id": "grandma",
+      "name": "GRANDMA",
+      "voice": { "pitchHz": 214, "formantScale": 1.14, "breath": 0.22, "rasp": 0.24, "vibratoHz": 7.1, "vibratoDepth": 0.052, "tempo": 1.08, "nasal": 0.3, "timbre": "elderly-female" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "GRANDMA/ANGRY/angry_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/ANGRY/angry_01_L1.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/ANGRY/angry_02_L1.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/ANGRY/angry_03_L1.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/ANGRY/angry_04_L1.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/ANGRY/angry_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "GRANDMA/ANGRY/angry_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/ANGRY/angry_01_L2.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/ANGRY/angry_02_L2.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/ANGRY/angry_03_L2.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/ANGRY/angry_04_L2.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/ANGRY/angry_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "GRANDMA/ANGRY/angry_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/ANGRY/angry_01_L3.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/ANGRY/angry_02_L3.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/ANGRY/angry_03_L3.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/ANGRY/angry_04_L3.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/ANGRY/angry_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "GRANDMA/ANGRY/angry_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/ANGRY/angry_01_L4.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/ANGRY/angry_02_L4.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/ANGRY/angry_03_L4.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/ANGRY/angry_04_L4.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/ANGRY/angry_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "GRANDMA/ANGRY/angry_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/ANGRY/angry_01_L5.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/ANGRY/angry_02_L5.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/ANGRY/angry_03_L5.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/ANGRY/angry_04_L5.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/ANGRY/angry_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "happy": [
+          { "level": 1, "file": "GRANDMA/HAPPY/happy_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HAPPY/happy_01_L1.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HAPPY/happy_02_L1.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HAPPY/happy_03_L1.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HAPPY/happy_04_L1.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HAPPY/happy_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "GRANDMA/HAPPY/happy_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HAPPY/happy_01_L2.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HAPPY/happy_02_L2.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HAPPY/happy_03_L2.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HAPPY/happy_04_L2.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HAPPY/happy_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "GRANDMA/HAPPY/happy_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HAPPY/happy_01_L3.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HAPPY/happy_02_L3.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HAPPY/happy_03_L3.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HAPPY/happy_04_L3.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HAPPY/happy_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "GRANDMA/HAPPY/happy_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HAPPY/happy_01_L4.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HAPPY/happy_02_L4.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HAPPY/happy_03_L4.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HAPPY/happy_04_L4.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HAPPY/happy_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "GRANDMA/HAPPY/happy_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HAPPY/happy_01_L5.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HAPPY/happy_02_L5.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HAPPY/happy_03_L5.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HAPPY/happy_04_L5.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HAPPY/happy_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "hurt": [
+          { "level": 1, "file": "GRANDMA/HURT/hurt_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HURT/hurt_01_L1.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HURT/hurt_02_L1.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HURT/hurt_03_L1.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HURT/hurt_04_L1.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HURT/hurt_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "GRANDMA/HURT/hurt_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HURT/hurt_01_L2.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HURT/hurt_02_L2.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HURT/hurt_03_L2.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HURT/hurt_04_L2.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HURT/hurt_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "GRANDMA/HURT/hurt_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HURT/hurt_01_L3.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HURT/hurt_02_L3.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HURT/hurt_03_L3.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HURT/hurt_04_L3.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HURT/hurt_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "GRANDMA/HURT/hurt_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HURT/hurt_01_L4.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HURT/hurt_02_L4.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HURT/hurt_03_L4.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HURT/hurt_04_L4.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HURT/hurt_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "GRANDMA/HURT/hurt_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/HURT/hurt_01_L5.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/HURT/hurt_02_L5.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/HURT/hurt_03_L5.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/HURT/hurt_04_L5.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/HURT/hurt_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "insult": [
+          { "level": 1, "file": "GRANDMA/INSULT/insult_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/INSULT/insult_01_L1.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/INSULT/insult_02_L1.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/INSULT/insult_03_L1.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/INSULT/insult_04_L1.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/INSULT/insult_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "GRANDMA/INSULT/insult_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/INSULT/insult_01_L2.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/INSULT/insult_02_L2.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/INSULT/insult_03_L2.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/INSULT/insult_04_L2.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/INSULT/insult_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "GRANDMA/INSULT/insult_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/INSULT/insult_01_L3.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/INSULT/insult_02_L3.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/INSULT/insult_03_L3.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/INSULT/insult_04_L3.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/INSULT/insult_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "GRANDMA/INSULT/insult_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/INSULT/insult_01_L4.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/INSULT/insult_02_L4.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/INSULT/insult_03_L4.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/INSULT/insult_04_L4.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/INSULT/insult_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "GRANDMA/INSULT/insult_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/INSULT/insult_01_L5.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/INSULT/insult_02_L5.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/INSULT/insult_03_L5.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/INSULT/insult_04_L5.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/INSULT/insult_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L1.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/CELEBRATE/celebrate_02_L1.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/CELEBRATE/celebrate_03_L1.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/CELEBRATE/celebrate_04_L1.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/CELEBRATE/celebrate_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "GRANDMA/CELEBRATE/celebrate_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L2.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/CELEBRATE/celebrate_02_L2.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/CELEBRATE/celebrate_03_L2.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/CELEBRATE/celebrate_04_L2.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/CELEBRATE/celebrate_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "GRANDMA/CELEBRATE/celebrate_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L3.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/CELEBRATE/celebrate_02_L3.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/CELEBRATE/celebrate_03_L3.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/CELEBRATE/celebrate_04_L3.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/CELEBRATE/celebrate_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "GRANDMA/CELEBRATE/celebrate_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L4.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/CELEBRATE/celebrate_02_L4.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/CELEBRATE/celebrate_03_L4.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/CELEBRATE/celebrate_04_L4.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/CELEBRATE/celebrate_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "GRANDMA/CELEBRATE/celebrate_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "GRANDMA/CELEBRATE/celebrate_01_L5.wav", "exists": false },
+            { "take": 2, "file": "GRANDMA/CELEBRATE/celebrate_02_L5.wav", "exists": false },
+            { "take": 3, "file": "GRANDMA/CELEBRATE/celebrate_03_L5.wav", "exists": false },
+            { "take": 4, "file": "GRANDMA/CELEBRATE/celebrate_04_L5.wav", "exists": false },
+            { "take": 5, "file": "GRANDMA/CELEBRATE/celebrate_05_L5.wav", "exists": false }
+          ] }
+        ]
+      }
+    },
+    {
+      "id": "kim",
+      "name": "KIM",
+      "voice": { "pitchHz": 258, "formantScale": 1.22, "breath": 0.1, "rasp": 0.08, "vibratoHz": 5.8, "vibratoDepth": 0.022, "tempo": 0.9, "nasal": 0.14, "timbre": "young-female" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "KIM/ANGRY/angry_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/ANGRY/angry_01_L1.wav", "exists": false },
+            { "take": 2, "file": "KIM/ANGRY/angry_02_L1.wav", "exists": false },
+            { "take": 3, "file": "KIM/ANGRY/angry_03_L1.wav", "exists": false },
+            { "take": 4, "file": "KIM/ANGRY/angry_04_L1.wav", "exists": false },
+            { "take": 5, "file": "KIM/ANGRY/angry_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "KIM/ANGRY/angry_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/ANGRY/angry_01_L2.wav", "exists": false },
+            { "take": 2, "file": "KIM/ANGRY/angry_02_L2.wav", "exists": false },
+            { "take": 3, "file": "KIM/ANGRY/angry_03_L2.wav", "exists": false },
+            { "take": 4, "file": "KIM/ANGRY/angry_04_L2.wav", "exists": false },
+            { "take": 5, "file": "KIM/ANGRY/angry_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "KIM/ANGRY/angry_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/ANGRY/angry_01_L3.wav", "exists": false },
+            { "take": 2, "file": "KIM/ANGRY/angry_02_L3.wav", "exists": false },
+            { "take": 3, "file": "KIM/ANGRY/angry_03_L3.wav", "exists": false },
+            { "take": 4, "file": "KIM/ANGRY/angry_04_L3.wav", "exists": false },
+            { "take": 5, "file": "KIM/ANGRY/angry_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "KIM/ANGRY/angry_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/ANGRY/angry_01_L4.wav", "exists": false },
+            { "take": 2, "file": "KIM/ANGRY/angry_02_L4.wav", "exists": false },
+            { "take": 3, "file": "KIM/ANGRY/angry_03_L4.wav", "exists": false },
+            { "take": 4, "file": "KIM/ANGRY/angry_04_L4.wav", "exists": false },
+            { "take": 5, "file": "KIM/ANGRY/angry_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "KIM/ANGRY/angry_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/ANGRY/angry_01_L5.wav", "exists": false },
+            { "take": 2, "file": "KIM/ANGRY/angry_02_L5.wav", "exists": false },
+            { "take": 3, "file": "KIM/ANGRY/angry_03_L5.wav", "exists": false },
+            { "take": 4, "file": "KIM/ANGRY/angry_04_L5.wav", "exists": false },
+            { "take": 5, "file": "KIM/ANGRY/angry_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "happy": [
+          { "level": 1, "file": "KIM/HAPPY/happy_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HAPPY/happy_01_L1.wav", "exists": false },
+            { "take": 2, "file": "KIM/HAPPY/happy_02_L1.wav", "exists": false },
+            { "take": 3, "file": "KIM/HAPPY/happy_03_L1.wav", "exists": false },
+            { "take": 4, "file": "KIM/HAPPY/happy_04_L1.wav", "exists": false },
+            { "take": 5, "file": "KIM/HAPPY/happy_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "KIM/HAPPY/happy_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HAPPY/happy_01_L2.wav", "exists": false },
+            { "take": 2, "file": "KIM/HAPPY/happy_02_L2.wav", "exists": false },
+            { "take": 3, "file": "KIM/HAPPY/happy_03_L2.wav", "exists": false },
+            { "take": 4, "file": "KIM/HAPPY/happy_04_L2.wav", "exists": false },
+            { "take": 5, "file": "KIM/HAPPY/happy_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "KIM/HAPPY/happy_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HAPPY/happy_01_L3.wav", "exists": false },
+            { "take": 2, "file": "KIM/HAPPY/happy_02_L3.wav", "exists": false },
+            { "take": 3, "file": "KIM/HAPPY/happy_03_L3.wav", "exists": false },
+            { "take": 4, "file": "KIM/HAPPY/happy_04_L3.wav", "exists": false },
+            { "take": 5, "file": "KIM/HAPPY/happy_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "KIM/HAPPY/happy_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HAPPY/happy_01_L4.wav", "exists": false },
+            { "take": 2, "file": "KIM/HAPPY/happy_02_L4.wav", "exists": false },
+            { "take": 3, "file": "KIM/HAPPY/happy_03_L4.wav", "exists": false },
+            { "take": 4, "file": "KIM/HAPPY/happy_04_L4.wav", "exists": false },
+            { "take": 5, "file": "KIM/HAPPY/happy_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "KIM/HAPPY/happy_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HAPPY/happy_01_L5.wav", "exists": false },
+            { "take": 2, "file": "KIM/HAPPY/happy_02_L5.wav", "exists": false },
+            { "take": 3, "file": "KIM/HAPPY/happy_03_L5.wav", "exists": false },
+            { "take": 4, "file": "KIM/HAPPY/happy_04_L5.wav", "exists": false },
+            { "take": 5, "file": "KIM/HAPPY/happy_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "hurt": [
+          { "level": 1, "file": "KIM/HURT/hurt_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HURT/hurt_01_L1.wav", "exists": false },
+            { "take": 2, "file": "KIM/HURT/hurt_02_L1.wav", "exists": false },
+            { "take": 3, "file": "KIM/HURT/hurt_03_L1.wav", "exists": false },
+            { "take": 4, "file": "KIM/HURT/hurt_04_L1.wav", "exists": false },
+            { "take": 5, "file": "KIM/HURT/hurt_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "KIM/HURT/hurt_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HURT/hurt_01_L2.wav", "exists": false },
+            { "take": 2, "file": "KIM/HURT/hurt_02_L2.wav", "exists": false },
+            { "take": 3, "file": "KIM/HURT/hurt_03_L2.wav", "exists": false },
+            { "take": 4, "file": "KIM/HURT/hurt_04_L2.wav", "exists": false },
+            { "take": 5, "file": "KIM/HURT/hurt_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "KIM/HURT/hurt_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HURT/hurt_01_L3.wav", "exists": false },
+            { "take": 2, "file": "KIM/HURT/hurt_02_L3.wav", "exists": false },
+            { "take": 3, "file": "KIM/HURT/hurt_03_L3.wav", "exists": false },
+            { "take": 4, "file": "KIM/HURT/hurt_04_L3.wav", "exists": false },
+            { "take": 5, "file": "KIM/HURT/hurt_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "KIM/HURT/hurt_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HURT/hurt_01_L4.wav", "exists": false },
+            { "take": 2, "file": "KIM/HURT/hurt_02_L4.wav", "exists": false },
+            { "take": 3, "file": "KIM/HURT/hurt_03_L4.wav", "exists": false },
+            { "take": 4, "file": "KIM/HURT/hurt_04_L4.wav", "exists": false },
+            { "take": 5, "file": "KIM/HURT/hurt_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "KIM/HURT/hurt_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/HURT/hurt_01_L5.wav", "exists": false },
+            { "take": 2, "file": "KIM/HURT/hurt_02_L5.wav", "exists": false },
+            { "take": 3, "file": "KIM/HURT/hurt_03_L5.wav", "exists": false },
+            { "take": 4, "file": "KIM/HURT/hurt_04_L5.wav", "exists": false },
+            { "take": 5, "file": "KIM/HURT/hurt_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "insult": [
+          { "level": 1, "file": "KIM/INSULT/insult_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/INSULT/insult_01_L1.wav", "exists": false },
+            { "take": 2, "file": "KIM/INSULT/insult_02_L1.wav", "exists": false },
+            { "take": 3, "file": "KIM/INSULT/insult_03_L1.wav", "exists": false },
+            { "take": 4, "file": "KIM/INSULT/insult_04_L1.wav", "exists": false },
+            { "take": 5, "file": "KIM/INSULT/insult_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "KIM/INSULT/insult_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/INSULT/insult_01_L2.wav", "exists": false },
+            { "take": 2, "file": "KIM/INSULT/insult_02_L2.wav", "exists": false },
+            { "take": 3, "file": "KIM/INSULT/insult_03_L2.wav", "exists": false },
+            { "take": 4, "file": "KIM/INSULT/insult_04_L2.wav", "exists": false },
+            { "take": 5, "file": "KIM/INSULT/insult_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "KIM/INSULT/insult_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/INSULT/insult_01_L3.wav", "exists": false },
+            { "take": 2, "file": "KIM/INSULT/insult_02_L3.wav", "exists": false },
+            { "take": 3, "file": "KIM/INSULT/insult_03_L3.wav", "exists": false },
+            { "take": 4, "file": "KIM/INSULT/insult_04_L3.wav", "exists": false },
+            { "take": 5, "file": "KIM/INSULT/insult_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "KIM/INSULT/insult_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/INSULT/insult_01_L4.wav", "exists": false },
+            { "take": 2, "file": "KIM/INSULT/insult_02_L4.wav", "exists": false },
+            { "take": 3, "file": "KIM/INSULT/insult_03_L4.wav", "exists": false },
+            { "take": 4, "file": "KIM/INSULT/insult_04_L4.wav", "exists": false },
+            { "take": 5, "file": "KIM/INSULT/insult_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "KIM/INSULT/insult_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/INSULT/insult_01_L5.wav", "exists": false },
+            { "take": 2, "file": "KIM/INSULT/insult_02_L5.wav", "exists": false },
+            { "take": 3, "file": "KIM/INSULT/insult_03_L5.wav", "exists": false },
+            { "take": 4, "file": "KIM/INSULT/insult_04_L5.wav", "exists": false },
+            { "take": 5, "file": "KIM/INSULT/insult_05_L5.wav", "exists": false }
+          ] }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "KIM/CELEBRATE/celebrate_01_L1.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/CELEBRATE/celebrate_01_L1.wav", "exists": false },
+            { "take": 2, "file": "KIM/CELEBRATE/celebrate_02_L1.wav", "exists": false },
+            { "take": 3, "file": "KIM/CELEBRATE/celebrate_03_L1.wav", "exists": false },
+            { "take": 4, "file": "KIM/CELEBRATE/celebrate_04_L1.wav", "exists": false },
+            { "take": 5, "file": "KIM/CELEBRATE/celebrate_05_L1.wav", "exists": false }
+          ] },
+          { "level": 2, "file": "KIM/CELEBRATE/celebrate_01_L2.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/CELEBRATE/celebrate_01_L2.wav", "exists": false },
+            { "take": 2, "file": "KIM/CELEBRATE/celebrate_02_L2.wav", "exists": false },
+            { "take": 3, "file": "KIM/CELEBRATE/celebrate_03_L2.wav", "exists": false },
+            { "take": 4, "file": "KIM/CELEBRATE/celebrate_04_L2.wav", "exists": false },
+            { "take": 5, "file": "KIM/CELEBRATE/celebrate_05_L2.wav", "exists": false }
+          ] },
+          { "level": 3, "file": "KIM/CELEBRATE/celebrate_01_L3.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/CELEBRATE/celebrate_01_L3.wav", "exists": false },
+            { "take": 2, "file": "KIM/CELEBRATE/celebrate_02_L3.wav", "exists": false },
+            { "take": 3, "file": "KIM/CELEBRATE/celebrate_03_L3.wav", "exists": false },
+            { "take": 4, "file": "KIM/CELEBRATE/celebrate_04_L3.wav", "exists": false },
+            { "take": 5, "file": "KIM/CELEBRATE/celebrate_05_L3.wav", "exists": false }
+          ] },
+          { "level": 4, "file": "KIM/CELEBRATE/celebrate_01_L4.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/CELEBRATE/celebrate_01_L4.wav", "exists": false },
+            { "take": 2, "file": "KIM/CELEBRATE/celebrate_02_L4.wav", "exists": false },
+            { "take": 3, "file": "KIM/CELEBRATE/celebrate_03_L4.wav", "exists": false },
+            { "take": 4, "file": "KIM/CELEBRATE/celebrate_04_L4.wav", "exists": false },
+            { "take": 5, "file": "KIM/CELEBRATE/celebrate_05_L4.wav", "exists": false }
+          ] },
+          { "level": 5, "file": "KIM/CELEBRATE/celebrate_01_L5.wav", "exists": false, "takes": [
+            { "take": 1, "file": "KIM/CELEBRATE/celebrate_01_L5.wav", "exists": false },
+            { "take": 2, "file": "KIM/CELEBRATE/celebrate_02_L5.wav", "exists": false },
+            { "take": 3, "file": "KIM/CELEBRATE/celebrate_03_L5.wav", "exists": false },
+            { "take": 4, "file": "KIM/CELEBRATE/celebrate_04_L5.wav", "exists": false },
+            { "take": 5, "file": "KIM/CELEBRATE/celebrate_05_L5.wav", "exists": false }
+          ] }
+        ]
+      }
+    }
+  ]
+}

@@ -372,7 +372,7 @@ namespace PoOlympic.Editor
             var scuff = ParticleMaterial("FxScuff", scuffTex, false);
             ScrapeClip();
             SurfaceClips();
-            CharacterVoiceAssets.EnsurePlaceholders();
+            CharacterVoiceAssets.Rebuild();   // voices.json + the bank (recorded WAVs only)
             AudioImport();
             EnsureDecalFeature();
             EnsurePulseProfile();
