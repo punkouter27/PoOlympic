@@ -12,7 +12,8 @@ job per line, fields separated by '|':
   prep: `uv` arguments run first with POOLYMPIC_BODY set, e.g. `run python tools/warm_start.py {run:grandma_rung1/g1_v1}/model_1500.pt ...`
         ({run:<experiment>/<name>} = the newest runs/<experiment>/*_<name> directory). A failing prep skips the job.
 '#' lines are skipped; a finished job is prefixed '#done ', a skipped one '#skip ', a failed one '#fail '. Stops when no
-job is left or when runs/queue.stop exists. Log: runs/queue.log.
+job is left or when runs/queue.stop exists. Log: runs/queue.log. Every run part, however it ends, is recorded in the
+training runs grid runs/runs.html (benchmark/runs.py --record; never fatal).
 
 Ctrl-C hardening (2026-10-01): a console Ctrl-C of unknown origin killed the queue and its training twice (23:43 under
 Git bash, 09:09 under this script: "^C" in runs/queue_launcher.log, ~5 min into a new run, no traceback). Now
@@ -47,6 +48,27 @@ function NewestCheckpoint($dir) {
         if ($_.BaseName -match '^model_(\d+)$') { $n = [int]$Matches[1]; if ($n -gt $best) { $best = $n } } }
     $best
 }
+function HowEnded($errLog, $last, $max) {
+    if ($last -ge 0 -and $last -ge $max - 1) { return 'finished' }
+    $exc = if (Test-Path $errLog) { Select-String -Path $errLog -Pattern '^(\w+\.)*\w*(Error|Exception|Interrupt|Exit)\b' -ErrorAction SilentlyContinue | Select-Object -Last 1 }
+    if ($exc -and $exc.Line -like 'KeyboardInterrupt*') { return 'interrupted (Ctrl+C)' }
+    if ($exc) { return "crashed: $($exc.Line)" }
+    "ended early at iteration $last/$max (killed?)"
+}
+function RecordRun($dir, $ended, $task, $body) {
+    # benchmark/runs.py: note this machine and how the run ended in <run dir>/run_meta.json and rebuild
+    # runs/runs.html (the training runs grid). Never fatal, never changes the queue.
+    try {
+        $py = if (Test-Path .venv\Scripts\python.exe) { '.venv\Scripts\python.exe' } else { 'python' }
+        $a = @('..\benchmark\runs.py')
+        if ($dir) {
+            $e = ("$ended" -replace '"', "'"); if ($e.Length -gt 200) { $e = $e.Substring(0, 200) }
+            $a += @('--record', $dir, '--ended', $e, '--launcher', 'tools/train_queue.ps1', '--task', $task, '--body', $body)
+        }
+        $out = & $py @a 2>&1 | Out-String
+        Log "runs grid: $($out.Trim())"
+    } catch { Log "runs grid not updated: $_" }
+}
 while ($true) {
     if (Test-Path runs\queue.stop) { Log 'stop file found - queue ends'; break }
     $line = Get-Content $Q -Encoding UTF8 | Where-Object { $_ -notmatch '^\s*#' -and $_.Trim() } | Select-Object -First 1
@@ -73,23 +95,30 @@ while ($true) {
         $suffix = if ($attempt) { ".r$attempt" } else { '' }
         Log ("START ${name}: $task (body $body, init $init, $todo its" + $(if ($attempt) { ", resume $attempt from it $from" } else { '' }) + ')')
         $before = RunDir $exp $name
-        $argv = @('run', 'train', $task, '--log-root', 'runs') + $resume + @('--agent.run-name', $name, '--agent.max-iterations', "$todo")
-        $train = Start-Process $uv -ArgumentList $argv -WindowStyle Hidden -PassThru `
-            -RedirectStandardOutput "runs\$name$suffix.log" -RedirectStandardError "runs\$name$suffix.err.log"
-        $rundir = $null
-        for ($i = 0; $i -lt 120 -and -not $rundir -and -not $train.HasExited; $i++) {
-            Start-Sleep 5; $d = RunDir $exp $name; if ($d -and $d -ne $before) { $rundir = $d } }
-        if ($rundir -and $watch) {
-            # gates at or below the resume point were already run in the first part
-            $w = [regex]::Replace($watch, '--its\s+(\S+)', { param($m) '--its ' + (($m.Groups[1].Value.Split(',') | Where-Object { [int]$_ -gt $from }) -join ',') })
-            if ($w -notmatch '--its\s*($|--)') {
-                $wargv = @('run', 'python', 'tools/watch_gate.py', $rundir, $name) + ($w -split '\s+' | Where-Object { $_ })
-                $watcher = Start-Process $uv -ArgumentList $wargv -WindowStyle Hidden -PassThru `
-                    -RedirectStandardOutput "runs\${name}${suffix}_watch.log" -RedirectStandardError "runs\${name}${suffix}_watch.err.log"
+        $rundir = $null; $ended = 'launcher stopped (queue script ended before training)'
+        try {
+            $argv = @('run', 'train', $task, '--log-root', 'runs') + $resume + @('--agent.run-name', $name, '--agent.max-iterations', "$todo")
+            $train = Start-Process $uv -ArgumentList $argv -WindowStyle Hidden -PassThru `
+                -RedirectStandardOutput "runs\$name$suffix.log" -RedirectStandardError "runs\$name$suffix.err.log"
+            for ($i = 0; $i -lt 120 -and -not $rundir -and -not $train.HasExited; $i++) {
+                Start-Sleep 5; $d = RunDir $exp $name; if ($d -and $d -ne $before) { $rundir = $d } }
+            if ($rundir -and $watch) {
+                # gates at or below the resume point were already run in the first part
+                $w = [regex]::Replace($watch, '--its\s+(\S+)', { param($m) '--its ' + (($m.Groups[1].Value.Split(',') | Where-Object { [int]$_ -gt $from }) -join ',') })
+                if ($w -notmatch '--its\s*($|--)') {
+                    $wargv = @('run', 'python', 'tools/watch_gate.py', $rundir, $name) + ($w -split '\s+' | Where-Object { $_ })
+                    $watcher = Start-Process $uv -ArgumentList $wargv -WindowStyle Hidden -PassThru `
+                        -RedirectStandardOutput "runs\${name}${suffix}_watch.log" -RedirectStandardError "runs\${name}${suffix}_watch.err.log"
+                }
             }
+            $train.WaitForExit()
+            $last, $max = LastIteration "runs\$name$suffix.log"
+            $ended = HowEnded "runs\$name$suffix.err.log" $last $max
+        } catch { $ended = "launcher crashed: $_"; throw }
+        finally {
+            if (-not $rundir) { $d = RunDir $exp $name; if ($d -and $d -ne $before) { $rundir = $d } }
+            RecordRun $rundir $ended $task $body
         }
-        $train.WaitForExit()
-        $last, $max = LastIteration "runs\$name$suffix.log"
         Log "END $name rc=$($train.ExitCode) (Learning iteration $last/$max)"
         if ($last -ge 0 -and $last -ge $max - 1) { $ok = $true; break }
         # ended early (killed): resume from the newest checkpoint of the part that just ran
