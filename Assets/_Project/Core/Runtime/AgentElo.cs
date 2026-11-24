@@ -7,13 +7,14 @@ namespace PoOlympic
 {
     /// <summary>
     /// Persistent ELO rating table for every agent (PlayerPrefs JSON, survives restarts).
-    /// Standard logistic expectation with K = 32 and initial rating = 1200. Ratings move after every completed
-    /// 16-entrant event (RecordEvent): each character against each other character, on their best placing.
+    /// Standard logistic expectation with K = 32 and initial rating = 1000 (tournament standard; it was 1200 before
+    /// 2026-11-22 — ratings already saved under <see cref="Key"/> keep their values). Ratings move after every completed
+    /// 8-athlete event (RecordEvent): each character against each other character, on their best placing.
     /// </summary>
     public static class AgentElo
     {
         public const string Key = "PoOlympic.AgentElo";
-        public const float DefaultElo = 1200f;
+        public const float DefaultElo = 1000f;
         public const float KFactor = 32f;
 
         [Serializable]
@@ -61,7 +62,7 @@ namespace PoOlympic
             return e;
         }
 
-        /// <summary>Current ELO rating for an agent (1200 default before any rated match).</summary>
+        /// <summary>Current ELO rating for an agent (1000 default before any rated match).</summary>
         public static float GetElo(string agent)
         {
             if (IsBye(agent)) return 0f;

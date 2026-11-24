@@ -97,7 +97,11 @@ namespace PoOlympic
             foreach (var r in top) Statue(r.runner, r.place - 1);
             for (int i = 0; i < flags.Length; i++) if (flags[i] != null) { flags[i].position = _flagLow[i]; flags[i].gameObject.SetActive(i < Mathf.Max(1, top.Count)); }
             if (confetti != null) { confetti.Clear(); confetti.Play(); }
-            if (arenaAudio != null) arenaAudio.Fanfare();
+            if (arenaAudio != null)
+            {
+                arenaAudio.Fanfare();
+                foreach (var r in top) arenaAudio.MedalCelebration(r.runner, r.place);
+            }
             if (crowd != null) crowd.Burst(hold, hold * 0.8f);
         }
 
