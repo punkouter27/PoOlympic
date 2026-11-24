@@ -63,6 +63,7 @@
   }
 
   function show(el, status, ms, detail) {
+    el.dataset.result = JSON.stringify([status, ms, detail || ""]);
     const pill = el.querySelector(".pill");
     pill.textContent = status; pill.className = "pill " + status;
     el.querySelector(".ms").textContent = ms == null ? "" : Math.round(ms) + " ms";
@@ -70,8 +71,22 @@
     return status;
   }
 
-  async function probe(c) {
-    const el = row(c);
+  // Results are kept for MAX_AGE_S in this tab (sessionStorage) so reloading /diag does not re-probe every service;
+  // /diag?fresh (the "Re-check now" link) always probes again.
+  const MAX_AGE_S = 60;
+  const STORE_KEY = "poolympic.diag.v{{VERSION}}";
+  const FRESH = new URLSearchParams(location.search).has("fresh");
+
+  function cached() {
+    if (FRESH) return null;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(STORE_KEY) || "null");
+      if (c && Array.isArray(c.rows) && c.rows.length === CHECKS.length && Date.now() - c.at < MAX_AGE_S * 1000) return c;
+    } catch (e) { /* storage blocked or corrupt: probe */ }
+    return null;
+  }
+
+  async function probeInto(el, c) {
     const t0 = performance.now();
     // No URL = a dependency switched off on purpose: neutral "Off", not counted in the banner.
     if (c.kind === "off" || (!c.url && c.kind !== "webgl2")) return show(el, "Off", null, c.offReason || "Switched off on purpose");
@@ -119,7 +134,15 @@
 
   (async () => {
     const t0 = performance.now();
-    const results = await Promise.all(CHECKS.map(probe));
+    const saved = cached();
+    let results;
+    if (saved) {
+      results = CHECKS.map((c, i) => { const [st, ms, detail] = saved.rows[i]; return show(row(c), st, ms, detail); });
+    } else {
+      const rows = CHECKS.map(row);
+      results = await Promise.all(CHECKS.map((c, i) => probeInto(rows[i], c)));
+      try { sessionStorage.setItem(STORE_KEY, JSON.stringify({ at: Date.now(), rows: rows.map(el => JSON.parse(el.dataset.result)) })); } catch (e) { /* no storage */ }
+    }
     const bad = CHECKS.filter((c, i) => results[i] === "Unhealthy").map(c => c.label);
     const slow = results.filter(s => s === "Degraded").length;
     const off = results.filter(s => s === "Off").length;
@@ -129,8 +152,14 @@
     if (bad.length) { b.textContent = "Not working: " + bad.join(", ") + offNote; b.className = "banner bad"; }
     else if (slow) { b.textContent = `Working, with ${slow} of ${live} live checks degraded` + offNote; b.className = "banner warn"; }
     else { b.textContent = `Everything is working (${live} live checks)` + offNote; b.className = "banner ok"; }
-    document.getElementById("checked").textContent =
-      `Checked ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC from this browser in ${Math.round(performance.now() - t0)} ms.`;
+    const at = saved ? new Date(saved.at) : new Date();
+    const checked = document.getElementById("checked");
+    checked.textContent = saved
+      ? `Probed ${Math.round((Date.now() - saved.at) / 1000)} s ago from this browser (${at.toISOString().replace("T", " ").slice(0, 19)} UTC), kept ${MAX_AGE_S} s. `
+      : `Checked ${at.toISOString().replace("T", " ").slice(0, 19)} UTC from this browser in ${Math.round(performance.now() - t0)} ms (kept ${MAX_AGE_S} s). `;
+    const again = document.createElement("a");
+    again.href = "?fresh"; again.textContent = "Re-check now"; again.style.color = "var(--text)";
+    checked.appendChild(again);
   })();
 </script>
 </body>

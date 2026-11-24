@@ -21,7 +21,7 @@ namespace PoOlympic.Tests
     /// </summary>
     public class ShowcasePlayTests
     {
-        const float LoadSeconds = 60f, ReadySeconds = 60f;
+        const float LoadSeconds = 120f, ReadySeconds = 120f, HeatWaitSeconds = 120f;
         string _savedElo;
 
         [SetUp] public void Save() => _savedElo = PlayerPrefs.GetString(AgentElo.Key, null);
@@ -44,16 +44,23 @@ namespace PoOlympic.Tests
             var menu = Find<MainMenuController>();
             yield return PlayEvent(menu, 0);
             var hud = Find<BroadcastHud>();
-            // let the heat run a few seconds of game time
-            float end = Time.realtimeSinceStartup + 8f;
-            while (Time.realtimeSinceStartup < end) yield return null;
-
-            // 1. penalties: every weighted term is charged (< 0) on at least one athlete, a 0-weight term is never charged
-            var runners = PolicyRunner.Live.Where(r => r != null && r.isActiveAndEnabled && r.Initialized && !r.holdDefaultPose).ToList();
-            Assert.Greater(runners.Count, 0, "no athlete is driven by a brain");
+            // let the heat run until every weighted penalty has been charged and a head has turned (capped: on a loaded
+            // machine the same game time takes longer, so the test waits for the condition, not a fixed window)
             var w = RewardPenalties.Current;
             float[] weights = { w.torqueL2, w.bodyAngVelL2, w.actionRateL2, w.footSlip, w.jointVelL2 };
-            var totals = Enumerable.Range(0, weights.Length).Select(i => runners.Sum(r => r.PenaltyTotals[i])).ToArray();
+            System.Collections.Generic.List<PolicyRunner> Runners() =>
+                PolicyRunner.Live.Where(r => r != null && r.isActiveAndEnabled && r.Initialized && !r.holdDefaultPose).ToList();
+            float[] Totals() { var rs = Runners(); return Enumerable.Range(0, weights.Length).Select(i => rs.Sum(r => r.PenaltyTotals[i])).ToArray(); }
+            float MaxTurn() { var bs = UnityEngine.Object.FindObjectsByType<BoneBinder>(); return bs.Length == 0 ? 0f : bs.Max(b => b.GazeAngle); }
+            float t0 = Time.realtimeSinceStartup;
+            yield return Until(() => Runners().Count > 0 && Totals().Select((t, i) => weights[i] == 0f || t < 0f).All(ok => ok) && MaxTurn() > 3f,
+                               HeatWaitSeconds, "the heat never charged every penalty and turned a head");
+            Debug.Log($"[ShowcasePlayTests] penalties charged and a head turned after {Time.realtimeSinceStartup - t0:0.0} s");
+
+            // 1. penalties: every weighted term is charged (< 0) on at least one athlete, a 0-weight term is never charged
+            var runners = Runners();
+            Assert.Greater(runners.Count, 0, "no athlete is driven by a brain");
+            var totals = Totals();
             string line = string.Join("  ", PolicyRunner.PenaltyNames.Select((n, i) => $"{n} {totals[i]:0.000}"));
             Debug.Log($"[ShowcasePlayTests] penalties over {runners.Count} athletes: {line}");
             for (int i = 0; i < weights.Length; i++)
@@ -89,14 +96,15 @@ namespace PoOlympic.Tests
             yield return Until(() => hud.Anchors.DebugPanel.text.Contains("physics steps/s"), 5f, "the overlay does not show the benchmark result");
         }
 
-        [UnityTest, Timeout(300000)]
+        [UnityTest, Timeout(600000)]
         public IEnumerator Menu_StartsDemoMode_AfterTheIdleTime()
         {
             yield return Menu();
             float idle = MainMenuController.IdleDemoSeconds;
             Assert.AreEqual(30f, idle, 0.01f, "the attract mode starts after 30 s idle (ShowcaseSettings.asset)");
             float t0 = Time.realtimeSinceStartup;
-            yield return Until(() => DemoMode.Active, idle + 15f, "demo mode did not start on an idle menu");
+            // the idle clock skips frames over 0.25 s (IdleClock), so under load the wall time can be longer than idle
+            yield return Until(() => DemoMode.Active, idle * 4f + 30f, "demo mode did not start on an idle menu");
             float took = Time.realtimeSinceStartup - t0;
             Debug.Log($"[ShowcasePlayTests] demo on after {took:0.0} s idle");
             Assert.GreaterOrEqual(took, idle - 1f, "demo mode started before the idle time");

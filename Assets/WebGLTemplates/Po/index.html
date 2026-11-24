@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0f17">
     <link rel="icon" href="data:,">
     <title>{{{ PRODUCT_NAME }}}</title>
@@ -44,11 +44,11 @@
         <a class="po-btn" href="/diag" aria-label="System status" title="System status (/diag)">⚙</a>
       </div>
     </header>
-    <div id="frame">
+    <main id="frame">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
       <div id="loading"><div>LOADING</div><div id="bar"><div id="fill"></div></div></div>
       <div id="error"></div>
-    </div>
+    </main>
     <footer class="po-strip"><span class="po-version">v{{{ PRODUCT_VERSION }}}</span></footer>
     <script>
       var canvas = document.getElementById("unity-canvas");

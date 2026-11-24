@@ -519,6 +519,8 @@ namespace PoOlympic
                 (Recovering ? _recover : _brain).Run(_obs, _ctrlF, _actionRaw);
                 float ms = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency;
                 BrainMs += (ms - BrainMs) * 0.05f;
+                var ran = Recovering ? recoverBrain : brain;
+                if (ran != null) InferenceLog.Note(ran.name, $"{name}, CPU, {_obs.Length} obs -> {_ctrl.Length} actions, {ms:0.00} ms");
                 for (int i = 0; i < _ctrl.Length; i++)
                 {
                     if (!float.IsFinite(_ctrlF[i])) { NanInfCount++; _ctrl[i] = Binding.DefaultPos[i]; }

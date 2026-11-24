@@ -51,7 +51,8 @@ namespace PoOlympic
         public int columns = 3;
         /// <summary>Seconds without a tap / key before demo mode starts on its own (0 = never): ShowcaseSettings asset.</summary>
         public static float IdleDemoSeconds => ShowcaseSettings.Current.idleDemoSeconds;
-        float _lastInput;
+        /// <summary>Idle time on the menu; frames longer than 0.25 s are not counted (IdleClock).</summary>
+        readonly IdleClock _idle = new();
 
         readonly string[] _entrants = new string[EventCompetition.EntrantCount];
         /// <summary>The field picked in the menu, kept across the event scenes (the menu scene is reloaded).</summary>
@@ -76,7 +77,7 @@ namespace PoOlympic
 
         void OnEnable()
         {
-            _lastInput = Time.unscaledTime;
+            _idle.Reset();
             Populate();
         }
 
@@ -105,8 +106,8 @@ namespace PoOlympic
         /// <summary>Demo mode after IdleDemoSeconds without a tap, click, key or gamepad button.</summary>
         void IdleDemo()
         {
-            if (DemoRunner.AnyInput(held: true)) _lastInput = Time.unscaledTime;
-            else if (IdleDemoSeconds > 0f && !DemoMode.Active && !MeetSeries.Active && Time.unscaledTime - _lastInput > IdleDemoSeconds) StartDemo();
+            if (DemoRunner.AnyInput(held: true)) _idle.Reset();
+            else if (IdleDemoSeconds > 0f && !DemoMode.Active && !MeetSeries.Active && _idle.Advance(Time.unscaledDeltaTime) > IdleDemoSeconds) StartDemo();
         }
 
         /// <summary>Endless gauntlet of every playable event with random lineups (DemoMode); scenes with a fixed
@@ -114,7 +115,7 @@ namespace PoOlympic
         public void StartDemo()
         {
             if (!Application.isPlaying) return;
-            _lastInput = Time.unscaledTime;
+            _idle.Reset();
             DemoMode.Begin(events.Where(e => IsPlayable(e) && !FixedLineup(e))
                 .Select(e => (e.number, e.scene)));
         }

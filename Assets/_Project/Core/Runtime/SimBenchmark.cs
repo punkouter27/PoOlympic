@@ -81,14 +81,26 @@ namespace PoOlympic
             Finish();
         }
 
+        /// <summary>The device the benchmark ran on, as the player sees it: "CPU &lt;name&gt; x&lt;cores&gt;, GPU &lt;name&gt;"
+        /// (a browser reports a generic CPU name and its WebGL renderer as the GPU).</summary>
+        public static string Hardware()
+        {
+            string cpu = UnityEngine.SystemInfo.processorType;
+            if (string.IsNullOrWhiteSpace(cpu)) cpu = "unknown";
+            string gpu = UnityEngine.SystemInfo.graphicsDeviceName;
+            if (string.IsNullOrWhiteSpace(gpu)) gpu = "unknown";
+            return $"this device: CPU {cpu.Trim()} x{UnityEngine.SystemInfo.processorCount}, GPU {gpu.Trim()}";
+        }
+
         static void Finish()
         {
             // wall time of the stepping only (the slices), not the frames in between
             double wall = _stepping;
             StepsPerSecond = wall > 0 ? _steps / wall : 0;
             double decisions = StepsPerSecond / _decimation * UnityEngine.Mathf.Max(1, _athletes);
-            Result = $"Benchmark ({wall:0.0} s of stepping, this device, 1 world, {_athletes} athlete{(_athletes == 1 ? "" : "s")}, CPU): " +
-                     $"{StepsPerSecond:N0} physics steps/s = {decisions:N0} agent decisions/s. Local simulation speed, not a training run.";
+            Result = $"Benchmark on {Hardware()}. Measured: {wall:0.0} s of MuJoCo stepping on the CPU main thread, 1 world, " +
+                     $"{_athletes} athlete{(_athletes == 1 ? "" : "s")}: {StepsPerSecond:N0} physics steps/s = {decisions:N0} agent decisions/s " +
+                     "(simulation only, no rendering or inference). Local simulation speed, not a training run.";
             UnityEngine.Debug.Log("[SimBenchmark] " + Result);
             Release();
         }

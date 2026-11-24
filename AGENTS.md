@@ -91,13 +91,18 @@ every publish. Tests never write into tracked files.
   probed live in the visitor's browser: this build's page (loader + vYYMMDD), the X-Commit header the workflow stamps,
   Open-Meteo weather, WebGL2, one HEAD per build-bundle file. The AI commentator (Anthropic API) shows a neutral
   "Off": it needs the player's own key, which a browser build never has (Off rows do not count in the banner).
+  Results are kept 60 s per browser tab (`MAX_AGE_S`, sessionStorage); `/diag?fresh` ("Re-check now") probes again.
 - Tab overlay (`Tab` / `F3`, or the bottom-left debug button on touch screens): FPS, episode reward of the athlete on
   camera with each penalty term, brain inference latency (rolling average), curriculum stage (the brain's rung /
   skill), and a **Benchmark sim speed** button (`SimBenchmark`: steps a private copy of the event's MuJoCo world
-  for `ShowcaseSettings.benchmarkSeconds` and reports physics steps/s and agent decisions/s; local simulation only,
-  labelled "not a training run").
+  for `ShowcaseSettings.benchmarkSeconds` and reports physics steps/s and agent decisions/s; local simulation only;
+  the result names the CPU (+ cores) and GPU it ran on and what was measured, and says "not a training run").
+- Policy proof: every brain logs one console line the first time it acts, `[PoOlympic] <brain>.onnx inference running
+  (<athlete>, CPU, 84 obs -> 23 actions, … ms)` (`InferenceLog`); check it in the local WebGL build at 16:9 and 9:16.
 - Demo mode: after `ShowcaseSettings.idleDemoSeconds` (30 s) without input the main menu starts `DemoMode`; the
-  broadcast HUD then hides everything but the event title, the DEMO caption and the clock; any input ends it.
+  broadcast HUD then hides everything but the event title, the DEMO caption and the clock; any input ends it. The idle
+  wait and the broadcast camera's shot dwell use `IdleClock`, which skips frames longer than 0.25 s (loads, hitches,
+  background tabs); `ShowcaseClockTests` feeds it long frames.
 - Editor-first settings (ScriptableObjects in `Data/Resources`): `RewardPenalties` (reward weights) and
   `ShowcaseSettings` (attract idle/result time, broadcast camera tunables applied by `BroadcastDirector.Start`, gaze
   reach, benchmark length). UI: `UI/PoOlympicPanelSettings.asset` + `Tokens.uss`. Curriculum: the trainer's task
@@ -109,7 +114,11 @@ every publish. Tests never write into tracked files.
   weights (plus joint-velocity², 0 = off) that every task reads (`poolympic/penalties.py`). Unity mirrors them in
   `Data/Resources/RewardPenalties.asset` (episode-reward readout, every term tracked in `PolicyRunner.PenaltyTotals`);
   `RewardPenaltiesTests` keeps the two equal, `Training/tests/test_penalties.py` checks the task cfgs carry them and
-  `ShowcasePlayTests` that each is charged in a live heat. The shipped brains were trained with exactly these values;
+  `ShowcasePlayTests` that each is charged in a live heat; the trainer logs each term as `Episode_Reward/<term>` (mjlab
+  RewardManager), checked per term by `test_penalties.py::test_each_penalty_is_logged_under_its_own_key`.
+- Physics rules (gravity −9.81, every hinge limited and holding at its limit, PD servos with torque caps, no contact
+  between parent/child bodies in 300 random poses, friction ≥ 0.5 on every body geom) are checked for every body by
+  `Training/tests/test_physics_bodies.py` (fast tier). The shipped brains were trained with exactly these values;
   changing one means new task IDs + retraining. No mocap data in the repo: no BC/AMP stage (PPO only).
 - MuJoCo: 3.11.0 everywhere (plugin `Packages/org.mujoco`, native `Assets/Plugins/MuJoCo/mujoco.dll`, WebGL
   `Assets/Plugins/WebGL/MuJoCo/*.a`, Android `libmujoco.so`, Python `mujoco`/`mujoco-warp` 3.11.0). It stays on
@@ -130,7 +139,6 @@ every publish. Tests never write into tracked files.
 | Layout moved to `Assets/_Project/...` + `/Training`, overriding the owner's `0cc9ab6` layout (`Assets/PoOlympic`, lowercase `training/`) | the v3 layout rule is newer; whole-folder `git mv`, GUIDs kept | `c92ac7c` 2026-11-22 | `git revert c92ac7c` |
 | `Assets/Local/MjImports`, `Plugins`, `WebGLTemplates`, `Art/{Raw,Exports}`, `Samples`, `link.xml` stay outside `_Project`; generated MJCF and brain sidecars still say `training/...` in comments | importer/Unity paths; sidecars kept byte-identical | `c92ac7c` 2026-11-22 | — |
 | Unity build and tests run locally only; CI runs the Python checks and deploys the locally built release | Unity cannot be licensed in CI (owner design) | `763364e` 2026-11-22 | — |
-| CS0618 warnings in vendored `Packages/org.mujoco` (game code has 0) | third-party code | 2026-11-22 | patch the vendored plugin |
 | Gaze is render-only (Head bone look) | the athletes' MJCF has no neck joint; a neck DOF changes the brains' contracts | `763364e` 2026-11-22 | add a neck DOF + new contract version |
 | The build stamps `PlayerSettings.bundleVersion` into `ProjectSettings.asset`; revert it after a local build and commit only `BuildStamp.txt` | owner design | — | — |
 | `parity/` brains and references tracked before 2026-11-20 stay tracked | owner decision pending (publish a real archive and untrack, or keep) | 2026-11-22 | — |
@@ -232,8 +240,8 @@ Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity
 
 ## 3. Verify the repo (exact commands)
 
-The one command sequence below verifies the repo (last full run 2026-11-22: pytest fast tier 55 passed locally, 52 +
-3 skipped in CI; EditMode 117 passed, 11 skipped; PlayMode 3/3). From the repo root, Unity editor closed (PowerShell; `$U = "C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Unity.exe"`):
+The one command sequence below verifies the repo (last full runs 2026-11-23, 3 in a row: pytest fast tier 92 passed;
+EditMode 123 passed, 11 skipped (the explicit slow crowd-contact checks, run by name); PlayMode 3/3; 0 warning CS). From the repo root, Unity editor closed (PowerShell; `$U = "C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Unity.exe"`):
 
 ```powershell
 git lfs pull
@@ -248,7 +256,9 @@ git status                                        # must be clean: no test wrote
 ```
 
 All must pass: 0 failed EditMode/PlayMode tests (PlayMode needs `-force-d3d11`: D3D12 can lose the device mid-suite),
-0 `error CS`, no `warning CS` in `Assets/_Project` (the vendored `Packages/org.mujoco` has CS0618 warnings).
+0 `error CS`, 0 `warning CS` (the vendored `Packages/org.mujoco` was patched on 2026-11-23: `FindObjectsByType<T>()`
+without the obsolete `FindObjectsSortMode`). PlayMode tests wait for their condition with a cap (no fixed windows) and
+carry explicit `[Timeout]`s, so a loaded machine makes them slower, not red.
 Look at the local build: serve `Builds/WebGL` (e.g. `npx http-server Builds/WebGL -p 8080`) and open it at 1366x768
 and 390x844: one title and one vYYMMDD outside the canvas, Tab overlay + benchmark, demo mode after 30 s idle, no
 console errors. Publish: `pwsh -File scripts/publish_webgl.ps1` (HEAD pushed), then watch Actions → Deploy WebGL; the

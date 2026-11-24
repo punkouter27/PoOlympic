@@ -61,3 +61,32 @@ def test_foot_slip_charges_only_sliding_feet_in_contact():
     out = mdp.foot_slip(env)
     assert out.tolist() == pytest.approx([0.25, 0.0])
     assert (P.WEIGHTS["foot_slip"] * out).tolist()[0] < 0
+
+
+@pytest.mark.parametrize("cfg_fn", [M.matt_rung0_env_cfg, M.matt_rung2_env_cfg])
+def test_each_penalty_is_logged_under_its_own_key(cfg_fn):
+    """The trainer's RewardManager (mjlab) sums every reward term separately and logs it as Episode_Reward/<term> at
+    each reset (TensorBoard). Driven with the task's own term names and weights (each term returns 1 per step): every
+    penalty of reward_penalties.json gets its own key with its own negative sum, not one lumped penalty."""
+    from mjlab.managers.reward_manager import RewardManager, RewardTermCfg
+
+    rewards = cfg_fn().rewards
+    penalty_terms = {"torques", "torso_ang_vel", "action_rate", "foot_slip", "joint_vel"} & set(rewards)
+    assert {"torques", "torso_ang_vel", "action_rate"} <= penalty_terms
+    env = SimpleNamespace(num_envs=2, device="cpu", max_episode_length_s=1.0)
+    stub = {
+        name: RewardTermCfg(func=lambda e: torch.ones(e.num_envs), weight=cfg.weight, params={})
+        for name, cfg in rewards.items()
+        if cfg is not None
+    }
+    manager = RewardManager(stub, env)
+    steps, dt = 10, 0.02
+    for _ in range(steps):
+        manager.compute(dt)
+    logged = manager.reset()
+    for name in penalty_terms:
+        key = "Episode_Reward/" + name
+        assert key in logged, f"{cfg_fn.__name__}: {name} has no log key of its own"
+        assert float(logged[key]) == pytest.approx(rewards[name].weight * dt * steps)
+        assert float(logged[key]) < 0, f"{name} is logged as a penalty"
+    assert len({k for k in logged if k.startswith("Episode_Reward/")}) == len(stub)

@@ -391,7 +391,7 @@ namespace PoOlympic
                 _shotClock = 0; _shot = 0; _last = b.BoardState; _snap = true; FreeOffset = Vector3.zero;
                 if (b.BoardState == BoardPhase.Ready) { _startRot.Clear(); _faceSmooth.Clear(); }   // re-read the start pose each heat
             }
-            _shotClock += Time.unscaledDeltaTime;
+            _shotClock += IdleClock.Step(Time.unscaledDeltaTime);
             if (Mode == CameraMode.Free)
             {
                 Vector3 freeLook = focus + FreeOffset;
@@ -416,7 +416,7 @@ namespace PoOlympic
             if (snap) foreach (var c in new[] { wide, headOn, high, hot, winner, leaderClose }) if (c != null) c.PreviousStateIsValid = false;
             _snap = false;
             _init = true;
-            _shotHeld += Time.unscaledDeltaTime;
+            _shotHeld += IdleClock.Step(Time.unscaledDeltaTime);
 
             // who is the story right now
             var hotRunner = tension != null && tension.HotDanger >= hotCutDanger ? tension.Hot : null;
@@ -476,7 +476,7 @@ namespace PoOlympic
             }
             if (want == Shot.Hot)
             {
-                _hotClock += Time.unscaledDeltaTime;
+                _hotClock += IdleClock.Step(Time.unscaledDeltaTime);
                 var ht = Pelvis(_hotRunner);
                 // entering: placed on the athlete (the hot camera is not live yet, the blend does the move); then glides
                 if (ht != null) hotProxy.position = _hotGlide.Step(ht.position, snap || _shotNow != Shot.Hot, this);
